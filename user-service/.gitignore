@@ -1,0 +1,16 @@
+# ============================================================================
+# user-service — .gitignore local.
+# Les règles globales (racine) s'appliquent déjà ; ici uniquement ce qui est
+# propre à ce module pour qu'il reste autonome.
+# ============================================================================
+
+# Build Maven
+target/
+
+# IDE (les .iml sont créés dans le dossier du module)
+.idea/
+*.iml
+.vscode/
+
+# Logs propres au module
+*.log

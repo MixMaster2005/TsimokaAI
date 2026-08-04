@@ -1,0 +1,2 @@
+mg.esmia.miage.common.config.CommonAutoConfiguration
+mg.esmia.miage.common.exception.GlobalExceptionHandler

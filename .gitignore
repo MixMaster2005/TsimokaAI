@@ -1,0 +1,106 @@
+# ============================================================================
+# TsimokaAI — .gitignore racine (normes GitHub).
+#
+# S'applique à TOUT le monorepo. Chaque module ajoute un .gitignore local
+# pour ses propres artefacts (ex. target/) afin de rester autonome.
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Build — Java / Maven (normes GitHub)
+# ----------------------------------------------------------------------------
+target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Artefacts Maven générés
+*.class
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+pom.xml.bak
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Logs de build / d'exécution
+*.log
+logs/
+*.log.*
+
+# ----------------------------------------------------------------------------
+# Environnement & secrets
+# ----------------------------------------------------------------------------
+# .env réel jamais versionné — seul .env.example (documenté) l'est.
+.env
+.env.*
+!.env.example
+
+# Secrets et fichiers sensibles
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*.truststore
+application-secret.yml
+application-local.yml
+*.local.properties
+
+# ----------------------------------------------------------------------------
+# IDE — IntelliJ IDEA
+# ----------------------------------------------------------------------------
+.idea/
+.idea_modules/
+*.iml
+*.ipr
+*.iws
+
+# IDE — Eclipse
+.classpath
+.project
+.settings/
+.factorypath
+*.launch
+
+# IDE — Visual Studio Code
+.vscode/
+*.code-workspace
+
+# IDE — NetBeans
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+nbactions.xml
+nb-configuration.xml
+
+# ----------------------------------------------------------------------------
+# OS / Système
+# ----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.Trashes
+.Spotlight-V100
+*~
+
+# ----------------------------------------------------------------------------
+# Docker
+# ----------------------------------------------------------------------------
+# Les volumes Docker sont gérés par Docker lui-même (nommés, voir
+# docker-compose.yml) — rien à ignorer ici, mais on couvre les dumps éventuels.
+*.sql.gz
+*.sql.bak
+
+# ----------------------------------------------------------------------------
+# Autres
+# ----------------------------------------------------------------------------
+*.swp
+*.swo
