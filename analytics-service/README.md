@@ -60,7 +60,7 @@ flowchart LR
     P --> DASH[Dashboard étudiant]
     ST --> DT[Dashboard enseignant]
     CH --> DT
-    R --> RECO[/api/v1/recommandations]
+    R --> RECO["/api/v1/recommandations"]
 ```
 
 ## Endpoints

@@ -57,7 +57,7 @@ compteurs, enrichissements) passe par **Redis Pub/Sub**.
 ```mermaid
 flowchart TB
     subgraph Client
-        FE[Frontend Next.js<br/>(hors dépôt)]
+        FE["Frontend Next.js<br/>(hors dépôt)"]
     end
     subgraph Edge
         GW[api-gateway :8080<br/>JWT · rate limiting · CORS · routage]
