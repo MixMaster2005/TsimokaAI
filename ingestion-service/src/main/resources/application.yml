@@ -54,6 +54,16 @@ qdrant:
   port: ${QDRANT_PORT:6334}
   use-tls: ${QDRANT_USE_TLS:false}
 
+# docling-worker : conteneur d'extraction spawné à la demande par ingestion-service
+# (docker-java). Image construite manuellement : docker build -t docling-worker:latest ./docling-worker
+docling-worker:
+  docker-host: ${DOCKER_HOST_SOCKET:unix:///var/run/docker.sock}
+  image: ${DOCLING_WORKER_IMAGE:docling-worker:latest}
+  network: ${DOCKER_NETWORK:apa-net}
+  container-port: 8090
+  startup-timeout-seconds: ${DOCLING_WORKER_STARTUP_TIMEOUT:30}
+  conversion-timeout-seconds: ${DOCLING_WORKER_CONVERT_TIMEOUT:120}
+
 management:
   endpoints:
     web:

@@ -183,6 +183,16 @@ services:
       QDRANT_HOST: qdrant
       QDRANT_PORT: 6334
       OLLAMA_URL: http://ollama:11434
+      # docling-worker (conteneur d'extraction spawné à la demande) : même réseau Docker
+      # que ingestion-service pour que le DNS par nom de conteneur fonctionne.
+      DOCLING_WORKER_IMAGE: ${DOCLING_WORKER_IMAGE:-docling-worker:latest}
+      DOCKER_NETWORK: apa-net
+    volumes:
+      # ⚠️ SECURITE : monter le socket Docker de l'hôte équivaut à un accès ROOT sur l'hôte
+      # (ingestion-service peut piloter tous les conteneurs). Acceptable en local/démo ;
+      # en environnement partagé, cloisonner via un proxy type `docker-socket-proxy` et
+      # pointer DOCKER_HOST_SOCKET dessus.
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       postgres:
         condition: service_healthy
@@ -290,3 +300,13 @@ volumes:
   qdrant_data:
   minio_data:
   ollama_data:
+
+# ----------------------------------------------------------------------------
+# Réseau nommé explicitement : le conteneur docling-worker spawné dynamiquement
+# par ingestion-service (docker-java, `HostConfig.withNetworkMode("apa-net")`)
+# doit rejoindre le réseau par un nom FIXE (pas le nom auto-généré par Compose)
+# pour que la résolution DNS `docling-worker-<uuid>` fonctionne.
+# ----------------------------------------------------------------------------
+networks:
+  default:
+    name: apa-net

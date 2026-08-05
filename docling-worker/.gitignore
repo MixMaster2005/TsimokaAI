@@ -1,0 +1,17 @@
+# ============================================================================
+# docling-worker — .gitignore local.
+# Les règles globales (racine) s'appliquent déjà ; ici uniquement ce qui est
+# propre à ce module Python pour qu'il reste autonome.
+# ============================================================================
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/

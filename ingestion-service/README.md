@@ -1,11 +1,13 @@
 # ingestion-service
 
-> **Statut :** 🟡 Infrastructure complète — pipeline RAG en **TODO**
+> **Statut :** 🟡 Extraction fonctionnelle (docling-worker) — chunking/embeddings/indexation en **TODO**
 > **Port :** `8083` · **Base :** `ingestion_db` (PostgreSQL) · **Vecteurs :** Qdrant · **Fichiers :** MinIO
 
 Upload, extraction, chunking, embedding et indexation vectorielle des documents de cours.
 L'infrastructure (upload MinIO, entités, statuts, endpoints, clients Qdrant/MinIO, publication
-d'événements) est **fonctionnelle** ; le **cœur du pipeline RAG est un TODO explicite** dans
+d'événements) est **fonctionnelle**, tout comme l'**extraction du texte**, déléguée à un
+conteneur Python `docling-worker` spawné à la demande (voir `service/docker/`). Le **reste du
+pipeline RAG (chunking, embeddings, upsert) est un TODO explicite** dans
 `IngestionPipelineService` — c'est la pièce maîtresse à écrire pour le mémoire.
 
 ## Rôle
@@ -30,7 +32,11 @@ d'événements) est **fonctionnelle** ; le **cœur du pipeline RAG est un TODO e
   `chunks_{spaceId}` par espace, metadata `{document_id, space_id, chunk_index, content}`.
   Le client Qdrant déclare gRPC en scope `runtime` : une dépendance explicite
   `io.grpc:grpc-netty-shaded` (1.65.1) est ajoutée pour le classpath de compilation.
-- **Extraction multi-format via Apache Tika** (déjà en dépendance) — couvre PDF/DOCX/TXT en une lib.
+- **Extraction déléguée à `docling-worker/`** (conteneur Python FastAPI spawné à la demande) :
+  `DockerWorkerClient` (lib `docker-java`) crée un conteneur `docling-worker-<uuid>` sur le
+  réseau `apa-net`, attend son `/health`, appelle `POST /v1/convert` (multipart), puis arrête
+  et supprime le conteneur en `finally`. L'extraction MarkItDown (PDF/DOCX/PPTX/XLSX →
+  Markdown structuré) bascule sur un OCR de secours si le ratio caractères/pages est trop bas.
 - **Modèle d'embedding via Spring AI Ollama** (`nomic-embed-text` par défaut) — configuré mais non appelé.
 - **Files jamais en base relationnelle** : `chunks` ne stocke que le texte, l'index et le
   `vector_id` (id du point Qdrant) — les vecteurs vivent dans Qdrant.
@@ -47,8 +53,8 @@ flowchart LR
     MO --> DOC[Document.status=PENDING → sauvé]
     DOC --> ASYNC[processAsync @Async]
     ASYNC --> ST1[status=PROCESSING]
-    ST1 --> TIKA[1. Tika parseToString<br/>extraction texte brut]
-    TIKA --> CHUNK[2. chunking fixe + chevauchement<br/>~500 tokens / 50-100 overlap]
+    ST1 --> DW[1. docling-worker<br/>extraction → Markdown structuré]
+    DW --> CHUNK[2. chunking fixe + chevauchement<br/>~500 tokens / 50-100 overlap]
     CHUNK --> EMB[3. EmbeddingModel<br/>Spring AI - Ollama]
     EMB --> QD[4. upsert Qdrant<br/>collection chunks_spaceId]
     QD --> DB[5. persist chunks + vectorId]
@@ -56,9 +62,10 @@ flowchart LR
     ASYNC -- erreur --> FAIL[status=FAILED + publish DOCUMENT_FAILED]
 ```
 
-> ❗ **État actuel** : le bloc réel (Tika → chunks → embeddings → Qdrant) n'est **pas écrit**.
-> Le squelette fonctionnel fait transiter les statuts et publie les bons événements avec
-> `chunkCount = 0`, pour que le reste de la plateforme reste testable de bout en bout.
+> ❗ **État actuel** : l'**extraction est fonctionnelle** (docling-worker, étape 1). Le bloc
+> (Markdown → chunks → embeddings → Qdrant) n'est **pas écrit** : le squelette fait transiter
+> les statuts et publie les bons événements avec `chunkCount = 0`, pour que le reste de la
+> plateforme reste testable de bout en bout.
 
 ## Endpoints
 
@@ -97,13 +104,14 @@ Toutes les routes sont protégées par JWT.
 
 ## Non implémenté (cœur IA du mémoire) — `IngestionPipelineService`
 
-1. **Extraction** : `Tika().parseToString(inputStream)` selon le mime-type.
-2. **Chunking fixe avec chevauchement** : point de départ ~500 tokens / chunk, 50-100 tokens
+L'extraction (étape 1) est en place via `docling-worker`. Reste à écrire :
+
+1. **Chunking fixe avec chevauchement** : point de départ ~500 tokens / chunk, 50-100 tokens
    d'overlap, à ajuster empiriquement.
-3. **Embeddings** : `EmbeddingModel` Spring AI (Ollama configuré).
-4. **Upsert Qdrant** : créer la collection `chunks_{spaceId}` si absente, upsert des points,
+2. **Embeddings** : `EmbeddingModel` Spring AI (Ollama configuré).
+3. **Upsert Qdrant** : créer la collection `chunks_{spaceId}` si absente, upsert des points,
    filtrer/delete les points par `document_id` lors d'une suppression.
-5. Mettre à jour `chunkCount` réel et publier `DOCUMENT_READY` **avec le vrai nombre de chunks**.
+4. Mettre à jour `chunkCount` réel et publier `DOCUMENT_READY` **avec le vrai nombre de chunks**.
 
 **Point de vigilance** : l'artifactId du starter Spring AI Ollama a changé entre les milestones
 (`spring-ai-ollama-spring-boot-starter` vs `spring-ai-starter-model-ollama`). Le POM utilise la
@@ -117,6 +125,11 @@ forme **1.0.0** (`spring-ai-starter-model-ollama`), vérifiée compatible avec `
 | `QDRANT_HOST` / `QDRANT_PORT` / `QDRANT_USE_TLS` | `localhost` / `6334` / `false` | Base vectorielle (gRPC) |
 | `OLLAMA_URL` | `http://localhost:11434` | Modèle d'embedding local |
 | `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Modèle d'embedding |
+| `DOCKER_HOST_SOCKET` | `unix:///var/run/docker.sock` | Socket Docker (⚠️ accès root sur l'hôte) |
+| `DOCLING_WORKER_IMAGE` | `docling-worker:latest` | Image du conteneur d'extraction |
+| `DOCKER_NETWORK` | `apa-net` | Réseau Docker que doit rejoindre le worker |
+| `DOCLING_WORKER_STARTUP_TIMEOUT` | `30` | Timeout d'attente du `/health` (secondes) |
+| `DOCLING_WORKER_CONVERT_TIMEOUT` | `120` | Timeout d'un `POST /v1/convert` (secondes) |
 
 ## Lancer
 
@@ -125,3 +138,7 @@ docker compose up -d postgres redis minio qdrant
 mvn -pl common,ingestion-service -am spring-boot:run
 # Swagger : http://localhost:8083/swagger-ui.html
 ```
+
+> ⚠️ Pour tester un upload : construire d'abord le conteneur d'extraction
+> (`docker build -t docling-worker:latest ./docling-worker`) — sans lui, le document
+> passera en `FAILED` (image introuvable).

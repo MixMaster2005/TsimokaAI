@@ -1,0 +1,17 @@
+# docling-worker — extraction de documents (conteneur spawné à la demande).
+# Versions non épinglées : accès PyPI non validé à la rédaction — installer avec
+# `pip install -r requirements.txt` au premier build de l'image.
+
+fastapi
+uvicorn[standard]
+python-multipart
+markitdown[pdf,docx,pptx,xlsx]
+pypdf
+
+# ---------------------------------------------------------------------------
+# Étage 2 — OCR (à activer avec l'implémentation réelle du modèle).
+# Ligne torch volontairement limitée au build CPU (pas de GPU dans l'environnement cible).
+#   transformers
+#   torch --index-url https://download.pytorch.org/whl/cpu
+#   pypdfium2
+# ---------------------------------------------------------------------------

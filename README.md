@@ -105,7 +105,7 @@ Les échanges d'événements entre services sont détaillés dans [`common/READM
 | Vecteurs | Qdrant (client gRPC) | 1.13.0 |
 | Cache / messages | Redis 7 (Pub/Sub) | — |
 | Stockage objet | MinIO (compatible S3) | latest |
-| Extraction | Apache Tika | 2.9.2 |
+| Extraction | docling-worker (FastAPI / MarkItDown + OCR) | — |
 | Auth | JJWT + BCrypt (`spring-security-crypto`) | 0.12.6 |
 | Mapping / code | MapStruct + Lombok | 1.6.2 / 1.18.34 |
 | Documentation API | springdoc-openapi | 2.6.0 |
@@ -126,6 +126,7 @@ tsimokaai/
 ├── fiche-service/              # 📄 Fiches, partage, annotations, validation → README
 ├── analytics-service/          # 📊 Dashboards, recommandations → README
 ├── gamification-service/       # 🏆 Objectifs, badges, rappels → README
+├── docling-worker/             # 🐍 Conteneur d'extraction (MarkItDown/OCR), spawné à la demande → README
 ├── infra/postgres-init/        # Création d'une base PostgreSQL par service
 ├── ARCHITECTURE.md             # Décisions & compromis architecturaux (base du mémoire)
 └── docs/                       # Documentation complémentaire
@@ -168,6 +169,11 @@ docker compose up --build
 
 # Avec le LLM local Ollama (fallback hors-ligne) :
 docker compose --profile ollama up --build
+
+# 3. (Une seule fois) Construire le conteneur d'extraction docling-worker — REQUIS avant
+#    tout upload de document : il est spawné à la demande par ingestion-service (pas un
+#    service permanent de docker-compose.yml).
+docker build -t docling-worker:latest ./docling-worker
 ```
 
 Une fois démarré :
@@ -227,8 +233,9 @@ cœur IA (voir [Contribuer](#contribuer)).
 Chaque TODO est documenté en Javadoc dans le code concerné. Ce sont les travaux à combler
 pour le mémoire :
 
-1. **`ingestion-service` / `IngestionPipelineService`** — extraction de texte (Tika),
-   chunking avec chevauchement, génération d'embeddings, upsert Qdrant.
+1. **`ingestion-service` / `IngestionPipelineService`** — suite du pipeline après extraction
+   (extraction fonctionnelle via docling-worker) : chunking avec chevauchement, génération
+   d'embeddings, upsert Qdrant.
 2. **`space-service` / `PersonaService`** — génération + enrichissement du persona par LLM.
 3. **`chat-service` / `ChatService` + `LlmProviderConfig`** — orchestration RAG complète
    (retrieval, prompt, bascule Groq/Gemini/Ollama, appel LLM).

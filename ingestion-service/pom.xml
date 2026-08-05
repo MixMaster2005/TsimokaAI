@@ -17,9 +17,10 @@
         ================================ SCAFFOLD VOLONTAIRE ================================
         L'infrastructure générique (upload MinIO, entités, statuts, endpoints REST, clients
         MinIO/Qdrant, publication d'événements) est fournie et fonctionnelle.
-        Le cœur métier IA — extraction de texte par format, chunking avec chevauchement,
-        génération d'embeddings, upsert Qdrant — est un TODO explicite dans
-        IngestionPipelineService : c'est le travail à combler pour le mémoire.
+        L'extraction du texte est déléguée à un conteneur Python spawné à la demande
+        (docling-worker, cf. service.docker.DockerWorkerClient). Le reste du cœur métier IA
+        — chunking avec chevauchement, génération d'embeddings, upsert Qdrant — est un TODO
+        explicite dans IngestionPipelineService : c'est le travail à combler pour le mémoire.
         =======================================================================================
     </description>
 
@@ -89,17 +90,18 @@
             <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
 
-        <!-- Extraction de texte multi-format (PDF, DOCX, TXT) — TODO d'usage dans
-             IngestionPipelineService. Apache Tika couvre tous les formats du MVP en une lib. -->
+        <!-- Extraction de texte déléguée à docling-worker (conteneur Python spawné à la
+             demande, cf. service.docker.DockerWorkerClient). docker-java pilote le daemon
+             Docker de l'hôte (création/démarrage/arrêt du conteneur). -->
         <dependency>
-            <groupId>org.apache.tika</groupId>
-            <artifactId>tika-core</artifactId>
-            <version>2.9.2</version>
+            <groupId>com.github.docker-java</groupId>
+            <artifactId>docker-java-core</artifactId>
+            <version>3.4.0</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.tika</groupId>
-            <artifactId>tika-parsers-standard-package</artifactId>
-            <version>2.9.2</version>
+            <groupId>com.github.docker-java</groupId>
+            <artifactId>docker-java-transport-httpclient5</artifactId>
+            <version>3.4.0</version>
         </dependency>
 
         <!-- Spring AI : nécessaire pour l'appel au modèle d'embedding (TODO pipeline).
