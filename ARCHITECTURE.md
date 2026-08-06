@@ -90,6 +90,13 @@ premier build, une fois l'accès à la documentation Spring AI à jour possible.
 
 ## 7. Limites connues de ce codebase généré
 
+- **Concurrence d'ingestion non bornée** : `processAsync` (@Async) s'appuie sur le
+  `SimpleAsyncTaskExecutor` par défaut — un thread par upload, aucun pool, et chaque
+  conversion spawné un conteneur `docling-worker` (docker-java). Sous charge, N uploads
+  simultanés = N threads + N conteneurs + N×M appels Gemini (quota RPM) → risque de
+  saturation RAM/CPU en local et de dépassement de quota en serveur. Analyse et pistes de
+  correction (pool borné, sémaphore de conteneurs, idempotence par document, retry/backoff)
+  documentées dans [`docs/ingestion-concurrence.md`](docs/ingestion-concurrence.md).
 - Versions de dépendances non validées par une build réelle (pas d'accès à Maven Central
   depuis l'environnement de génération) — à vérifier au premier `mvn install`.
 - `extractNotion()` dans `analytics-service` est une heuristique lexicale simple (premier

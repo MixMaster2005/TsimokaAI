@@ -151,3 +151,12 @@ mvn -pl common,ingestion-service -am spring-boot:run
 > ⚠️ Pour tester un upload : construire d'abord le conteneur d'extraction
 > (`docker build -t docling-worker:latest ./docling-worker`) — sans lui, le document
 > passera en `FAILED` (image introuvable).
+
+## Limites connues
+
+- **Concurrence d'ingestion non bornée** : `processAsync` (@Async) utilise le
+  `SimpleAsyncTaskExecutor` par défaut (un thread par upload, pas de pool) et chaque
+  conversion spawné son propre conteneur `docling-worker`. Sous charge, N uploads
+  simultanés = N threads + N conteneurs + N×M appels Gemini → risque de saturation de la
+  RAM (local) et de dépassement du quota Gemini. Analyse complète et pistes de correction
+  dans [`docs/ingestion-concurrence.md`](../docs/ingestion-concurrence.md).
