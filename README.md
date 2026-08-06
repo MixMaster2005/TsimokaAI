@@ -37,15 +37,17 @@ leur **progression** — le tout piloté par un ensemble de **microservices Spri
 |---|---|
 | **Comptes & sessions** | Inscription, connexion, refresh token avec rotation, rôles (étudiant / enseignant) |
 | **Espaces de cours** | Création d'espaces, groupes de travail, **persona pédagogique** par espace (instruction système du LLM) |
-| **Ingestion de documents** | Upload PDF / DOCX / TXT, extraction de texte, **chunking**, **embeddings**, indexation **vectorielle** (Qdrant) |
+| **Ingestion de documents** | Upload PDF / DOCX / PPTX / XLSX, extraction **Markdown** (MarkItDown + vision **Gemini** : légende des figures, transcription des scans, images dans MinIO), puis **chunking**, **embeddings**, indexation **vectorielle** (Qdrant) |
 | **Assistant RAG** | Conversations par espace, recherche sémantique dans les documents, réponse générée par LLM (Groq / Gemini / Ollama) |
 | **Fiches de révision** | Génération **Map-Reduce**, partage (individuel / groupe), annotations, validation par l'enseignant |
 | **Suivi & analytics** | Dashboards étudiant / enseignant, détection de notions difficiles, recommandations |
 | **Gamification** | Objectifs de révision, badges, suivi hebdomadaire, rappels |
 
 > ⚠️ **État des lieux** : la « plomberie » (CRUD, sécurité, événements, persistance, Docker)
-> est fonctionnelle. Le **cœur IA** (persona, pipeline RAG, génération Map-Reduce) est
-> volontairement laissé en TODO pour être complété dans le cadre du mémoire — voir la
+> est fonctionnelle, ainsi que l'**extraction des documents** (docling-worker + vision
+> Gemini, spec v2 : figures, documents scannés, images stockées dans MinIO). Le **cœur IA**
+> restant (persona, chunking/embeddings/upsert, orchestration RAG, génération Map-Reduce)
+> est volontairement laissé en TODO pour être complété dans le cadre du mémoire — voir la
 > [feuille de route](#feuille-de-route).
 
 ## Architecture
@@ -142,7 +144,7 @@ diagrammes, endpoints, événements et **parties non implémentées**.
 | `api-gateway` | 8080 | Point d'entrée unique, JWT, routage, rate limiting | ✅ Complet | [README](api-gateway/README.md) |
 | `user-service` | 8081 | Auth, comptes, JWT (access + refresh) | ✅ Complet | [README](user-service/README.md) |
 | `space-service` | 8082 | Espaces de cours, groupes, persona pédagogique | 🟡 Persona LLM en TODO | [README](space-service/README.md) |
-| `ingestion-service` | 8083 | Upload, extraction, chunking, embedding, indexation | 🟡 Pipeline RAG en TODO | [README](ingestion-service/README.md) |
+| `ingestion-service` | 8083 | Upload, extraction (docling-worker + vision Gemini), chunking, embedding, indexation | 🟢 Extraction OK — chunking/embeddings en TODO | [README](ingestion-service/README.md) |
 | `chat-service` | 8084 | Conversations, orchestration RAG | 🟡 Orchestration RAG en TODO | [README](chat-service/README.md) |
 | `fiche-service` | 8085 | Génération de fiches, partage, annotation, validation | 🟡 Génération Map-Reduce en TODO | [README](fiche-service/README.md) |
 | `analytics-service` | 8086 | Tableaux de bord, statistiques, recommandations | ✅ Complet | [README](analytics-service/README.md) |
