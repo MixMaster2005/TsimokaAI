@@ -18,9 +18,9 @@
         L'infrastructure générique (upload MinIO, entités, statuts, endpoints REST, clients
         MinIO/Qdrant, publication d'événements) est fournie et fonctionnelle.
         L'extraction du texte est déléguée à un conteneur Python spawné à la demande
-        (docling-worker, cf. service.docker.DockerWorkerClient). Le reste du cœur métier IA
-        — chunking avec chevauchement, génération d'embeddings, upsert Qdrant — est un TODO
-        explicite dans IngestionPipelineService : c'est le travail à combler pour le mémoire.
+        (docling-worker, cf. service.docker.DockerWorkerClient). Le cœur métier IA — chunking
+        orienté sens (MarkdownChunkingService), génération d'embeddings, upsert Qdrant
+        (QdrantVectorService) — est implémenté et orchestré par IngestionPipelineService.
         =======================================================================================
     </description>
 
@@ -84,6 +84,15 @@
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty-shaded</artifactId>
             <version>1.65.1</version>
+        </dependency>
+        <!-- Les types gRPC générés (PointStruct, VectorParams, Filter…) héritent de
+             com.google.protobuf : le client Qdrant ne le remontant qu'en scope `runtime`
+             (via grpc-protobuf), il faut protobuf-java au classpath de compilation.
+             Version alignée sur grpc-protobuf 1.65.1. -->
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>3.25.1</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

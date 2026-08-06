@@ -1,7 +1,8 @@
 """Étage 1 — conversion (MarkItDown) + enrichissement vision (Gemini).
 
 Spécification v2 — l'OCR local (placeholder) est remplacé par l'API Gemini :
-  1. Conversion MarkItDown (PDF/DOCX/PPTX/XLSX -> Markdown structuré), CPU-only.
+  1. Conversion MarkItDown (PDF/DOCX/PPTX/XLSX/XLS/CSV/HTML/EPUB/TXT/MD -> Markdown
+     structuré), CPU-only.
   2. Si le ratio ``caractères extraits / pages`` est sous le seuil (document scanné) :
      rendu des pages en image (PyMuPDF) + transcription Gemini page par page
      (``method = "markitdown_with_page_transcription"``).
@@ -60,7 +61,11 @@ class MarkItDownConverter:
 
         markdown = self._convert_markitdown(content, filename, warnings)
 
-        if self._is_scanned(markdown, pages):
+        # La détection de document scanné (ratio chars/page) n'a de sens que pour un PDF :
+        # les autres formats ont "1 page" (count_pages) et un petit document légitime
+        # (ex. un .md court) ne doit pas être envoyé en transcription (réservée au PDF).
+        is_pdf = os.path.splitext(filename)[1].lower() == ".pdf"
+        if is_pdf and self._is_scanned(markdown, pages):
             return self._transcribe_pages(content, filename, pages, warnings)
 
         return self._caption_figures(markdown, content, filename, pages, warnings)

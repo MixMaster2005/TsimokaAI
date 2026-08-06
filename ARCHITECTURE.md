@@ -69,9 +69,11 @@ composants — nécessaire car les classes de `common` vivent dans un package di
 
 **Choix** : `user-service`, `analytics-service` et `gamification-service` sont livrés
 complets. `space-service` et `fiche-service` ont un CRUD complet mais un point d'extension
-IA isolé (`PersonaService`, `FicheGenerationService`). `ingestion-service` et
-`chat-service` n'ont que l'infrastructure (upload, persistance, endpoints, clients
-Qdrant/MinIO) — tout le pipeline RAG reste à écrire.
+IA isolé (`PersonaService`, `FicheGenerationService`). `ingestion-service` a son **pipeline
+d'ingestion complet** (extraction docling-worker + vision Gemini, chunking orienté sens par
+titres — `MarkdownChunkingService` —, embeddings, indexation Qdrant), chaque étape déléguée
+à un service dédié orchestré par `IngestionPipelineService`. `chat-service` n'a que
+l'infrastructure (conversations, clients Qdrant/LLM) — l'orchestration RAG reste à écrire.
 
 **Raison** : c'est la partie du travail qui a une réelle valeur pour un mémoire M1 — la
 plomberie CRUD/Docker/événements n'a pas besoin d'être réinventée.

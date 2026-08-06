@@ -1,6 +1,6 @@
 # ingestion-service
 
-> **Statut :** 🟢 Extraction fonctionnelle (docling-worker + vision Gemini) — chunking/embeddings/indexation en **TODO**
+> **Statut :** 🟢 Pipeline d'ingestion complet (extraction → chunking → embeddings → indexation Qdrant)
 > **Port :** `8083` · **Base :** `ingestion_db` (PostgreSQL) · **Vecteurs :** Qdrant · **Fichiers :** MinIO
 
 Upload, extraction, chunking, embedding et indexation vectorielle des documents de cours.
@@ -8,13 +8,15 @@ L'infrastructure (upload MinIO, entités, statuts, endpoints, clients Qdrant/Min
 d'événements) est **fonctionnelle**, tout comme l'**extraction**, déléguée à un conteneur Python
 `docling-worker` spawné à la demande (voir `service/docker/`). Depuis la **spec v2**, le worker
 légende les figures et transcrit les documents scannés via l'**API Gemini (vision)** ; les images
-extraites sont uplodées ici dans **MinIO** et référencées dans le Markdown. Le **reste du
-pipeline RAG (chunking, embeddings, upsert) est un TODO explicite** dans
-`IngestionPipelineService` — c'est la pièce maîtresse à écrire pour le mémoire.
+extraites sont uplodées ici dans **MinIO** et référencées dans le Markdown. Le **pipeline
+(chunking orienté sens, embeddings, upsert Qdrant)** est implémenté, chaque étape vivant dans un
+service dédié orchestré par `IngestionPipelineService` — seul un test de bout en bout
+(nécessitant Ollama + toute l'infra) reste à effectuer.
 
 ## Rôle
 
-1. Recevoir les documents (PDF, DOCX, TXT) uploadés par les étudiants.
+1. Recevoir les documents (PDF, DOCX, PPTX, XLSX, XLS, CSV, HTML, EPUB, TXT, Markdown)
+   uploadés par les étudiants.
 2. Stocker le binaire dans **MinIO** (jamais en base).
 3. Traiter **de manière asynchrone** : extraction de texte → découpage en chunks → embeddings →
    indexation dans **Qdrant** (une collection par espace `chunks_{spaceId}`).
@@ -32,24 +34,34 @@ pipeline RAG (chunking, embeddings, upsert) est un TODO explicite** dans
 - **Base vectorielle Qdrant** (client gRPC configuré dans `QdrantConfig`). Le CDC retenait
   initialement ChromaDB, mais sans client Java officiel mûr → Qdrant. Contrat : une collection
   `chunks_{spaceId}` par espace, metadata `{document_id, space_id, chunk_index, content}`.
-  Le client Qdrant déclare gRPC en scope `runtime` : une dépendance explicite
-  `io.grpc:grpc-netty-shaded` (1.65.1) est ajoutée pour le classpath de compilation.
+  Le client Qdrant déclare gRPC et protobuf en scope `runtime` : deux dépendances explicites
+  (`io.grpc:grpc-netty-shaded` et `com.google.protobuf:protobuf-java`, versions alignées sur
+  le client 1.13.0 / grpc 1.65.1) sont ajoutées pour le classpath de compilation.
 - **Extraction déléguée à `docling-worker/`** (conteneur Python FastAPI spawné à la demande) :
   `DockerWorkerClient` (lib `docker-java`) crée un conteneur `docling-worker-<uuid>` sur le
   réseau `apa-net`, attend son `/health`, appelle `POST /v1/convert` (multipart), puis arrête
-  et supprime le conteneur en `finally`. L'extraction MarkItDown (PDF/DOCX/PPTX/XLSX →
-  Markdown structuré) est enrichie par la **vision Gemini** (spec v2) : légende des images
-  embarquées (`caption_figure`) et transcription des documents scannés (`transcribe_full_page`).
-  La clé `GEMINI_API_KEY` est injectée au conteneur à chaque spawn (jamais embarquée dans l'image).
+  et supprime le conteneur en `finally`. L'extraction MarkItDown (PDF/DOCX/PPTX/XLSX/XLS/CSV/
+  HTML/EPUB/TXT/MD → Markdown structuré) est enrichie par la **vision Gemini** (spec v2) :
+  légende des images embarquées (`caption_figure`) et transcription des documents scannés
+  (`transcribe_full_page`). La clé `GEMINI_API_KEY` est injectée au conteneur à chaque spawn
+  (jamais embarquée dans l'image).
 - **Images → MinIO (spec v2)** : le worker renvoie les images en **base64** avec des placeholders
-  `{{IMAGE:img_001}}`. `IngestionPipelineService` uploade chacune via `MinioService.uploadBytes`
+  `{{IMAGE:img_001}}`. `ImageUploadService` uploade chacune via `MinioService.uploadBytes`
   (préfixe `spaces/{spaceId}/images/`) puis substitue le placeholder par
   `![caption](url)` + `> **Description :** caption`.
-- **Modèle d'embedding via Spring AI Ollama** (`nomic-embed-text` par défaut) — configuré mais non appelé.
+- **Chunking orienté sens** (`MarkdownChunkingService`) : la frontière première des chunks est
+  la **structure des titres** (`#`, `##`, …) — chaque section garde son titre avec son contenu.
+  Une section trop grande est re-découpée **récursivement** sur le niveau de titre inférieur ;
+  ce n'est qu'en dernier recours (aucun sous-titre) qu'on retombe sur une découpe de taille fixe
+  avec chevauchement, sur un séparateur d'espace (jamais un mot coupé). Couvert par des tests
+  unitaires.
+- **Modèle d'embedding via Spring AI Ollama** (`nomic-embed-text` par défaut) — appelé par le
+  pipeline (un vecteur par chunk, en lot). Ollama doit donc être démarré pour qu'un document
+  atteigne le statut `READY`.
 - **Files jamais en base relationnelle** : `chunks` ne stocke que le texte, l'index et le
   `vector_id` (id du point Qdrant) — les vecteurs vivent dans Qdrant.
 
-## Pipeline d'ingestion (cible)
+## Pipeline d'ingestion (implémenté)
 
 ```mermaid
 flowchart LR
@@ -62,7 +74,7 @@ flowchart LR
     DOC --> ASYNC[processAsync @Async]
     ASYNC --> ST1[status=PROCESSING]
     ST1 --> DW["1. docling-worker<br/>Markdown + figures (Gemini vision)"]
-    DW --> CHUNK[2. chunking fixe + chevauchement<br/>~500 tokens / 50-100 overlap]
+    DW --> CHUNK[2. chunking orienté sens<br/>titres # / ##, récursif si trop grand]
     CHUNK --> EMB[3. EmbeddingModel<br/>Spring AI - Ollama]
     EMB --> QD[4. upsert Qdrant<br/>collection chunks_spaceId]
     QD --> DB[5. persist chunks + vectorId]
@@ -70,10 +82,15 @@ flowchart LR
     ASYNC -- erreur --> FAIL[status=FAILED + publish DOCUMENT_FAILED]
 ```
 
-> ❗ **État actuel** : l'**extraction est fonctionnelle** (docling-worker, étape 1). Le bloc
-> (Markdown → chunks → embeddings → Qdrant) n'est **pas écrit** : le squelette fait transiter
-> les statuts et publie les bons événements avec `chunkCount = 0`, pour que le reste de la
-> plateforme reste testable de bout en bout.
+> ✅ **État actuel** : le pipeline est **implémenté** de bout en bout — extraction
+> (docling-worker + vision Gemini), chunking orienté sens (titres d'abord, découpe de secours
+> seulement si une section est trop grande), embeddings (Spring AI / Ollama), upsert Qdrant
+> (collection créée si absente), persistance des `Chunk`, statut `READY` avec le vrai
+> `chunkCount` et publication `DOCUMENT_READY`. En cas d'échec à n'importe quelle étape :
+> `FAILED` + `DOCUMENT_FAILED`. `IngestionPipelineService` n'est plus qu'un orchestrateur :
+> chaque étape est déléguée à un service dédié (voir « Cœur IA »). Validé à la compilation,
+> par les tests unitaires du chunking et par un smoke test des interactions Qdrant ; le test
+> de bout en bout (Ollama + infra complète) reste à exécuter.
 
 ## Endpoints
 
@@ -88,13 +105,17 @@ Toutes les routes sont protégées par JWT.
 
 ## Règles métier
 
-- **Formats acceptés** : `application/pdf`, DOCX (`...wordprocessingml.document`),
-  `text/plain`. Tout autre mime-type → `400`.
+- **Formats acceptés** : PDF, DOCX, TXT, **Markdown** (`md`/`markdown`), **PPTX**, **XLSX**,
+  **XLS**, **CSV**, **HTML** (`html`/`htm`), **EPUB** — alignés sur les convertisseurs locaux
+  de MarkItDown 0.1.7 (vérifié : conversion réelle de chaque format). Accepté si le MIME **ou**
+  l'extension est dans la liste (repli pour les clients qui envoient un MIME imprécis, ex.
+  `application/octet-stream` pour EPUB). Tout autre format → `400`. Exclus volontairement :
+  images/audio (nécessitent un LLM de description/transcription), `zip`, `ipynb`, `msg`.
 - **Taille max** : 25 Mo (`multipart.max-file-size` / `max-request-size`).
 - **Propriétaire ou admin** requis pour lire/supprimer un document.
-- Un document `READY` ne doit exister qu'**après** indexation réelle (à implémenter).
-- **Idempotence** : `deleteDocument` purge chunks + MinIO (+ Qdrant à implémenter) avant de
-  supprimer l'entité.
+- Un document `READY` n'existe qu'**après** indexation réelle dans Qdrant (implémenté).
+- **Idempotence** : `deleteDocument` purge chunks + MinIO + points Qdrant (filtre `document_id`)
+  avant de supprimer l'entité.
 
 ## Événements
 
@@ -110,20 +131,41 @@ Toutes les routes sont protégées par JWT.
   `storage_url`, `status`, `chunk_count`, `failure_reason`, horodatages.
 - `chunks` : `id`, `document_id (FK cascade)`, `chunk_index`, `content`, `token_count`, `vector_id`.
 
-## Non implémenté (cœur IA du mémoire) — `IngestionPipelineService`
+## Cœur IA implémenté
 
-L'extraction (étape 1) est en place via `docling-worker`. Reste à écrire :
+`IngestionPipelineService` est un **orchestrateur** : chaque étape du pipeline vit dans un
+service dédié, injecté par constructeur (`@RequiredArgsConstructor`).
 
-1. **Chunking fixe avec chevauchement** : point de départ ~500 tokens / chunk, 50-100 tokens
-   d'overlap, à ajuster empiriquement.
-2. **Embeddings** : `EmbeddingModel` Spring AI (Ollama configuré).
-3. **Upsert Qdrant** : créer la collection `chunks_{spaceId}` si absente, upsert des points,
-   filtrer/delete les points par `document_id` lors d'une suppression.
-4. Mettre à jour `chunkCount` réel et publier `DOCUMENT_READY` **avec le vrai nombre de chunks**.
+| Étape | Service | Responsabilité |
+|---|---|---|
+| 1. Téléchargement | `MinioService` | binaire du document depuis MinIO |
+| 2. Extraction | `DockerWorkerClient` | conteneur docling-worker (conteneur Python spawné) |
+| 2bis. Figures | `ImageUploadService` | upload MinIO des images + substitution `{{IMAGE:…}}` |
+| 3. Chunking | `MarkdownChunkingService` | découpage orienté sens (titres, récursif) |
+| 4. Embeddings | `EmbeddingModel` (Spring AI / Ollama) | un vecteur par chunk, en lot |
+| 5-6. Vectoriel | `QdrantVectorService` | collection `chunks_{spaceId}`, upsert, purge |
 
-**Point de vigilance** : l'artifactId du starter Spring AI Ollama a changé entre les milestones
-(`spring-ai-ollama-spring-boot-starter` vs `spring-ai-starter-model-ollama`). Le POM utilise la
-forme **1.0.0** (`spring-ai-starter-model-ollama`), vérifiée compatible avec `spring-ai-bom:1.0.0`.
+Points de vigilance et limites :
+
+- **Chunking** (`MarkdownChunkingService`) : taille cible ~500 tokens (≈ 2000 caractères).
+  Découpage **par titres d'abord** (une section = un chunk, titre conservé avec son contenu) ;
+  une section trop grande est re-découpée récursivement sur le niveau de titre suivant ; sans
+  sous-titre, découpe de secours de taille fixe avec chevauchement (50 tokens), sans couper un
+  mot. `token_count` = heuristique `chars / 4` (pas de tokenizer dédié) — à ajuster
+  empiriquement. Limite connue : un titre dans un bloc de code provoque une fausse frontière,
+  et un document très fragmenté peut produire des chunks très petits (une section = un chunk).
+  Couvert par des tests unitaires (`MarkdownChunkingServiceTest`).
+- **Embeddings** : `EmbeddingModel` Spring AI (Ollama `nomic-embed-text` par défaut), appel en
+  lot pour le document. **Ollama doit être démarré** (profil compose `ollama`) sinon le
+  document passera en `FAILED`.
+- **Qdrant** : collection `chunks_{spaceId}` créée si absente (dimensions déduites des
+  embeddings réels, distance **Cosine**), upsert des points avec metadata
+  `{document_id, space_id, chunk_index, content}`. `deleteDocument` purge aussi les points
+  (filtre `document_id`). Validé par smoke test contre un vrai conteneur Qdrant.
+- **Point de vigilance** : l'artifactId du starter Spring AI Ollama a changé entre les
+  milestones (`spring-ai-ollama-spring-boot-starter` vs `spring-ai-starter-model-ollama`). Le
+  POM utilise la forme **1.0.0** (`spring-ai-starter-model-ollama`), vérifiée compatible avec
+  `spring-ai-bom:1.0.0`.
 
 ## Variables d'environnement
 

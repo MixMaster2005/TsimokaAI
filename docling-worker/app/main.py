@@ -2,7 +2,8 @@
 
 Conteneur spawné à la demande par `ingestion-service` (jamais un service permanent de
 docker-compose.yml). Pipeline (spec v2) :
-  1. MarkItDown : PDF/DOCX/PPTX/XLSX -> Markdown structuré (CPU-only, sans modèle ML).
+  1. MarkItDown : PDF/DOCX/PPTX/XLSX/XLS/CSV/HTML/EPUB/TXT/MD -> Markdown structuré
+     (CPU-only, sans modèle ML).
   2. Vision Gemini : transcription des pages si le document est scanné, sinon légende des
      images embarquées + placeholders ``{{IMAGE:img_001}}`` (les images sont renvoyées en
      base64, c'est ingestion-service qui les uploade dans MinIO).

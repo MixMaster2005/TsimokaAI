@@ -3,9 +3,17 @@
 > **Statut :** 🟢 Spec v2 — conversion MarkItDown + vision **Gemini** (figures & documents scannés)
 
 Service Python **FastAPI** qui extrait le texte des documents de cours (PDF, DOCX, PPTX,
-XLSX) en **Markdown structuré**. Il n'est **pas** un service permanent : `ingestion-service`
-le **spawné à la demande** via l'API Docker (`docker-java`), l'appelle, puis arrête et
-supprime le conteneur — même en cas d'erreur.
+XLSX, XLS, CSV, HTML, EPUB, TXT, Markdown) en **Markdown structuré**. Il n'est **pas** un
+service permanent : `ingestion-service` le **spawné à la demande** via l'API Docker
+(`docker-java`), l'appelle, puis arrête et supprime le conteneur — même en cas d'erreur.
+
+> **Formats supportés (MarkItDown 0.1.7, convertisseurs locaux)** : `pdf`, `docx`, `pptx`,
+> `xlsx`, `xls` (via `xlrd`), `csv`, `txt`, `md`/`markdown`/`json`/`jsonl`, `html`/`htm`,
+> `epub`, `ipynb`. Exclus volontairement : images et audio (dépendent d'un LLM de
+> description/transcription non configuré ici — la vision Gemini est gérée par
+> `vision_captioner` pour les figures embarquées), `zip`, `msg`, et les convertisseurs
+> web (BingSerp/YouTube/Wikipedia/RSS). L'**extraction d'images embarquées** ne couvre que
+> PDF/DOCX/PPTX (les autres formats produisent du Markdown sans figures).
 
 ## Rôle (spec v2)
 

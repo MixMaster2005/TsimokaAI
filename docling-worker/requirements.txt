@@ -7,6 +7,9 @@ uvicorn[standard]
 python-multipart
 markitdown[pdf,docx,pptx,xlsx]
 pypdf
+# Format Excel hérité (.xls) : le convertisseur XlsConverter de MarkItDown dépend de xlrd
+# (non inclus dans l'extra [xlsx]).
+xlrd
 
 # Spec v2 — vision via l'API Gemini (OpenAI-compatible) au lieu de l'OCR local.
 openai

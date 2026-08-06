@@ -18,11 +18,37 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DocumentService {
 
+    /**
+     * Formats acceptés — alignés sur les convertisseurs locaux de MarkItDown
+     * (vérifié sur markitdown 0.1.7) et sur le découpage par extension de docling-worker.
+     * Format exclu volontairement : images/audio (nécessitent un LLM de description),
+     * zip/ipynb/msg (non documents de cours).
+     */
     private static final Set<String> SUPPORTED_MIME_TYPES = Set.of(
-            "application/pdf",
+            // PDF
+            "application/pdf", "application/x-pdf",
+            // Traitement de texte
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "text/plain"
-    );
+            // Présentations
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            // Tableurs
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-excel", "application/excel",
+            // Données tabulaires / texte
+            "text/csv", "application/csv",
+            "text/plain", "text/markdown", "text/x-markdown",
+            // Web / livres numériques
+            "text/html", "application/xhtml+xml",
+            "application/epub+zip", "application/epub");
+
+    /**
+     * Repli par extension : certains clients envoient un MIME imprécis voire nul pour
+     * EPUB/Markdown/CSV (ex. {@code application/octet-stream}) — docling-worker routant
+     * sur l'extension, on accepte tant que l'un des deux est dans la liste.
+     */
+    private static final Set<String> SUPPORTED_EXTENSIONS = Set.of(
+            "pdf", "docx", "txt", "md", "markdown",
+            "pptx", "xlsx", "xls", "csv", "html", "htm", "epub");
 
     private final DocumentRepository documentRepository;
     private final MinioService minioService;
@@ -30,10 +56,12 @@ public class DocumentService {
 
     @Transactional
     public DocumentResponse upload(UUID spaceId, UUID userId, MultipartFile file) {
-        String mimeType = file.getContentType();
-        if (mimeType == null || !SUPPORTED_MIME_TYPES.contains(mimeType)) {
+        boolean mimeOk = file.getContentType() != null && SUPPORTED_MIME_TYPES.contains(file.getContentType());
+        boolean extensionOk = SUPPORTED_EXTENSIONS.contains(extensionOf(file.getOriginalFilename()));
+        if (!mimeOk && !extensionOk) {
             throw new mg.esmia.miage.common.exception.BadRequestException(
-                    "Format non supporté (PDF, DOCX, TXT uniquement) : " + mimeType);
+                    "Format non supporté (PDF, DOCX, TXT, Markdown, PPTX, XLSX, XLS, CSV, HTML, EPUB) : "
+                            + file.getContentType() + " / " + file.getOriginalFilename());
         }
 
         String storageUrl = minioService.upload(file, spaceId);
@@ -42,7 +70,7 @@ public class DocumentService {
                 .spaceId(spaceId)
                 .userId(userId)
                 .filename(file.getOriginalFilename())
-                .mimeType(mimeType)
+                .mimeType(file.getContentType())
                 .storageUrl(storageUrl)
                 .status(Document.Status.PENDING)
                 .chunkCount(0)
@@ -84,6 +112,14 @@ public class DocumentService {
     private Document findOrThrow(UUID id) {
         return documentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Document introuvable : " + id));
+    }
+
+    private String extensionOf(String filename) {
+        if (filename == null) {
+            return "";
+        }
+        int dot = filename.lastIndexOf('.');
+        return dot < 0 ? "" : filename.substring(dot + 1).toLowerCase();
     }
 
     private void assertOwnerOrAdmin(Document document, UUID requesterId, boolean isAdmin) {

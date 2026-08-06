@@ -5,46 +5,48 @@ import lombok.extern.slf4j.Slf4j;
 import mg.esmia.miage.common.events.EventChannels;
 import mg.esmia.miage.common.events.IngestionEvent;
 import mg.esmia.miage.common.messaging.RedisEventPublisher;
+import mg.esmia.miage.ingestionservice.entity.Chunk;
 import mg.esmia.miage.ingestionservice.entity.Document;
 import mg.esmia.miage.ingestionservice.repository.ChunkRepository;
 import mg.esmia.miage.ingestionservice.repository.DocumentRepository;
 import mg.esmia.miage.ingestionservice.service.docker.DoclingConversionResult;
-import mg.esmia.miage.ingestionservice.service.docker.DoclingConversionResult.DoclingImage;
 import mg.esmia.miage.ingestionservice.service.docker.DockerWorkerClient;
+import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
-import java.util.Base64;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * ================================ TODO (cœur IA à implémenter) ================================
- * Pipeline d'ingestion : extraction -> chunking -> embedding -> indexation vectorielle.
+ * Orchestrateur du pipeline d'ingestion : extraction -> chunking -> embedding -> indexation
+ * vectorielle. Chaque étape est déléguée à un service dédié (injection par constructeur) :
+ * <ul>
+ *   <li>MinIO (téléchargement/suppression du binaire) — {@link MinioService} ;</li>
+ *   <li>extraction via docling-worker (conteneur spawné à la demande) — {@link DockerWorkerClient} ;</li>
+ *   <li>upload des figures + substitution des placeholders — {@link ImageUploadService} ;</li>
+ *   <li>découpage orienté sens (titres {@code #}/{@code ##}, récursif si trop grand) — {@link MarkdownChunkingService} ;</li>
+ *   <li>embeddings (un vecteur par chunk, en lot) — {@code EmbeddingModel} Spring AI / Ollama ;</li>
+ *   <li>collection + upsert + purge Qdrant — {@link QdrantVectorService}.</li>
+ * </ul>
  *
- * Etapes attendues (cf. CDC §4.2 et "Base de projet") :
- *   1. Télécharger le fichier depuis MinIO (MinioService.download, déjà prêt).
- *   2. Extraire le texte (DÉJÀ EN PLACE) : délégation à docling-worker, un conteneur Python
- *      FastAPI spawné à la demande (cf. service.docker.DockerWorkerClient) qui renvoie le
- *      document en Markdown structuré.
- *   3. Découper en chunks de taille fixe AVEC CHEVAUCHEMENT (chunking fixe + overlap,
- *      cf. stack technique). Un point de départ raisonnable : ~500 tokens / chunk,
- *      ~50-100 tokens de chevauchement — à ajuster empiriquement.
- *   4. Générer les embeddings (EmbeddingModel de Spring AI, cf. QdrantConfig pour le
- *      client vectoriel déjà configuré) pour chaque chunk.
- *   5. Upsert dans Qdrant, collection "chunks_{spaceId}" (la créer si absente, cf.
- *      contrat "Schémas BDD & contrats utilitaires" - metadata: document_id, space_id,
- *      chunk_index, content).
- *   6. Persister les entités Chunk (vectorId = id du point Qdrant).
- *   7. Mettre à jour Document (status=READY, chunkCount) et publier DOCUMENT_READY.
- *      En cas d'échec à n'importe quelle étape : status=FAILED + publier DOCUMENT_FAILED.
- *
- * L'implémentation ci-dessous fait transiter le document par les bons statuts et publie les
- * bons événements ; l'extraction du texte est fonctionnelle via docling-worker, mais le
- * chunking / embedding / upsert restent à écrire - à remplacer par la logique décrite ci-dessus.
- * ================================================================================================
+ * <p>Etapes (cf. CDC §4.2) :
+ * <ol>
+ *   <li>Télécharger le fichier depuis MinIO.</li>
+ *   <li>Extraire le texte via docling-worker (conteneur Python spawné à la demande) ; les
+ *       images extraites sont uplodées dans MinIO et les placeholders substitués (spec v2).</li>
+ *   <li>Découper le Markdown en chunks orientés sens (~500 tokens / chunk) — titres d'abord,
+ *       découpe de secours seulement si une section est trop grande.</li>
+ *   <li>Générer les embeddings (EmbeddingModel Spring AI / Ollama) pour chaque chunk.</li>
+ *   <li>Créer la collection Qdrant "chunks_{spaceId}" si absente puis upsert des points
+ *       (metadata : document_id, space_id, chunk_index, content).</li>
+ *   <li>Persister les entités Chunk (vectorId = id du point Qdrant).</li>
+ *   <li>Mettre à jour Document (status=READY, chunkCount) et publier DOCUMENT_READY.
+ *       En cas d'échec à n'importe quelle étape : status=FAILED + publier DOCUMENT_FAILED.</li>
+ * </ol>
  */
 @Service
 @RequiredArgsConstructor
@@ -56,6 +58,10 @@ public class IngestionPipelineService {
     private final MinioService minioService;
     private final RedisEventPublisher eventPublisher;
     private final DockerWorkerClient dockerWorkerClient;
+    private final EmbeddingModel embeddingModel;
+    private final ImageUploadService imageUploadService;
+    private final MarkdownChunkingService chunkingService;
+    private final QdrantVectorService qdrantVectorService;
 
     @Async
     @Transactional
@@ -70,38 +76,49 @@ public class IngestionPipelineService {
             document.setStatus(Document.Status.PROCESSING);
             documentRepository.save(document);
 
-            // Étape 1 (implémentée) : téléchargement MinIO + extraction du texte via docling-worker
-            // (conteneur spawné à la demande, cf. service.docker.DockerWorkerClient).
+            // Étape 1-2 : téléchargement MinIO + extraction via docling-worker (conteneur
+            // spawné à la demande) + upload des images extraites / substitution des placeholders.
             byte[] fileContent;
             try (InputStream is = minioService.download(document.getStorageUrl())) {
                 fileContent = is.readAllBytes();
             }
             DoclingConversionResult conversion = dockerWorkerClient.convert(fileContent, document.getFilename());
-            String markdown = conversion.markdown();
-
-            // Spec v2 : les images extraites par docling-worker (base64) sont uploadées
-            // dans MinIO puis les placeholders {{IMAGE:img_001}} sont substitués par
-            // `![caption](url)` + une ligne de description (légende Gemini).
-            markdown = uploadExtractedImages(markdown, conversion.images(), document.getSpaceId());
+            String markdown = imageUploadService.substituteImages(
+                    conversion.markdown(), conversion.images(), document.getSpaceId());
 
             log.info("Document {} converti : méthode {}, {} pages, {} caractères de Markdown, {} images, warnings={}",
                     documentId, conversion.method(), conversion.pagesProcessed(), markdown.length(),
                     conversion.images().size(), conversion.warnings());
 
-            // TODO : étapes 3 à 7 (chunking du Markdown avec chevauchement, embeddings Spring AI,
-            // upsert Qdrant collection chunks_{spaceId}, persistance des Chunk, statut READY +
-            // publication DOCUMENT_READY avec le vrai chunkCount).
-            log.warn("IngestionPipelineService.processAsync : chunking/embeddings/upsert non implémentés (TODO) "
-                    + "pour le document {}", documentId);
-            int chunkCount = 0;
+            // Étape 3 : chunking orienté sens (titres # / ##, récursif si section trop grande).
+            List<String> chunks = chunkingService.chunk(markdown);
+            if (chunks.isEmpty()) {
+                throw new IllegalStateException("Aucun contenu textuel extrait du document");
+            }
 
+            // Étape 4 : embeddings (Spring AI / Ollama) — un vecteur par chunk.
+            List<float[]> vectors = embeddingModel.embed(chunks);
+            if (vectors.size() != chunks.size()) {
+                throw new IllegalStateException(
+                        "Nombre d'embeddings incohérent (%d embeddings pour %d chunks)".formatted(
+                                vectors.size(), chunks.size()));
+            }
+
+            // Étape 5-6 : collection chunks_{spaceId} (créée si absente) + upsert + persistance Chunk.
+            String collection = qdrantVectorService.collectionName(document.getSpaceId());
+            qdrantVectorService.ensureCollection(collection, vectors.get(0).length);
+            List<UUID> vectorIds = qdrantVectorService.upsertChunks(
+                    collection, document.getId(), document.getSpaceId(), chunks, vectors);
+            saveChunks(document.getId(), chunks, vectorIds);
+
+            // Étape 7 : statut READY avec le vrai nombre de chunks + DOCUMENT_READY.
             document.setStatus(Document.Status.READY);
-            document.setChunkCount(chunkCount);
+            document.setChunkCount(chunks.size());
             documentRepository.save(document);
 
             eventPublisher.publish(EventChannels.INGESTION_EVENTS,
                     IngestionEvent.ready(document.getId().toString(), document.getSpaceId().toString(),
-                            document.getUserId().toString(), chunkCount));
+                            document.getUserId().toString(), chunks.size()));
 
         } catch (Exception e) {
             log.error("Échec du traitement du document {}", documentId, e);
@@ -119,54 +136,23 @@ public class IngestionPipelineService {
     public void deleteDocument(Document document) {
         chunkRepository.deleteByDocumentId(document.getId());
         minioService.delete(document.getStorageUrl());
-        // TODO : supprimer également les points Qdrant associés (filtrage par document_id
-        // dans la collection chunks_{spaceId}) une fois le client Qdrant utilisé ci-dessus.
+        qdrantVectorService.deletePoints(
+                qdrantVectorService.collectionName(document.getSpaceId()), document.getId());
         documentRepository.delete(document);
     }
 
-    /**
-     * Uploade les images extraites par docling-worker dans MinIO et substitue chaque
-     * placeholder {@code {{IMAGE:img_001}}} du Markdown par
-     * {@code ![caption](url)} + {@code > **Description :** caption}.
-     */
-    private String uploadExtractedImages(String markdown, List<DoclingImage> images, UUID spaceId) {
-        String result = markdown;
-        for (DoclingImage image : images) {
-            if (image.dataBase64() == null || image.placeholderId() == null) {
-                log.warn("Image docling-worker invalide (placeholder/data manquants) — ignorée");
-                continue;
-            }
-            String storageUrl;
-            try {
-                storageUrl = minioService.uploadBytes(
-                        Base64.getDecoder().decode(image.dataBase64()),
-                        image.contentType(),
-                        spaceId,
-                        image.placeholderId() + extensionFor(image.contentType()));
-            } catch (IllegalArgumentException e) {
-                log.warn("Base64 invalide pour l'image {} — ignorée ({})", image.placeholderId(), e.getMessage());
-                continue;
-            }
-            String caption = image.caption() == null ? "" : image.caption();
-            String replacement = "![%s](%s)%n> **Description :** %s".formatted(
-                    caption, storageUrl, caption);
-            result = result.replace("{{IMAGE:%s}}".formatted(image.placeholderId()), replacement);
+    /** Persiste une entité {@link Chunk} par morceau (token_count estimé, vectorId = point Qdrant). */
+    private void saveChunks(UUID documentId, List<String> chunks, List<UUID> vectorIds) {
+        List<Chunk> entities = new ArrayList<>();
+        for (int i = 0; i < chunks.size(); i++) {
+            entities.add(Chunk.builder()
+                    .documentId(documentId)
+                    .chunkIndex(i)
+                    .content(chunks.get(i))
+                    .tokenCount(chunkingService.estimateTokenCount(chunks.get(i)))
+                    .vectorId(vectorIds.get(i).toString())
+                    .build());
         }
-        return result;
-    }
-
-    private String extensionFor(String contentType) {
-        if (contentType == null) {
-            return ".bin";
-        }
-        return switch (contentType.toLowerCase()) {
-            case "image/png" -> ".png";
-            case "image/jpeg", "image/jpg" -> ".jpg";
-            case "image/gif" -> ".gif";
-            case "image/webp" -> ".webp";
-            case "image/tiff" -> ".tiff";
-            case "image/bmp" -> ".bmp";
-            default -> ".bin";
-        };
+        chunkRepository.saveAll(entities);
     }
 }

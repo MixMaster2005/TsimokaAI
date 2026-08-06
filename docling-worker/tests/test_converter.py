@@ -141,6 +141,14 @@ class MarkItDownConverterTest(unittest.TestCase):
         self.assertIn("## Page transcrite", result["markdown"])
         self.assertIn("---", result["markdown"])
 
+    def test_markdown_court_non_pdf_non_considere_scanne(self):
+        # Un .md court a "1 page" (count_pages) : il ne doit PAS être envoyé en
+        # transcription (réservée au PDF) mais conserver son texte (régression spec v2).
+        result = self._convert("# Titre\n\nTexte".encode(), "notes.md")
+        self.assertEqual(result["method"], "markitdown")
+        self.assertIn("# Titre", result["markdown"])
+        self.assertNotIn("transcription par page impossible", "\n".join(result["warnings"]))
+
     def test_plafond_images_30_avec_warning(self):
         images = [image_extractor.ExtractedImage(png_bytes(), "image/png", f"page {i}")
                   for i in range(35)]
