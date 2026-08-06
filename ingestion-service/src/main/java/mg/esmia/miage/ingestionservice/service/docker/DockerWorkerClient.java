@@ -16,6 +16,7 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -72,6 +73,9 @@ public class DockerWorkerClient {
             CreateContainerResponse response = dockerClient.createContainerCmd(properties.getImage())
                     .withName(containerName)
                     .withHostConfig(HostConfig.newHostConfig().withNetworkMode(properties.getNetwork()))
+                    // Spec v2 : le worker délègue la vision à Gemini — la clé est passée
+                    // à l'exécution (jamais embarquée dans l'image).
+                    .withEnv(List.of("GEMINI_API_KEY=" + properties.getGeminiApiKey()))
                     .exec();
             String containerId = response.getId();
             dockerClient.startContainerCmd(containerId).exec();
@@ -150,7 +154,12 @@ public class DockerWorkerClient {
 
     private WebClient buildWebClient(String baseUrl) {
         // clone() : ne pas muter le builder partagé de Spring Boot.
-        return webClientBuilder.clone().baseUrl(baseUrl).build();
+        return webClientBuilder.clone()
+                // La réponse /v1/convert embarque les images en base64 (spec v2) : la
+                // limite par défaut de 256 Ko du codec WebClient serait largement dépassée.
+                .codecs(codecs -> codecs.defaultCodecs().maxInMemorySize(64 * 1024 * 1024))
+                .baseUrl(baseUrl)
+                .build();
     }
 
     private void sleep(long millis) {

@@ -56,13 +56,15 @@ qdrant:
 
 # docling-worker : conteneur d'extraction spawné à la demande par ingestion-service
 # (docker-java). Image construite manuellement : docker build -t docling-worker:latest ./docling-worker
+# Spec v2 : la clé Gemini (vision, OpenAI-compatible) est injectée au conteneur au runtime.
 docling-worker:
   docker-host: ${DOCKER_HOST_SOCKET:unix:///var/run/docker.sock}
   image: ${DOCLING_WORKER_IMAGE:docling-worker:latest}
   network: ${DOCKER_NETWORK:apa-net}
   container-port: 8090
   startup-timeout-seconds: ${DOCLING_WORKER_STARTUP_TIMEOUT:30}
-  conversion-timeout-seconds: ${DOCLING_WORKER_CONVERT_TIMEOUT:120}
+  conversion-timeout-seconds: ${DOCLING_WORKER_CONVERT_TIMEOUT:300}
+  gemini-api-key: ${GEMINI_API_KEY:}
 
 management:
   endpoints:

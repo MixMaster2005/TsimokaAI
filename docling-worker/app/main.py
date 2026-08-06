@@ -1,13 +1,18 @@
 """docling-worker — service d'extraction de documents (FastAPI).
 
 Conteneur spawné à la demande par `ingestion-service` (jamais un service permanent de
-docker-compose.yml). Deux étages :
+docker-compose.yml). Pipeline (spec v2) :
   1. MarkItDown : PDF/DOCX/PPTX/XLSX -> Markdown structuré (CPU-only, sans modèle ML).
-  2. OCR fallback (placeholder) : déclenché quand le ratio caractères/pages est trop bas.
+  2. Vision Gemini : transcription des pages si le document est scanné, sinon légende des
+     images embarquées + placeholders ``{{IMAGE:img_001}}`` (les images sont renvoyées en
+     base64, c'est ingestion-service qui les uploade dans MinIO).
 
 Endpoints :
   - GET  /health     -> {"status": "ok"}
-  - POST /v1/convert -> {"markdown", "method", "pages_processed", "warnings"}
+  - POST /v1/convert -> {"markdown", "method", "pages_processed", "images", "warnings"}
+
+``method`` : ``markitdown`` (document textuel) ou ``markitdown_with_page_transcription``
+(document scanné, pages transcrites par Gemini).
 """
 import logging
 
@@ -18,9 +23,9 @@ from app.markitdown_converter import MarkItDownConverter
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="docling-worker", version="0.1.0")
+app = FastAPI(title="docling-worker", version="0.2.0")
 
-# Étage 1 (l'étage 2, lui, est lazy-loaded dans MarkItDownConverter._get_ocr()).
+# Le client Gemini est lazy-loadé (première image/page transcrite qui en a besoin).
 converter = MarkItDownConverter()
 
 
@@ -42,6 +47,7 @@ async def convert(file: UploadFile = File(...)) -> dict:
         result.setdefault("markdown", "")
         result.setdefault("method", "unknown")
         result.setdefault("pages_processed", 0)
+        result.setdefault("images", [])
         result.setdefault("warnings", [])
         return result
     except Exception as e:  # noqa: BLE001 - erreur inattendue : réponse d'erreur explicite

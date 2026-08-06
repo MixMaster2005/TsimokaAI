@@ -26,6 +26,9 @@ public class DockerWorkerProperties {
     /** Délai max d'attente du GET /health après le démarrage du conteneur. */
     private int startupTimeoutSeconds = 30;
 
-    /** Délai max d'un POST /v1/convert. */
-    private int conversionTimeoutSeconds = 120;
+    /** Délai max d'un POST /v1/convert (compté large : légende/transcription Gemini incluses). */
+    private int conversionTimeoutSeconds = 300;
+
+    /** Clé API Gemini (vision, OpenAI-compatible) injectée au conteneur via l'env GEMINI_API_KEY. */
+    private String geminiApiKey = "";
 }

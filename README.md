@@ -105,7 +105,7 @@ Les échanges d'événements entre services sont détaillés dans [`common/READM
 | Vecteurs | Qdrant (client gRPC) | 1.13.0 |
 | Cache / messages | Redis 7 (Pub/Sub) | — |
 | Stockage objet | MinIO (compatible S3) | latest |
-| Extraction | docling-worker (FastAPI / MarkItDown + OCR) | — |
+| Extraction | docling-worker (FastAPI / MarkItDown + vision Gemini) | — |
 | Auth | JJWT + BCrypt (`spring-security-crypto`) | 0.12.6 |
 | Mapping / code | MapStruct + Lombok | 1.6.2 / 1.18.34 |
 | Documentation API | springdoc-openapi | 2.6.0 |
@@ -126,7 +126,7 @@ tsimokaai/
 ├── fiche-service/              # 📄 Fiches, partage, annotations, validation → README
 ├── analytics-service/          # 📊 Dashboards, recommandations → README
 ├── gamification-service/       # 🏆 Objectifs, badges, rappels → README
-├── docling-worker/             # 🐍 Conteneur d'extraction (MarkItDown/OCR), spawné à la demande → README
+├── docling-worker/             # 🐍 Conteneur d'extraction (MarkItDown + vision Gemini), spawné à la demande → README
 ├── infra/postgres-init/        # Création d'une base PostgreSQL par service
 ├── ARCHITECTURE.md             # Décisions & compromis architecturaux (base du mémoire)
 └── docs/                       # Documentation complémentaire
@@ -153,16 +153,17 @@ diagrammes, endpoints, événements et **parties non implémentées**.
 
 - **Docker** + **Docker Compose v2**
 - **JDK 17** et **Maven 3.9+** (pour développer / lancer un service hors Docker)
-- ⚠️ **Important** : les versions de dépendances ont été figées **sans accès à Maven Central**
-  (environnement de génération hors-ligne) — elles n'ont **pas été validées par une build
-  réelle**. Vérifiez-les avant le premier build (commentaires dans les `pom.xml`).
+- **Clé API Gemini** (`GEMINI_API_KEY`, https://aistudio.google.com/apikey) pour les figures
+  et les documents scannés — docling-worker délègue la vision à Gemini (spec v2).
+- ⚠️ **Builds validés** dans l'environnement du projet (Maven Central joignable) : les
+  versions de dépendances et les fat-jars Spring Boot ont été vérifiés par une vraie build.
 
 ## Démarrage rapide
 
 ```bash
 # 1. Configurer l'environnement
 cp .env.example .env
-#    → éditer .env (JWT_SECRET en particulier)
+#    → éditer .env (JWT_SECRET en particulier, et GEMINI_API_KEY pour docling-worker)
 
 # 2. Lancer toute la plateforme
 docker compose up --build
@@ -172,7 +173,7 @@ docker compose --profile ollama up --build
 
 # 3. (Une seule fois) Construire le conteneur d'extraction docling-worker — REQUIS avant
 #    tout upload de document : il est spawné à la demande par ingestion-service (pas un
-#    service permanent de docker-compose.yml).
+#    service permanent de docker-compose.yml). La clé Gemini est injectée au runtime.
 docker build -t docling-worker:latest ./docling-worker
 ```
 
@@ -223,10 +224,12 @@ mvn -pl ../common,. -am spring-boot:run \
 
 ## Tests
 
-Aucun test n'est encore présent dans le dépôt (scaffold généré). Le socle est en place :
-`spring-boot-starter-test`, H2 pour user-service (`scope: test`), structure Maven multi-module.
-Ajout de tests d'intégration par service **recommandé** en parallèle de l'implémentation du
-cœur IA (voir [Contribuer](#contribuer)).
+- **`docling-worker`** : tests unitaires Python (extraction, placeholders, transcription,
+  plafond d'images, dégradation Gemini) — `python -m unittest tests.test_converter -v`
+  (dans `docling-worker/`).
+- **Services Java** : `spring-boot-starter-test` et H2 pour user-service sont en place ;
+  aucun test Java n'est encore écrit (scaffold généré). Ajout de tests d'intégration par
+  service **recommandé** en parallèle de l'implémentation du cœur IA (voir [Contribuer](#contribuer)).
 
 ## Feuille de route
 
@@ -234,8 +237,8 @@ Chaque TODO est documenté en Javadoc dans le code concerné. Ce sont les travau
 pour le mémoire :
 
 1. **`ingestion-service` / `IngestionPipelineService`** — suite du pipeline après extraction
-   (extraction fonctionnelle via docling-worker) : chunking avec chevauchement, génération
-   d'embeddings, upsert Qdrant.
+   (extraction fonctionnelle via docling-worker + vision Gemini, images MinIO) : chunking
+   avec chevauchement, génération d'embeddings, upsert Qdrant.
 2. **`space-service` / `PersonaService`** — génération + enrichissement du persona par LLM.
 3. **`chat-service` / `ChatService` + `LlmProviderConfig`** — orchestration RAG complète
    (retrieval, prompt, bascule Groq/Gemini/Ollama, appel LLM).
@@ -251,7 +254,9 @@ sémantique des notions (NLP/embeddings), idempotence stricte des listeners d'é
 Détaillées dans [`ARCHITECTURE.md`](ARCHITECTURE.md) §7 et dans chaque README de service. Les
 plus structurantes :
 
-- Versions de dépendances **non validées par une build réelle** (à vérifier au premier `mvn install`).
+- **Gemini externalisé** : figures/scan dépendent d'un appel réseau payant (quota) ; sans
+  `GEMINI_API_KEY`, les documents textuels restent fonctionnels, les légendes/transcriptions
+  sont vides (warning non bloquant).
 - **Confiance aux headers** : un service accédé directement hors gateway n'est pas protégé.
 - **Cohérence éventuelle** : les suppressions en cascade passent par Redis Pub/Sub (pas de
   garantie de livraison unique → idempotence à durcir).

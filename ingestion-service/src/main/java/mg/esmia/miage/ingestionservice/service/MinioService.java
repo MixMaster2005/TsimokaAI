@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.UUID;
 
@@ -51,6 +52,28 @@ public class MinioService implements InitializingBean {
                     .object(objectName)
                     .stream(is, file.getSize(), -1)
                     .contentType(file.getContentType())
+                    .build());
+            return bucket + "/" + objectName;
+        } catch (Exception e) {
+            log.error("Échec de l'upload MinIO", e);
+            throw new ApiException("STORAGE_ERROR", "Échec du stockage du fichier", 500);
+        }
+    }
+
+    /**
+     * Upload d'images extraites par docling-worker (spec v2). Préfixe
+     * {@code spaces/{spaceId}/images/} pour distinguer les images du document original.
+     *
+     * @return l'URL logique de stockage (bucket/objectName), à insérer dans le Markdown.
+     */
+    public String uploadBytes(byte[] content, String contentType, UUID spaceId, String suggestedFilename) {
+        String objectName = "spaces/%s/images/%s-%s".formatted(spaceId, UUID.randomUUID(), suggestedFilename);
+        try (InputStream is = new ByteArrayInputStream(content)) {
+            minioClient.putObject(PutObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(objectName)
+                    .stream(is, content.length, -1)
+                    .contentType(contentType)
                     .build());
             return bucket + "/" + objectName;
         } catch (Exception e) {

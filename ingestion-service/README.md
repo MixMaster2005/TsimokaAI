@@ -1,12 +1,14 @@
 # ingestion-service
 
-> **Statut :** 🟡 Extraction fonctionnelle (docling-worker) — chunking/embeddings/indexation en **TODO**
+> **Statut :** 🟢 Extraction fonctionnelle (docling-worker + vision Gemini) — chunking/embeddings/indexation en **TODO**
 > **Port :** `8083` · **Base :** `ingestion_db` (PostgreSQL) · **Vecteurs :** Qdrant · **Fichiers :** MinIO
 
 Upload, extraction, chunking, embedding et indexation vectorielle des documents de cours.
 L'infrastructure (upload MinIO, entités, statuts, endpoints, clients Qdrant/MinIO, publication
-d'événements) est **fonctionnelle**, tout comme l'**extraction du texte**, déléguée à un
-conteneur Python `docling-worker` spawné à la demande (voir `service/docker/`). Le **reste du
+d'événements) est **fonctionnelle**, tout comme l'**extraction**, déléguée à un conteneur Python
+`docling-worker` spawné à la demande (voir `service/docker/`). Depuis la **spec v2**, le worker
+légende les figures et transcrit les documents scannés via l'**API Gemini (vision)** ; les images
+extraites sont uplodées ici dans **MinIO** et référencées dans le Markdown. Le **reste du
 pipeline RAG (chunking, embeddings, upsert) est un TODO explicite** dans
 `IngestionPipelineService` — c'est la pièce maîtresse à écrire pour le mémoire.
 
@@ -36,7 +38,13 @@ pipeline RAG (chunking, embeddings, upsert) est un TODO explicite** dans
   `DockerWorkerClient` (lib `docker-java`) crée un conteneur `docling-worker-<uuid>` sur le
   réseau `apa-net`, attend son `/health`, appelle `POST /v1/convert` (multipart), puis arrête
   et supprime le conteneur en `finally`. L'extraction MarkItDown (PDF/DOCX/PPTX/XLSX →
-  Markdown structuré) bascule sur un OCR de secours si le ratio caractères/pages est trop bas.
+  Markdown structuré) est enrichie par la **vision Gemini** (spec v2) : légende des images
+  embarquées (`caption_figure`) et transcription des documents scannés (`transcribe_full_page`).
+  La clé `GEMINI_API_KEY` est injectée au conteneur à chaque spawn (jamais embarquée dans l'image).
+- **Images → MinIO (spec v2)** : le worker renvoie les images en **base64** avec des placeholders
+  `{{IMAGE:img_001}}`. `IngestionPipelineService` uploade chacune via `MinioService.uploadBytes`
+  (préfixe `spaces/{spaceId}/images/`) puis substitue le placeholder par
+  `![caption](url)` + `> **Description :** caption`.
 - **Modèle d'embedding via Spring AI Ollama** (`nomic-embed-text` par défaut) — configuré mais non appelé.
 - **Files jamais en base relationnelle** : `chunks` ne stocke que le texte, l'index et le
   `vector_id` (id du point Qdrant) — les vecteurs vivent dans Qdrant.
@@ -53,7 +61,7 @@ flowchart LR
     MO --> DOC[Document.status=PENDING → sauvé]
     DOC --> ASYNC[processAsync @Async]
     ASYNC --> ST1[status=PROCESSING]
-    ST1 --> DW[1. docling-worker<br/>extraction → Markdown structuré]
+    ST1 --> DW["1. docling-worker<br/>Markdown + figures (Gemini vision)"]
     DW --> CHUNK[2. chunking fixe + chevauchement<br/>~500 tokens / 50-100 overlap]
     CHUNK --> EMB[3. EmbeddingModel<br/>Spring AI - Ollama]
     EMB --> QD[4. upsert Qdrant<br/>collection chunks_spaceId]
@@ -129,7 +137,8 @@ forme **1.0.0** (`spring-ai-starter-model-ollama`), vérifiée compatible avec `
 | `DOCLING_WORKER_IMAGE` | `docling-worker:latest` | Image du conteneur d'extraction |
 | `DOCKER_NETWORK` | `apa-net` | Réseau Docker que doit rejoindre le worker |
 | `DOCLING_WORKER_STARTUP_TIMEOUT` | `30` | Timeout d'attente du `/health` (secondes) |
-| `DOCLING_WORKER_CONVERT_TIMEOUT` | `120` | Timeout d'un `POST /v1/convert` (secondes) |
+| `DOCLING_WORKER_CONVERT_TIMEOUT` | `300` | Timeout d'un `POST /v1/convert` (secondes — large : légendes/transcriptions Gemini) |
+| `GEMINI_API_KEY` | *(vide)* | Clé API Gemini transmise au conteneur docling-worker (vision) |
 
 ## Lancer
 

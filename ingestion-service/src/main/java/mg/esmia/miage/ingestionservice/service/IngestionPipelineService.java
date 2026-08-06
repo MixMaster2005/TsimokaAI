@@ -9,12 +9,15 @@ import mg.esmia.miage.ingestionservice.entity.Document;
 import mg.esmia.miage.ingestionservice.repository.ChunkRepository;
 import mg.esmia.miage.ingestionservice.repository.DocumentRepository;
 import mg.esmia.miage.ingestionservice.service.docker.DoclingConversionResult;
+import mg.esmia.miage.ingestionservice.service.docker.DoclingConversionResult.DoclingImage;
 import mg.esmia.miage.ingestionservice.service.docker.DockerWorkerClient;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
+import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -75,9 +78,15 @@ public class IngestionPipelineService {
             }
             DoclingConversionResult conversion = dockerWorkerClient.convert(fileContent, document.getFilename());
             String markdown = conversion.markdown();
-            log.info("Document {} converti : méthode {}, {} pages, {} caractères de Markdown, warnings={}",
+
+            // Spec v2 : les images extraites par docling-worker (base64) sont uploadées
+            // dans MinIO puis les placeholders {{IMAGE:img_001}} sont substitués par
+            // `![caption](url)` + une ligne de description (légende Gemini).
+            markdown = uploadExtractedImages(markdown, conversion.images(), document.getSpaceId());
+
+            log.info("Document {} converti : méthode {}, {} pages, {} caractères de Markdown, {} images, warnings={}",
                     documentId, conversion.method(), conversion.pagesProcessed(), markdown.length(),
-                    conversion.warnings());
+                    conversion.images().size(), conversion.warnings());
 
             // TODO : étapes 3 à 7 (chunking du Markdown avec chevauchement, embeddings Spring AI,
             // upsert Qdrant collection chunks_{spaceId}, persistance des Chunk, statut READY +
@@ -113,5 +122,51 @@ public class IngestionPipelineService {
         // TODO : supprimer également les points Qdrant associés (filtrage par document_id
         // dans la collection chunks_{spaceId}) une fois le client Qdrant utilisé ci-dessus.
         documentRepository.delete(document);
+    }
+
+    /**
+     * Uploade les images extraites par docling-worker dans MinIO et substitue chaque
+     * placeholder {@code {{IMAGE:img_001}}} du Markdown par
+     * {@code ![caption](url)} + {@code > **Description :** caption}.
+     */
+    private String uploadExtractedImages(String markdown, List<DoclingImage> images, UUID spaceId) {
+        String result = markdown;
+        for (DoclingImage image : images) {
+            if (image.dataBase64() == null || image.placeholderId() == null) {
+                log.warn("Image docling-worker invalide (placeholder/data manquants) — ignorée");
+                continue;
+            }
+            String storageUrl;
+            try {
+                storageUrl = minioService.uploadBytes(
+                        Base64.getDecoder().decode(image.dataBase64()),
+                        image.contentType(),
+                        spaceId,
+                        image.placeholderId() + extensionFor(image.contentType()));
+            } catch (IllegalArgumentException e) {
+                log.warn("Base64 invalide pour l'image {} — ignorée ({})", image.placeholderId(), e.getMessage());
+                continue;
+            }
+            String caption = image.caption() == null ? "" : image.caption();
+            String replacement = "![%s](%s)%n> **Description :** %s".formatted(
+                    caption, storageUrl, caption);
+            result = result.replace("{{IMAGE:%s}}".formatted(image.placeholderId()), replacement);
+        }
+        return result;
+    }
+
+    private String extensionFor(String contentType) {
+        if (contentType == null) {
+            return ".bin";
+        }
+        return switch (contentType.toLowerCase()) {
+            case "image/png" -> ".png";
+            case "image/jpeg", "image/jpg" -> ".jpg";
+            case "image/gif" -> ".gif";
+            case "image/webp" -> ".webp";
+            case "image/tiff" -> ".tiff";
+            case "image/bmp" -> ".bmp";
+            default -> ".bin";
+        };
     }
 }

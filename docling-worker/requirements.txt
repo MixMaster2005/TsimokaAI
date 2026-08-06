@@ -8,10 +8,10 @@ python-multipart
 markitdown[pdf,docx,pptx,xlsx]
 pypdf
 
-# ---------------------------------------------------------------------------
-# Étage 2 — OCR (à activer avec l'implémentation réelle du modèle).
-# Ligne torch volontairement limitée au build CPU (pas de GPU dans l'environnement cible).
-#   transformers
-#   torch --index-url https://download.pytorch.org/whl/cpu
-#   pypdfium2
-# ---------------------------------------------------------------------------
+# Spec v2 — vision via l'API Gemini (OpenAI-compatible) au lieu de l'OCR local.
+openai
+# Extraction des images embarquées (PDF via PyMuPDF, DOCX via python-docx, PPTX via python-pptx).
+# ⚠️ PyMuPDF est sous licence AGPL-3.0 : en cas de contrainte, remplacer par pdfplumber/pypdfium2.
+pymupdf
+python-docx
+python-pptx
