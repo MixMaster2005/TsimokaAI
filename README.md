@@ -45,8 +45,10 @@ leur **progression** — le tout piloté par un ensemble de **microservices Spri
 
 > ⚠️ **État des lieux** : la « plomberie » (CRUD, sécurité, événements, persistance, Docker)
 > est fonctionnelle, ainsi que l'**ingestion complète** (extraction docling-worker + vision
-> Gemini, chunking, embeddings, indexation Qdrant, spec v2). Le **cœur IA restant** (persona,
-> orchestration RAG, génération Map-Reduce) est volontairement laissé en TODO pour être
+> Gemini, chunking, embeddings, indexation Qdrant, spec v2), la **bascule de provider LLM**
+> (Groq/Ollama via `ChatProviderResolver`) et le **chat RAG** (retrieval Qdrant par filtre
+> `space_id` + persona + appel LLM, dans `ChatService`). Le **cœur IA restant** (persona
+> space-service, génération Map-Reduce fiches) est volontairement laissé en TODO pour être
 > complété dans le cadre du mémoire — voir la [feuille de route](#feuille-de-route).
 
 ## Architecture
@@ -144,7 +146,7 @@ diagrammes, endpoints, événements et **parties non implémentées**.
 | `user-service` | 8081 | Auth, comptes, JWT (access + refresh) | ✅ Complet | [README](user-service/README.md) |
 | `space-service` | 8082 | Espaces de cours, groupes, persona pédagogique | 🟡 Persona LLM en TODO | [README](space-service/README.md) |
 | `ingestion-service` | 8083 | Upload, extraction (docling-worker + vision Gemini), chunking, embedding, indexation | 🟢 Pipeline complet — test e2e à faire | [README](ingestion-service/README.md) |
-| `chat-service` | 8084 | Conversations, orchestration RAG | 🟡 Orchestration RAG en TODO | [README](chat-service/README.md) |
+| `chat-service` | 8084 | Conversations, orchestration RAG | 🟢 RAG câblé (retrieval Qdrant + persona + LLM) — e2e à faire | [README](chat-service/README.md) |
 | `fiche-service` | 8085 | Génération de fiches, partage, annotation, validation | 🟡 Génération Map-Reduce en TODO | [README](fiche-service/README.md) |
 | `analytics-service` | 8086 | Tableaux de bord, statistiques, recommandations | ✅ Complet | [README](analytics-service/README.md) |
 | `gamification-service` | 8087 | Objectifs, badges, suivi hebdo, rappels | ✅ Complet | [README](gamification-service/README.md) |
@@ -242,9 +244,11 @@ pour le mémoire :
    chunking orienté sens `MarkdownChunkingService` couvert par tests unitaires, embeddings
    Ollama, upsert Qdrant) : il reste à réaliser le **test de bout en bout** avec toute l'infra
    (Ollama démarré) et à ajuster les paramètres de chunking empiriquement.
-2. **`space-service` / `PersonaService`** — génération + enrichissement du persona par LLM.
-3. **`chat-service` / `ChatService` + `LlmProviderConfig`** — orchestration RAG complète
-   (retrieval, prompt, bascule Groq/Gemini/Ollama, appel LLM).
+2. **`space-service` / `PersonaService`** — génération + enrichissement du persona par LLM
+   (actuellement persona « template » déterministe, consommé par le chat).
+3. **`chat-service` / `ChatService`** — RAG câblé : retrieval Qdrant (collection unique,
+   filtre `space_id`) via `QuestionAnswerAdvisor`, persona via `SpaceClient`, appel LLM via
+   `ChatProviderResolver`. Reste : validation e2e avec l'infra complète + `tokenCount` + Gemini.
 4. **`fiche-service` / `FicheGenerationService`** — génération Map-Reduce des fiches.
 5. **Enrichir `FicheEvent.validated()`** (`userId`/`spaceId` de l'étudiant) pour débloquer la
    progression analytics et le badge « première fiche validée ».

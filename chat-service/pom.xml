@@ -20,6 +20,8 @@
         système = persona + appel LLM avec bascule Groq/Gemini/Ollama) est un TODO explicite
         dans ChatService — c'est le cœur du mémoire à combler.
         =======================================================================================
+        ÉTAT : retrieval Qdrant (QuestionAnswerAdvisor, filtre space_id), persona (space-service)
+        et appel LLM (ChatProviderResolver) sont câblés dans ChatService.
     </description>
 
     <dependencies>
@@ -78,10 +80,15 @@
              ce qui est réellement disponible à la date du build (non vérifiable ici, hors-ligne
              des repos Maven). -->
 
+        <!-- Base vectorielle : QdrantVectorStore auto-configuré (collection unique "chunks",
+             Option A) + advisor RAG QuestionAnswerAdvisor (retrieval + filtre space_id). -->
         <dependency>
-            <groupId>io.qdrant</groupId>
-            <artifactId>client</artifactId>
-            <version>1.13.0</version>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-vector-store-qdrant</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-advisors-vector-store</artifactId>
         </dependency>
 
         <dependency>

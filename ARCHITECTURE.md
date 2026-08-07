@@ -72,8 +72,12 @@ complets. `space-service` et `fiche-service` ont un CRUD complet mais un point d
 IA isolé (`PersonaService`, `FicheGenerationService`). `ingestion-service` a son **pipeline
 d'ingestion complet** (extraction docling-worker + vision Gemini, chunking orienté sens par
 titres — `MarkdownChunkingService` —, embeddings, indexation Qdrant), chaque étape déléguée
-à un service dédié orchestré par `IngestionPipelineService`. `chat-service` n'a que
-l'infrastructure (conversations, clients Qdrant/LLM) — l'orchestration RAG reste à écrire.
+à un service dédié orchestré par `IngestionPipelineService`. `chat-service` a son
+**orchestration RAG câblée** : `QdrantVectorStore` (collection unique `chunks`, filtre
+`space_id` en payload) + `QuestionAnswerAdvisor`, persona via `SpaceClient` (appel interne
+à `space-service`, headers `X-User-Id` reproduits), LLM via `LlmProviderConfig` +
+`ChatProviderResolver`. Il reste la validation de bout en bout et le persona réel de
+`space-service`.
 
 **Raison** : c'est la partie du travail qui a une réelle valeur pour un mémoire M1 — la
 plomberie CRUD/Docker/événements n'a pas besoin d'être réinventée.
@@ -85,10 +89,17 @@ d'environnement, avec Groq intégré via le starter Spring AI OpenAI pointé sur
 `base-url` compatible OpenAI, et Ollama comme fallback local pour les démonstrations
 hors-ligne (soutenance sans connexion, ou machine sans clé API).
 
+Chaque starter auto-configure son `ChatModel` (`OpenAiChatModel` / `OllamaChatModel`) ;
+`LlmProviderConfig` expose un `ChatClient` qualifié par provider et `ChatProviderResolver`
+centralise la sélection au runtime (`.current()`, avec repli non bloquant si le provider
+configuré n'est pas enregistré) — `ChatService` l'utilise pour l'appel LLM.
+
 **Point ouvert** : l'intégration Gemini AI Studio n'a pas de starter Spring AI officiel
 identifié avec certitude au moment de la génération de ce codebase (Spring AI propose un
-starter Vertex AI Gemini, différent de l'API AI Studio à clé simple) — à trancher au
-premier build, une fois l'accès à la documentation Spring AI à jour possible.
+starter Vertex AI Gemini, différent de l'API AI Studio à clé simple). Piste privilégiée :
+**seconde instance du starter OpenAI** (bean `OpenAiApi`/`OpenAiChatModel` manuel pointé sur
+l'endpoint compatible Gemini, même mécanisme que `docling-worker`) ajoutée à la `Map` du
+`ChatProviderResolver` — à trancher au premier build.
 
 ## 7. Limites connues de ce codebase généré
 

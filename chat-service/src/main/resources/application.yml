@@ -45,11 +45,24 @@ spring:
       chat:
         options:
           model: ${OLLAMA_MODEL:qwen2.5:3b}
+      embedding:
+        # Même modèle d'embedding qu'ingestion-service (les vecteurs indexés doivent être
+        # dans le même espace pour que le retrieval fonctionne).
+        options:
+          model: ${OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
+    vectorstore:
+      qdrant:
+        # Collection UNIQUE partagée (Option A multi-tenant) : chaque point porte son
+        # space_id en payload, filtré au retrieval (QuestionAnswerAdvisor).
+        host: ${QDRANT_HOST:localhost}
+        port: ${QDRANT_PORT:6334}
+        use-tls: ${QDRANT_USE_TLS:false}
+        collection-name: ${QDRANT_COLLECTION:chunks}
 
-qdrant:
-  host: ${QDRANT_HOST:localhost}
-  port: ${QDRANT_PORT:6334}
-  use-tls: ${QDRANT_USE_TLS:false}
+# Appel REST service-à-service vers space-service pour récupérer le persona de l'espace
+# (headers X-User-Id injectés par la gateway reproduits en interne, cf. SpaceClient).
+space-service:
+  url: ${SPACE_SERVICE_URL:http://localhost:8082}
 
 chat:
   llm:
@@ -57,6 +70,7 @@ chat:
     active-provider: ${ACTIVE_LLM_PROVIDER:ollama}
   max-retrieved-chunks: ${CHAT_MAX_RETRIEVED_CHUNKS:5}
   max-history-messages: ${CHAT_MAX_HISTORY_MESSAGES:10}
+  similarity-threshold: ${CHAT_SIMILARITY_THRESHOLD:0.7}
 
 management:
   endpoints:
