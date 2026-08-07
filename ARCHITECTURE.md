@@ -94,12 +94,14 @@ Chaque starter auto-configure son `ChatModel` (`OpenAiChatModel` / `OllamaChatMo
 centralise la sélection au runtime (`.current()`, avec repli non bloquant si le provider
 configuré n'est pas enregistré) — `ChatService` l'utilise pour l'appel LLM.
 
-**Point ouvert** : l'intégration Gemini AI Studio n'a pas de starter Spring AI officiel
-identifié avec certitude au moment de la génération de ce codebase (Spring AI propose un
-starter Vertex AI Gemini, différent de l'API AI Studio à clé simple). Piste privilégiée :
-**seconde instance du starter OpenAI** (bean `OpenAiApi`/`OpenAiChatModel` manuel pointé sur
-l'endpoint compatible Gemini, même mécanisme que `docling-worker`) ajoutée à la `Map` du
-`ChatProviderResolver` — à trancher au premier build.
+**Gemini** : Google expose une **API compatible OpenAI officielle**
+(`https://generativelanguage.googleapis.com/v1beta/openai/`, clé AI Studio, noms de modèles
+Gemini) — c'est un simple changement de base-url, comme pour Groq. Contrainte réelle : le bean
+auto-configuré `openAiChatModel` est `@ConditionalOnMissingBean(OpenAiApi.class)` (le starter
+n'accepte qu'UNE auto-configuration, déjà prise par Groq). Le modèle Gemini est donc construit
+via une **seconde instance `OpenAiApi` en variable locale** de la méthode `@Bean` (jamais un
+bean Spring), sur le namespace dédié `spring.ai.gemini.*`, avec `completionsPath
+/chat/completions` (l'endpoint Gemini n'a pas le segment `/v1` que Spring AI met par défaut).
 
 ## 7. Limites connues de ce codebase généré
 

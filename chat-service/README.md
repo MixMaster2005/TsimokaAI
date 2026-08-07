@@ -46,7 +46,13 @@ l'infra + Ollama démarrés) et l'intégration **Gemini**.
     `llama-3.3-70b-versatile`.
   - **Ollama** : fallback **100 % local / hors-ligne** (soutenance sans connexion).
     Modèle par défaut `qwen2.5:3b`.
-  - **Gemini** : *non câblé* — voir « Point ouvert » ci-dessous.
+  - **Gemini** : Google expose une **API compatible OpenAI officielle**
+    (`https://generativelanguage.googleapis.com/v1beta/openai/`, clé AI Studio, noms de
+    modèles Gemini) → même mécanisme que Groq (changement de base-url), mais le starter
+    OpenAI ne permettant qu'**une** auto-configuration (déjà prise par Groq), le modèle est
+    construit en **variable locale** d'un `@Bean` (`spring.ai.gemini.*`), sans déclarer de
+    bean `OpenAiApi`/`OpenAiChatModel` (sinon l'auto-config Groq serait supprimée par son
+    `@ConditionalOnMissingBean`).
 - **`ChatProviderResolver`** : `current()` renvoie le `ChatClient` correspondant à
   `ACTIVE_LLM_PROVIDER` (repli non bloquant sur `ollama` si le provider configuré n'est pas
   enregistré).
@@ -123,13 +129,12 @@ propriétaire.
    space-service) : envoyer un vrai message et vérifier la réponse basée sur les documents
    indexés.
 2. Remplir `tokenCount` sur la réponse (non renseigné pour l'instant).
-3. **Gemini** : voir « Point ouvert ».
+3. **Test live Gemini** : nécessite une `GEMINI_API_KEY` ; le câblage (endpoint compatible
+   OpenAI + `completionsPath /chat/completions`) est vérifié à la compilation mais pas
+   exécuté sans clé.
 
-**Point ouvert** : l'intégration **Gemini AI Studio** n'a pas de starter Spring AI officiel
-identifié avec certitude (Spring AI propose `Vertex AI Gemini`, différent de l'API AI Studio à
-clé simple). À choisir : starter Vertex AI, ou **seconde instance du starter OpenAI** (bean
-`OpenAiApi`/`OpenAiChatModel` manuel pointé sur l'endpoint compatible Gemini, comme
-`docling-worker`) à ajouter à la `Map` du `ChatProviderResolver`.
+**Point ouvert** : aucune — les trois providers du contrat sont câblés. Seul un **test live
+Gemini** (avec clé) reste à faire.
 
 ## Variables d'environnement
 
@@ -137,6 +142,7 @@ clé simple). À choisir : starter Vertex AI, ou **seconde instance du starter O
 |---|---|---|
 | `ACTIVE_LLM_PROVIDER` | `ollama` | `groq` \| `gemini` \| `ollama` |
 | `GROQ_API_KEY` / `GROQ_MODEL` | — / `llama-3.3-70b-versatile` | Provider Groq (compatible OpenAI) |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | — / `gemini-2.5-flash` | Provider Gemini (endpoint OpenAI-compatible, `GEMINI_BASE_URL` surchargeable) |
 | `OLLAMA_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `qwen2.5:3b` | Fallback local |
 | `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Modèle d'embedding (identique à ingestion-service) |
 | `QDRANT_HOST` / `QDRANT_PORT` / `QDRANT_COLLECTION` | `localhost` / `6334` / `chunks` | Base vectorielle (collection unique) |

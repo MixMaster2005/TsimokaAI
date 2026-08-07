@@ -40,6 +40,17 @@ spring:
       chat:
         options:
           model: ${GROQ_MODEL:llama-3.3-70b-versatile}
+    # Gemini expose aussi une API compatible OpenAI (endpoint officiel Google,
+    # https://generativelanguage.googleapis.com/v1beta/openai/). Le starter OpenAI ne
+    # permettant qu'UNE auto-configuration (déjà prise par Groq), on fournit ici un
+    # namespace dédié consommé par un bean OpenAiChatModel manuel (variable locale, pas
+    # de bean OpenAiApi/OpenAiChatModel pour ne pas supprimer l'auto-config Groq).
+    gemini:
+      base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+      api-key: ${GEMINI_API_KEY:}
+      chat:
+        options:
+          model: ${GEMINI_MODEL:gemini-2.5-flash}
     ollama:
       base-url: ${OLLAMA_URL:http://localhost:11434}
       chat:
