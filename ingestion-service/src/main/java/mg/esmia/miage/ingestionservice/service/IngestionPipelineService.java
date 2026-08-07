@@ -41,8 +41,9 @@ import java.util.UUID;
  *   <li>Découper le Markdown en chunks orientés sens (~500 tokens / chunk) — titres d'abord,
  *       découpe de secours seulement si une section est trop grande.</li>
  *   <li>Générer les embeddings (EmbeddingModel Spring AI / Ollama) pour chaque chunk.</li>
- *   <li>Créer la collection Qdrant "chunks_{spaceId}" si absente puis upsert des points
- *       (metadata : document_id, space_id, chunk_index, content).</li>
+ *   <li>Upsert des points dans la collection Qdrant unique "chunks" (multi-tenant, Option A) :
+ *       chaque point porte document_id, space_id, chunk_index, content en payload — le
+ *       cloisonnement par espace se fait par filtre au moment du retrieval.</li>
  *   <li>Persister les entités Chunk (vectorId = id du point Qdrant).</li>
  *   <li>Mettre à jour Document (status=READY, chunkCount) et publier DOCUMENT_READY.
  *       En cas d'échec à n'importe quelle étape : status=FAILED + publier DOCUMENT_FAILED.</li>
@@ -104,11 +105,11 @@ public class IngestionPipelineService {
                                 vectors.size(), chunks.size()));
             }
 
-            // Étape 5-6 : collection chunks_{spaceId} (créée si absente) + upsert + persistance Chunk.
-            String collection = qdrantVectorService.collectionName(document.getSpaceId());
-            qdrantVectorService.ensureCollection(collection, vectors.get(0).length);
+            // Étape 5-6 : upsert dans la collection unique (multi-tenant, space_id en payload)
+            // + persistance Chunk.
+            qdrantVectorService.ensureCollection(vectors.get(0).length);
             List<UUID> vectorIds = qdrantVectorService.upsertChunks(
-                    collection, document.getId(), document.getSpaceId(), chunks, vectors);
+                    document.getId(), document.getSpaceId(), chunks, vectors);
             saveChunks(document.getId(), chunks, vectorIds);
 
             // Étape 7 : statut READY avec le vrai nombre de chunks + DOCUMENT_READY.
@@ -136,8 +137,7 @@ public class IngestionPipelineService {
     public void deleteDocument(Document document) {
         chunkRepository.deleteByDocumentId(document.getId());
         minioService.delete(document.getStorageUrl());
-        qdrantVectorService.deletePoints(
-                qdrantVectorService.collectionName(document.getSpaceId()), document.getId());
+        qdrantVectorService.deletePoints(document.getId());
         documentRepository.delete(document);
     }
 

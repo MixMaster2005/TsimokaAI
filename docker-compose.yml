@@ -182,6 +182,7 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET:-documents}
       QDRANT_HOST: qdrant
       QDRANT_PORT: 6334
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-chunks}
       OLLAMA_URL: http://ollama:11434
       # docling-worker (conteneur d'extraction spawné à la demande) : même réseau Docker
       # que ingestion-service pour que le DNS par nom de conteneur fonctionne.
@@ -221,6 +222,7 @@ services:
       REDIS_PORT: 6379
       QDRANT_HOST: qdrant
       QDRANT_PORT: 6334
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-chunks}
       ACTIVE_LLM_PROVIDER: ${ACTIVE_LLM_PROVIDER:-ollama}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}

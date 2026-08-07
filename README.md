@@ -75,7 +75,7 @@ flowchart TB
     subgraph Infrastructure
         PG[(PostgreSQL 16<br/>une base par service)]
         RD[(Redis 7<br/>pub/sub + rate limit)]
-        QD[("Qdrant — collections chunks_{spaceId}")]
+        QD[("Qdrant — collection unique chunks<br/>multi-tenant (space_id en payload)")]
         MO[(MinIO<br/>documents)]
         OL[Ollama<br/>LLM local - profil optionnel]
     end

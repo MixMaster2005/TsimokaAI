@@ -48,7 +48,7 @@ sequenceDiagram
     C->>U: POST /messages { content }
     U->>U: persist message USER + publish MESSAGE_CREATED
     U->>S: GET /api/v1/spaces/{id} → persona (REST interne)
-    U->>V: embed question + search top-N chunks (chunks_{spaceId})
+    U->>V: embed question + search top-N chunks (collection unique, filtre space_id)
     V-->>U: chunks pertinents
     U->>U: build prompt (persona système + chunks + historique + question)
     U->>L: ChatClient (provider actif)
@@ -99,7 +99,9 @@ propriétaire.
 ## Non implémenté (cœur IA du mémoire)
 
 1. **Retrieval Qdrant** : embedder la question (même modèle d'embedding qu'ingestion-service),
-   chercher les `CHAT_MAX_RETRIEVED_CHUNKS` chunks les plus proches dans `chunks_{spaceId}`.
+   chercher les `CHAT_MAX_RETRIEVED_CHUNKS` chunks les plus proches dans la collection unique
+   `chunks` (Option A multi-tenant), **filtrée sur `space_id`** en payload (ex.
+   `filterExpression` d'un `QuestionAnswerAdvisor`/Spring AI).
 2. **Récupération du persona** : appel REST service-à-service vers
    `GET /api/v1/spaces/{id}` (via la gateway ou WebClient direct — à trancher et documenter).
 3. **Construction du prompt** : persona en instruction système + chunks + historique + question.

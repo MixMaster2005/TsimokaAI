@@ -26,8 +26,10 @@ import java.util.UUID;
  *      GET /api/v1/spaces/{id}, en interne via la gateway ou un WebClient direct
  *      service-à-service — à trancher et documenter dans le mémoire).
  *   3. Retrieval : embedder la question de l'utilisateur puis chercher les
- *      CHAT_MAX_RETRIEVED_CHUNKS chunks les plus pertinents dans Qdrant
- *      (collection "chunks_{spaceId}", cf. QdrantClient déjà injectable).
+ *      CHAT_MAX_RETRIEVED_CHUNKS chunks les plus pertinents dans Qdrant. La collection est
+ *      UNIQUE ("chunks", cf. qdrant.collection-name — Option A multi-tenant) : on filtre par
+ *      space_id en payload (ex. filterExpression d'un QuestionAnswerAdvisor), plus par nom
+ *      de collection.
  *   4. Construire le prompt : persona en instruction système + chunks retrouvés en
  *      contexte + historique + question.
  *   5. Appeler le LLM actif selon ACTIVE_LLM_PROVIDER (groq / gemini / ollama, cf.

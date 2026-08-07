@@ -30,7 +30,7 @@ public class Chunk {
     @Column(name = "token_count")
     private Integer tokenCount;
 
-    /** Identifiant du point correspondant dans Qdrant (collection chunks_{space_id}). */
+    /** Identifiant du point correspondant dans Qdrant (collection unique "chunks"). */
     @Column(name = "vector_id")
     private String vectorId;
 }

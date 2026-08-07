@@ -7,9 +7,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Client Qdrant générique, prêt à l'emploi. La création des collections
- * (une par espace : "chunks_{space_id}", cf. contrat) et les opérations
- * d'upsert/recherche restent à implémenter dans IngestionPipelineService / chat-service.
+ * Client Qdrant générique, prêt à l'emploi. Pattern multi-tenant (Option A) : **une seule
+ * collection** "chunks" (cf. {@code qdrant.collection-name}), chaque point portant son
+ * {@code space_id} en payload — le cloisonnement par espace se fait par filtre au retrieval.
+ * L'upsert est géré par {@code QdrantVectorService} (ingestion-service).
  */
 @Configuration
 public class QdrantConfig {

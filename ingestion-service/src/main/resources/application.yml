@@ -53,6 +53,9 @@ qdrant:
   host: ${QDRANT_HOST:localhost}
   port: ${QDRANT_PORT:6334}
   use-tls: ${QDRANT_USE_TLS:false}
+  # Option A (multi-tenant) : une seule collection partagée, chaque point porte son
+  # space_id en payload (filtre au retrieval, ex. QuestionAnswerAdvisor de Spring AI).
+  collection-name: ${QDRANT_COLLECTION:chunks}
 
 # docling-worker : conteneur d'extraction spawné à la demande par ingestion-service
 # (docker-java). Image construite manuellement : docker build -t docling-worker:latest ./docling-worker

@@ -19,7 +19,7 @@ service dédié orchestré par `IngestionPipelineService` — seul un test de bo
    uploadés par les étudiants.
 2. Stocker le binaire dans **MinIO** (jamais en base).
 3. Traiter **de manière asynchrone** : extraction de texte → découpage en chunks → embeddings →
-   indexation dans **Qdrant** (une collection par espace `chunks_{spaceId}`).
+   indexation dans **Qdrant** (collection unique `chunks`, cloisonnée par `space_id` en payload).
 4. Publier `DOCUMENT_READY` (avec nombre de chunks) ou `DOCUMENT_FAILED`.
 
 ## Choix techniques
@@ -32,11 +32,14 @@ service dédié orchestré par `IngestionPipelineService` — seul un test de bo
 - **Machine à états du document** : `PENDING → PROCESSING → READY | FAILED`. `failure_reason`
   documente les échecs.
 - **Base vectorielle Qdrant** (client gRPC configuré dans `QdrantConfig`). Le CDC retenait
-  initialement ChromaDB, mais sans client Java officiel mûr → Qdrant. Contrat : une collection
-  `chunks_{spaceId}` par espace, metadata `{document_id, space_id, chunk_index, content}`.
-  Le client Qdrant déclare gRPC et protobuf en scope `runtime` : deux dépendances explicites
-  (`io.grpc:grpc-netty-shaded` et `com.google.protobuf:protobuf-java`, versions alignées sur
-  le client 1.13.0 / grpc 1.65.1) sont ajoutées pour le classpath de compilation.
+  initialement ChromaDB, mais sans client Java officiel mûr → Qdrant. **Option A (multi-tenant)**
+  : **une seule collection** `chunks` (configurable via `qdrant.collection-name`), chaque point
+  portant metadata `{document_id, space_id, chunk_index, content}` — le cloisonnement par espace
+  se fait par **filtre** sur `space_id` au moment du retrieval (ex. `filterExpression` de
+  `QuestionAnswerAdvisor`/Spring AI), plus par nom de collection. Le client Qdrant déclare gRPC
+  et protobuf en scope `runtime` : deux dépendances explicites (`io.grpc:grpc-netty-shaded` et
+  `com.google.protobuf:protobuf-java`, versions alignées sur le client 1.13.0 / grpc 1.65.1)
+  sont ajoutées pour le classpath de compilation.
 - **Extraction déléguée à `docling-worker/`** (conteneur Python FastAPI spawné à la demande) :
   `DockerWorkerClient` (lib `docker-java`) crée un conteneur `docling-worker-<uuid>` sur le
   réseau `apa-net`, attend son `/health`, appelle `POST /v1/convert` (multipart), puis arrête
@@ -76,7 +79,7 @@ flowchart LR
     ST1 --> DW["1. docling-worker<br/>Markdown + figures (Gemini vision)"]
     DW --> CHUNK[2. chunking orienté sens<br/>titres # / ##, récursif si trop grand]
     CHUNK --> EMB[3. EmbeddingModel<br/>Spring AI - Ollama]
-    EMB --> QD[4. upsert Qdrant<br/>collection chunks_spaceId]
+    EMB --> QD[4. upsert Qdrant<br/>collection unique chunks + space_id en payload]
     QD --> DB[5. persist chunks + vectorId]
     DB --> EV[6. status=READY + publish DOCUMENT_READY]
     ASYNC -- erreur --> FAIL[status=FAILED + publish DOCUMENT_FAILED]
@@ -143,7 +146,7 @@ service dédié, injecté par constructeur (`@RequiredArgsConstructor`).
 | 2bis. Figures | `ImageUploadService` | upload MinIO des images + substitution `{{IMAGE:…}}` |
 | 3. Chunking | `MarkdownChunkingService` | découpage orienté sens (titres, récursif) |
 | 4. Embeddings | `EmbeddingModel` (Spring AI / Ollama) | un vecteur par chunk, en lot |
-| 5-6. Vectoriel | `QdrantVectorService` | collection `chunks_{spaceId}`, upsert, purge |
+| 5-6. Vectoriel | `QdrantVectorService` | collection unique `chunks` (Option A), upsert, purge |
 
 Points de vigilance et limites :
 
@@ -158,9 +161,10 @@ Points de vigilance et limites :
 - **Embeddings** : `EmbeddingModel` Spring AI (Ollama `nomic-embed-text` par défaut), appel en
   lot pour le document. **Ollama doit être démarré** (profil compose `ollama`) sinon le
   document passera en `FAILED`.
-- **Qdrant** : collection `chunks_{spaceId}` créée si absente (dimensions déduites des
-  embeddings réels, distance **Cosine**), upsert des points avec metadata
-  `{document_id, space_id, chunk_index, content}`. `deleteDocument` purge aussi les points
+- **Qdrant** : collection **unique** `chunks` (Option A multi-tenant) créée si absente
+  (dimensions déduites des embeddings réels, distance **Cosine**), upsert des points avec
+  metadata `{document_id, space_id, chunk_index, content}` — chaque point porte son
+  `space_id`, le retrieval filtrera dessus. `deleteDocument` purge les points du document
   (filtre `document_id`). Validé par smoke test contre un vrai conteneur Qdrant.
 - **Point de vigilance** : l'artifactId du starter Spring AI Ollama a changé entre les
   milestones (`spring-ai-ollama-spring-boot-starter` vs `spring-ai-starter-model-ollama`). Le
@@ -173,6 +177,7 @@ Points de vigilance et limites :
 |---|---|---|
 | `MINIO_URL` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` / `MINIO_BUCKET` | `http://localhost:9000` / `minioadmin` / `minioadmin` / `documents` | Stockage objet |
 | `QDRANT_HOST` / `QDRANT_PORT` / `QDRANT_USE_TLS` | `localhost` / `6334` / `false` | Base vectorielle (gRPC) |
+| `QDRANT_COLLECTION` | `chunks` | Collection unique multi-tenant (Option A — space_id en payload) |
 | `OLLAMA_URL` | `http://localhost:11434` | Modèle d'embedding local |
 | `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Modèle d'embedding |
 | `DOCKER_HOST_SOCKET` | `unix:///var/run/docker.sock` | Socket Docker (⚠️ accès root sur l'hôte) |

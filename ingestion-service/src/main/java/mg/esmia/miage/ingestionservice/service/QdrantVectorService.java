@@ -11,6 +11,7 @@ import io.qdrant.client.grpc.Points.Filter;
 import io.qdrant.client.grpc.Points.PointStruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -19,8 +20,12 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Accès à la base vectorielle Qdrant (contrat : une collection {@code chunks_{spaceId}} par
- * espace, metadata {@code {document_id, space_id, chunk_index, content}}).
+ * Accès à la base vectorielle Qdrant — **pattern multi-tenant : une seule collection partagée**
+ * (nom configurable, défaut {@code chunks}), chaque point portant son {@code space_id} en
+ * payload (Option A). Le cloisonnement par espace se fait donc par **filtre** sur le payload
+ * (ex. {@code filterExpression} de {@code QuestionAnswerAdvisor} / Spring AI), et plus par le
+ * nom de la collection. Metadata par point :
+ * {@code {document_id, space_id, chunk_index, content}}.
  *
  * <p>Appels gRPC bloquants via {@code ListenableFuture.get(timeout)} ; les interactions sont
  * validées par un smoke test contre un vrai conteneur Qdrant.
@@ -35,14 +40,17 @@ public class QdrantVectorService {
 
     private final QdrantClient qdrantClient;
 
-    /** Nom de la collection vectorielle d'un espace : {@code chunks_{spaceId}}. */
-    public String collectionName(UUID spaceId) {
-        return "chunks_" + spaceId;
+    @Value("${qdrant.collection-name:chunks}")
+    private String collectionName;
+
+    /** Nom de la collection vectorielle unique (tous les espaces y partagent leurs chunks). */
+    public String collectionName() {
+        return collectionName;
     }
 
-    /** Crée la collection si elle n'existe pas encore (dimensions déduites des embeddings réels,
-     *  distance Cosine). */
-    public void ensureCollection(String collectionName, long dimensions) {
+    /** Crée la collection unique si elle n'existe pas encore (dimensions déduites des embeddings
+     *  réels, distance Cosine). */
+    public void ensureCollection(long dimensions) {
         try {
             qdrantClient.getCollectionInfoAsync(collectionName)
                     .get(QDRANT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -64,11 +72,12 @@ public class QdrantVectorService {
     }
 
     /**
-     * Upsert des vecteurs d'un document dans la collection de son espace.
+     * Upsert des vecteurs d'un document dans la collection unique. Chaque point porte son
+     * {@code space_id} en payload (filtré côté retrieval).
      *
      * @return les identifiants UUID des points (persistés dans {@code Chunk.vectorId}).
      */
-    public List<UUID> upsertChunks(String collectionName, UUID documentId, UUID spaceId,
+    public List<UUID> upsertChunks(UUID documentId, UUID spaceId,
                                    List<String> chunks, List<float[]> vectors) {
         String documentIdStr = documentId.toString();
         String spaceIdStr = spaceId.toString();
@@ -98,7 +107,7 @@ public class QdrantVectorService {
     }
 
     /** Supprime les points Qdrant d'un document (filtre par document_id), non bloquant en échec. */
-    public void deletePoints(String collectionName, UUID documentId) {
+    public void deletePoints(UUID documentId) {
         Filter filter = Filter.newBuilder()
                 .addAllMust(List.of(ConditionFactory.matchKeyword("document_id", documentId.toString())))
                 .build();
