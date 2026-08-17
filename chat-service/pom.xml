@@ -20,14 +20,21 @@
         système = persona + appel LLM avec bascule Groq/Gemini/Ollama) est un TODO explicite
         dans ChatService — c'est le cœur du mémoire à combler.
         =======================================================================================
-        ÉTAT : retrieval Qdrant (QuestionAnswerAdvisor, filtre space_id), persona (space-service)
-        et appel LLM (ChatProviderResolver) sont câblés dans ChatService.
+        ÉTAT : retrieval Qdrant (pipeline RAG custom : rewrite + topK 40 + rerank LLM topN 5,
+        filtre space_id), persona (space-service), historique via JpaBackedChatMemory
+        (MessageChatMemoryAdvisor) et appel LLM (ChatProviderResolver, module ai-common).
     </description>
 
     <dependencies>
         <dependency>
             <groupId>mg.esmia.miage</groupId>
             <artifactId>common</artifactId>
+        </dependency>
+        <!-- Noyau partagé IA : bascule Groq/Gemini/Ollama (ChatProviderResolver) +
+             starters Spring AI OpenAI/Ollama + resilience4j (transitifs). -->
+        <dependency>
+            <groupId>mg.esmia.miage</groupId>
+            <artifactId>ai-common</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -63,32 +70,11 @@
             <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
-        <!-- Groq expose une API compatible OpenAI -> on pointe le starter OpenAI sur
-             son base-url (cf. application.yml, spring.ai.openai.base-url=https://api.groq.com/openai). -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-model-openai</artifactId>
-        </dependency>
-        <!-- Fallback hors-ligne. -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-model-ollama</artifactId>        </dependency>
-        <!-- NB: pas de starter Spring AI officiel unique pour "Gemini AI Studio" au moment
-             de la rédaction (Spring AI propose Vertex AI Gemini, différent de la clé API
-             AI Studio). A vérifier/choisir entre spring-ai-vertex-ai-gemini-spring-boot-starter
-             (GCP) et un appel WebClient manuel vers generativelanguage.googleapis.com selon
-             ce qui est réellement disponible à la date du build (non vérifiable ici, hors-ligne
-             des repos Maven). -->
-
-        <!-- Base vectorielle : QdrantVectorStore auto-configuré (collection unique "chunks",
-             Option A) + advisor RAG QuestionAnswerAdvisor (retrieval + filtre space_id). -->
+        <!-- Base vectorielle : QdrantVectorStore auto-configuré (collection UNIQUE "chunks",
+             Option A multi-tenant, filtre space_id au retrieval). -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-vector-store-qdrant</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-advisors-vector-store</artifactId>
         </dependency>
 
         <dependency>

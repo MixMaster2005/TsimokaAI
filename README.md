@@ -46,10 +46,11 @@ leur **progression** — le tout piloté par un ensemble de **microservices Spri
 > ⚠️ **État des lieux** : la « plomberie » (CRUD, sécurité, événements, persistance, Docker)
 > est fonctionnelle, ainsi que l'**ingestion complète** (extraction docling-worker + vision
 > Gemini, chunking, embeddings, indexation Qdrant, spec v2), la **bascule de provider LLM**
-> (Groq/Ollama via `ChatProviderResolver`) et le **chat RAG** (retrieval Qdrant par filtre
-> `space_id` + persona + appel LLM, dans `ChatService`). Le **cœur IA restant** (persona
-> space-service, génération Map-Reduce fiches) est volontairement laissé en TODO pour être
-> complété dans le cadre du mémoire — voir la [feuille de route](#feuille-de-route).
+> (Groq/Gemini/Ollama via `ai-common` + `ChatProviderResolver`), le **chat RAG** (pipeline
+> custom : rewrite → retrieval large filtré `space_id` → rerank LLM → contexte), le **persona
+> pédagogique** (génération + enrichissement par LLM) et la **génération Map-Reduce des
+> fiches** (validation de structure par `StructuredOutputValidationAdvisor`). Il reste la
+> **validation de bout en bout** avec l'infra complète (voir la [feuille de route](#feuille-de-route)).
 
 ## Architecture
 
@@ -84,10 +85,10 @@ flowchart TB
     FE --> GW
     GW --> US & SS & IS & CS & FS & AS & GS
     US --> PG & RD
-    SS --> PG & RD
+    SS --> PG & RD & QD
     IS --> PG & RD & QD & MO
     CS --> PG & RD & QD
-    FS --> PG & RD
+    FS --> PG & RD & QD
     AS --> PG & RD
     GS --> PG & RD
     IS -.-> OL
@@ -102,7 +103,7 @@ Les échanges d'événements entre services sont détaillés dans [`common/READM
 |---|---|---|
 | Langage | Java | 17 |
 | Framework | Spring Boot / Spring Cloud | 3.3.5 / 2023.0.3 |
-| IA | Spring AI (Groq via OpenAI starter, Ollama, Gemini) | 1.0.0 |
+| IA | Spring AI (Groq via OpenAI starter, Gemini via API OpenAI, Ollama) | 1.1.8 |
 | Réactif | Spring Cloud Gateway (WebFlux) | — |
 | Persistance | PostgreSQL 16 + Flyway | — |
 | Vecteurs | Qdrant (client gRPC) | 1.13.0 |
@@ -121,6 +122,7 @@ tsimokaai/
 ├── docker-compose.yml          # Orchestration locale complète
 ├── .env.example                # Variables d'environnement (à copier en .env)
 ├── common/                     # 📚 Lib partagée (enveloppe API, erreurs, événements, contexte) → README
+├── ai-common/                  # 🧠 Lib IA partagée (résolveur de provider LLM, auto-configuration) → README
 ├── api-gateway/                # 🚪 Point d'entrée unique (JWT, routage, rate limit) → README
 ├── user-service/               # 🔐 Auth, comptes, JWT → README
 ├── space-service/              # 📁 Espaces, groupes, persona → README
@@ -144,13 +146,14 @@ diagrammes, endpoints, événements et **parties non implémentées**.
 |---|---|---|---|---|
 | `api-gateway` | 8080 | Point d'entrée unique, JWT, routage, rate limiting | ✅ Complet | [README](api-gateway/README.md) |
 | `user-service` | 8081 | Auth, comptes, JWT (access + refresh) | ✅ Complet | [README](user-service/README.md) |
-| `space-service` | 8082 | Espaces de cours, groupes, persona pédagogique | 🟡 Persona LLM en TODO | [README](space-service/README.md) |
+| `space-service` | 8082 | Espaces de cours, groupes, persona pédagogique | 🟢 Persona généré + enrichi par LLM — e2e à faire | [README](space-service/README.md) |
 | `ingestion-service` | 8083 | Upload, extraction (docling-worker + vision Gemini), chunking, embedding, indexation | 🟢 Pipeline complet — test e2e à faire | [README](ingestion-service/README.md) |
-| `chat-service` | 8084 | Conversations, orchestration RAG | 🟢 RAG câblé (retrieval Qdrant + persona + LLM) — e2e à faire | [README](chat-service/README.md) |
-| `fiche-service` | 8085 | Génération de fiches, partage, annotation, validation | 🟡 Génération Map-Reduce en TODO | [README](fiche-service/README.md) |
+| `chat-service` | 8084 | Conversations, orchestration RAG | 🟢 RAG (rewrite + retrieval + rerank LLM) — e2e à faire | [README](chat-service/README.md) |
+| `fiche-service` | 8085 | Génération de fiches, partage, annotation, validation | 🟢 Génération Map-Reduce — e2e à faire | [README](fiche-service/README.md) |
 | `analytics-service` | 8086 | Tableaux de bord, statistiques, recommandations | ✅ Complet | [README](analytics-service/README.md) |
 | `gamification-service` | 8087 | Objectifs, badges, suivi hebdo, rappels | ✅ Complet | [README](gamification-service/README.md) |
 | `common` | — | Lib partagée (JAR) | ✅ Stable | [README](common/README.md) |
+| `ai-common` | — | Lib IA partagée (JAR) | ✅ Stable | [README](ai-common/README.md) |
 
 ## Prérequis
 
@@ -245,11 +248,15 @@ pour le mémoire :
    Ollama, upsert Qdrant) : il reste à réaliser le **test de bout en bout** avec toute l'infra
    (Ollama démarré) et à ajuster les paramètres de chunking empiriquement.
 2. **`space-service` / `PersonaService`** — génération + enrichissement du persona par LLM
-   (actuellement persona « template » déterministe, consommé par le chat).
-3. **`chat-service` / `ChatService`** — RAG câblé : retrieval Qdrant (collection unique,
-   filtre `space_id`) via `QuestionAnswerAdvisor`, persona via `SpaceClient`, appel LLM via
-   `ChatProviderResolver`. Reste : validation e2e avec l'infra complète + `tokenCount` + Gemini.
-4. **`fiche-service` / `FicheGenerationService`** — génération Map-Reduce des fiches.
+   (prompts `persona-generation.st` / `persona-enrichment.st`, échantillon de chunks Qdrant,
+   circuit breaker `llm-persona`) : à valider en e2e avec un document réel.
+3. **`chat-service` / `ChatService`** — pipeline RAG custom (`RagPipelineAdvisor` :
+   rewrite LLM → retrieval large filtré `space_id` → rerank LLM topN → contexte augmenté),
+   historique par `JpaBackedChatMemory` + `MessageChatMemoryAdvisor`, circuit breaker
+   `llm-chat`. Reste : validation e2e avec l'infra complète + `tokenCount` + Gemini.
+4. **`fiche-service` / `FicheGenerationService`** — génération Map-Reduce des fiches
+   (prompts `fiche-map.st` / `fiche-reduce.st`, `StructuredOutputValidationAdvisor`,
+   circuit breaker `llm-fiche`) : à valider en e2e.
 5. **Enrichir `FicheEvent.validated()`** (`userId`/`spaceId` de l'étudiant) pour débloquer la
    progression analytics et le badge « première fiche validée ».
 

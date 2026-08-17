@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>mg.esmia.miage</groupId>
+        <artifactId>tsimokaai-platform</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>ai-common</artifactId>
+    <packaging>jar</packaging>
+    <name>ai-common</name>
+    <description>
+        Noyau partagé scindé par CAPACITÉ (IA) : bascule multi-provider LLM
+        (Groq / Gemini / Ollama) pour les seuls services consommateurs d'IA
+        (chat-service, space-service, fiche-service). PAS dans common (dépendance
+        de TOUS les services, y compris ceux sans IA, que l'on ne veut pas coupler
+        à Spring AI), PAS dupliqué par service.
+
+        Les starters Spring AI (OpenAI — utilisé pour Groq ET Gemini via base-url
+        différente — et Ollama) ainsi que le circuit breaker resilience4j sont ici
+        TRANSITIFS : les services consommateurs remplacent leurs déclarations
+        individuelles par une seule dépendance mg.esmia.miage:ai-common.
+
+        Ce module N'EST PAS une application Spring Boot exécutable (pas de repackage).
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>mg.esmia.miage</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
+        <!-- Groq expose une API compatible OpenAI : le starter OpenAI est pointé sur
+             son base-url. Le même starter sert de base au provider Gemini via une
+             seconde instance OpenAiApi manuelle (endpoint compatible OpenAI Google). -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-openai</artifactId>
+        </dependency>
+        <!-- Fallback hors-ligne (Ollama local). -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-ollama</artifactId>
+        </dependency>
+        <!-- Resilience : le pattern @CircuitBreaker des services consommateurs
+             (llm-chat / llm-persona / llm-fiche) dépend de ce starter. -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Pas de plugin spring-boot-maven-plugin ici volontairement :
+                 ce module est une lib, pas un artefact exécutable. -->
+        </plugins>
+    </build>
+</project>

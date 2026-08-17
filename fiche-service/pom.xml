@@ -14,18 +14,29 @@
     <name>fiche-service</name>
     <description>
         Génération et stockage de fiches de révision, partage, annotations, validation enseignant.
-        ================================ SCAFFOLD PARTIEL ================================
-        CRUD complet (fiches, partage, annotations, validation) : fourni et fonctionnel,
-        car générique. La génération elle-même (pattern Map-Reduce : résumé intermédiaire
-        par document puis fusion cohérente, cf. CDC §4.4) est un TODO explicite dans
-        FicheGenerationService — c'est le cœur IA du mémoire à combler.
-        =====================================================================================
+        CRUD complet (fiches, partage, annotations, validation) : fourni et fonctionnel.
+        La génération (pattern Map-Reduce : résumé intermédiaire par document puis fusion
+        cohérente, cf. CDC §4.4) est implémentée dans FicheGenerationService (sortie
+        structurée FicheContent via StructuredOutputValidationAdvisor, @CircuitBreaker).
     </description>
 
     <dependencies>
         <dependency>
             <groupId>mg.esmia.miage</groupId>
             <artifactId>common</artifactId>
+        </dependency>
+        <!-- Noyau partagé IA : bascule Groq/Gemini/Ollama (ChatProviderResolver) +
+             starters Spring AI OpenAI/Ollama + resilience4j (transitifs). -->
+        <dependency>
+            <groupId>mg.esmia.miage</groupId>
+            <artifactId>ai-common</artifactId>
+        </dependency>
+        <!-- Base vectorielle partagée (collection UNIQUE "chunks", Option A) : la phase MAP
+             de la génération lit les chunks d'un document (payload content) pour produire
+             les résumés intermédiaires — pas de dépendance à la BDD d'ingestion-service. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-vector-store-qdrant</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -59,10 +70,6 @@
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-database-postgresql</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-model-ollama</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>

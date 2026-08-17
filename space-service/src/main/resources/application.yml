@@ -31,6 +31,60 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
+  ai:
+    openai:
+      # Groq expose une API compatible OpenAI (bascule "groq" du contrat de configuration).
+      base-url: ${GROQ_BASE_URL:https://api.groq.com/openai}
+      api-key: ${GROQ_API_KEY:}
+      chat:
+        options:
+          model: ${GROQ_MODEL:llama-3.3-70b-versatile}
+    # Gemini via l'endpoint officiel compatible OpenAI (consommé par le bean local d'ai-common,
+    # namespace dédié pour ne pas écraser l'auto-config Groq).
+    gemini:
+      base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+      api-key: ${GEMINI_API_KEY:}
+      chat:
+        options:
+          model: ${GEMINI_MODEL:gemini-2.5-flash}
+    ollama:
+      base-url: ${OLLAMA_URL:http://localhost:11434}
+      chat:
+        options:
+          model: ${OLLAMA_MODEL:qwen2.5:3b}
+      embedding:
+        # Même modèle d'embedding qu'ingestion-service (espace vectoriel commun pour le
+        # retrieval Qdrant de l'échantillon de chunks).
+        options:
+          model: ${OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
+    vectorstore:
+      qdrant:
+        # Collection UNIQUE partagée "chunks" (Option A multi-tenant) : l'échantillon de
+        # chunks du persona est lu avec un filtre space_id/document_id en payload.
+        host: ${QDRANT_HOST:localhost}
+        port: ${QDRANT_PORT:6334}
+        use-tls: ${QDRANT_USE_TLS:false}
+        collection-name: ${QDRANT_COLLECTION:chunks}
+
+# Génération / enrichissement du persona par LLM (provider actif + circuit breaker).
+chat:
+  llm:
+    active-provider: ${ACTIVE_LLM_PROVIDER:ollama}
+
+persona:
+  sample-size: ${PERSONA_SAMPLE_SIZE:8}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      llm-persona:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 3
+
 management:
   endpoints:
     web:

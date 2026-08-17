@@ -4,10 +4,11 @@
 > **Port :** `8084` · **Base :** `chat_db` (PostgreSQL) · **Vecteurs :** Qdrant (collection unique `chunks`) · **LLM :** Groq / Gemini / Ollama
 
 Conversations, messages et **orchestration RAG** (Retrieval-Augmented Generation) **câblée** :
-retrieval Qdrant via `QuestionAnswerAdvisor` (collection unique, filtre `space_id`), persona de
-l'espace via `space-service`, et appel au LLM actif via `ChatProviderResolver` — avec
-dégradation non bloquante à chaque étape. Il reste la **validation de bout en bout** (toute
-l'infra + Ollama démarrés) et l'intégration **Gemini**.
+pipeline custom `RagPipelineAdvisor` (réécriture de requête → retrieval large filtré `space_id`
+→ rerank LLM → contexte augmenté), persona de l'espace via `space-service`, historique via
+`JpaBackedChatMemory` + `MessageChatMemoryAdvisor`, et appel au LLM actif via `ChatProviderResolver`
+(`ai-common`) — le tout sous circuit breaker `llm-chat`. Il reste la **validation de bout en bout**
+(toute l'infra + Ollama démarrés) et le test live **Gemini**.
 
 ## Rôle
 
@@ -22,12 +23,22 @@ l'infra + Ollama démarrés) et l'intégration **Gemini**.
 - **Modèle de messages typé** : `role` (`USER` / `ASSISTANT`), traçabilité RAG native
   (`retrieved_chunk_ids UUID[]` sur une colonne PostgreSQL, fidèle au schéma du contrat),
   `model_used`, `token_count`.
-- **Retrieval via `QuestionAnswerAdvisor`** (module `spring-ai-advisors-vector-store`) sur le
-  `QdrantVectorStore` auto-configuré (`spring-ai-starter-vector-store-qdrant`) — **Option A** :
-  collection **unique** `chunks`, chaque point porte son `space_id` en payload, filtré au
-  retrieval par `filterExpression("space_id == '…'")`. C'est Spring AI qui fusionne les chunks
-  retrouvés dans le prompt ; les IDs réellement utilisés sont extraits de la métadonnée
-  `QuestionAnswerAdvisor.RETRIEVED_DOCUMENTS` de la réponse (`retrieved_chunk_ids`).
+- **Pipeline RAG custom — `RagPipelineAdvisor`** (équivalent fonctionnel du RAG modulaire de
+  Spring AI 2.0, absent en 1.1.x — cf. `ARCHITECTURE.md` §6.3). Le `QdrantVectorStore`
+  auto-configuré (`spring-ai-starter-vector-store-qdrant`) — **Option A** : collection **unique**
+  `chunks`, chaque point porte son `space_id` en payload, filtré au retrieval par
+  `filterExpression("space_id == '…'")`. Le pipeline :
+  1. **Rewrite** : la question brute est réécrite par LLM en requête de retrieval autonome
+     (utile en multi-tour : « et pour le second cas ? » n'a pas de sens isolé). Échec = question brute.
+  2. **Retrieval large** : `topK` élevé (`CHAT_RETRIEVAL_TOP_K` = 40) + seuil bas
+     (`CHAT_RETRIEVAL_SIMILARITY_THRESHOLD` = 0.5), pour ne pas rater de chunk pertinent.
+  3. **Rerank** : les candidats sont réordonnés par un second appel LLM
+     (`LlmDocumentReranker`, tags `[C0]..[Cn]`), garde le `topN` = `CHAT_MAX_RETRIEVED_CHUNKS` (5).
+     Échec = les `topN` premiers candidats.
+  4. **Augmentation** : le contexte est injecté dans le prompt système. Contexte vide →
+     **anti-hallucination** : le modèle répond honnêtement qu'il ne trouve pas l'information.
+  Les IDs des chunks réellement utilisés sont exposés dans la métadonnée `RAG_RETRIEVED_DOCUMENTS`
+  de la réponse (`retrieved_chunk_ids`).
 - **Embedding** : même modèle qu'`ingestion-service` (`nomic-embed-text`) pour que les vecteurs
   indexés soient dans le même espace (propriété `spring.ai.ollama.embedding.options.model`).
 - **Persona de l'espace** : appel REST service-à-service à `space-service`
@@ -35,12 +46,16 @@ l'infra + Ollama démarrés) et l'intégration **Gemini**.
   par la gateway sont **reproduits en interne** avec le propriétaire de la conversation (contrat
   de sécurité : les backends font confiance aux headers, cf. `common/UserContextFilter`).
   Défaillance non bloquante : persona générique si space-service est injoignable.
-- **Historique** : persisté en base (`messages` table) et **reconstruit dans le prompt système**
-  (`CHAT_MAX_HISTORY_MESSAGES`) — pas de `MessageChatMemoryAdvisor`/`ChatMemory` en mémoire :
-  la base reste la source de vérité unique, et l'historique est ainsi partagé/durable entre
-  instances et redémarrages.
+- **Historique — `JpaBackedChatMemory` + `MessageChatMemoryAdvisor`** : la base reste la source
+  de vérité **unique** ; `JpaBackedChatMemory` implémente `ChatMemory` par-dessus
+  `MessageRepository` (aucun store en mémoire Spring AI). `MessageChatMemoryAdvisor.before()`
+  injecte l'historique (fenêtre `CHAT_MAX_HISTORY_MESSAGES`) dans le prompt et
+  `after()` persiste les messages via le repository — `add()` est **idempotent** (un message
+  dont le contenu correspond au dernier message du même rôle n'est pas ré-inséré), ce qui
+  réconcilie la persistance par `ChatService` (message USER persisté **avant** l'appel,
+  événement immédiat) et celle de l'advisor.
 - **Bascule de provider LLM par configuration** : `ACTIVE_LLM_PROVIDER` ∈
-  `groq | gemini | ollama` (via `LlmProviderConfig`).
+  `groq | gemini | ollama` via `ai-common` (`LlmProviderAutoConfiguration` + `ChatProviderResolver`).
   - **Groq** : API compatible OpenAI → le starter Spring AI **OpenAI** est pointé sur
     `https://api.groq.com/openai` (aucun SDK spécifique requis). Modèle par défaut
     `llama-3.3-70b-versatile`.
@@ -50,16 +65,18 @@ l'infra + Ollama démarrés) et l'intégration **Gemini**.
     (`https://generativelanguage.googleapis.com/v1beta/openai/`, clé AI Studio, noms de
     modèles Gemini) → même mécanisme que Groq (changement de base-url), mais le starter
     OpenAI ne permettant qu'**une** auto-configuration (déjà prise par Groq), le modèle est
-    construit en **variable locale** d'un `@Bean` (`spring.ai.gemini.*`), sans déclarer de
-    bean `OpenAiApi`/`OpenAiChatModel` (sinon l'auto-config Groq serait supprimée par son
-    `@ConditionalOnMissingBean`).
-- **`ChatProviderResolver`** : `current()` renvoie le `ChatClient` correspondant à
-  `ACTIVE_LLM_PROVIDER` (repli non bloquant sur `ollama` si le provider configuré n'est pas
-  enregistré).
-- **Dégradation non bloquante** : échec LLM ou retrieval → réponse ASSISTANT dégradée persistée
-  quand même ; la conversation n'est jamais cassée.
-- **Paramètres de RAG configurables** : `CHAT_MAX_RETRIEVED_CHUNKS` (5),
-  `CHAT_SIMILARITY_THRESHOLD` (0.7) et `CHAT_MAX_HISTORY_MESSAGES` (10).
+    construit en **variable locale** d'un `@Bean` d'`ai-common` (`spring.ai.gemini.*`), sans
+    déclarer de bean `OpenAiApi`/`OpenAiChatModel` (sinon l'auto-config Groq serait supprimée
+    par son `@ConditionalOnMissingBean`).
+- **`ChatProviderResolver`** : `current()` renvoie le `ChatClient` du provider actif ; lève
+  `ApiException(LLM_PROVIDER_UNAVAILABLE, 503)` si le provider configuré n'est pas disponible
+  (pas de repli silencieux — cf. `ARCHITECTURE.md` §6.3).
+- **Circuit breaker `llm-chat`** : l'appel RAG+LLM est isolé dans `ChatLlmService`
+  (`@CircuitBreaker`, composant séparé pour éviter l'auto-invocation AOP). En échec ou circuit
+  ouvert → **message d'indisponibilité honnête** (« L'assistant est temporairement
+  indisponible. Réessayez dans quelques instants. »), jamais une réponse statique trompeuse.
+- **Paramètres de RAG configurables** : `CHAT_RETRIEVAL_TOP_K` (40), `CHAT_RETRIEVAL_SIMILARITY_THRESHOLD`
+  (0.5), `CHAT_MAX_RETRIEVED_CHUNKS` (5) et `CHAT_MAX_HISTORY_MESSAGES` (10).
 
 ## Orchestration RAG (implémentée)
 
@@ -75,12 +92,13 @@ sequenceDiagram
     U->>U: persist message USER + publish MESSAGE_CREATED
     U->>S: GET /api/v1/spaces/{id} → persona (REST interne, header X-User-Id)
     S-->>U: persona (repli générique si échec)
-    U->>U: build prompt système (persona + historique récent)
-    U->>V: QuestionAnswerAdvisor : embed question + search top-N chunks (collection unique, filtre space_id)
-    V-->>U: chunks pertinents (retrievedChunkIds)
-    U->>L: ChatClient (provider actif) + advisors(QA) + user(question)
+    U->>U: ChatLlmService @CircuitBreaker(llm-chat)
+    Note over U: RagPipelineAdvisor<br/>1. rewrite LLM → requête autonome<br/>2. retrieval large topK=40 seuil=0.5 (filtre space_id)<br/>3. rerank LLM → topN=5<br/>4. contexte injecté (anti-hallucination si vide)
+    U->>V: similaritySearch(topK=40, filter space_id)
+    V-->>U: candidats
+    U->>L: rerank (2e appel LLM) + chat + MessageChatMemoryAdvisor(historique)
     L-->>U: réponse assistant + métadonnée RETRIEVED_DOCUMENTS
-    U->>U: persist message ASSISTANT (retrievedChunkIds, modelUsed) + publish MESSAGE_CREATED
+    U->>U: assistant persisté par l'advisor → enrichi (chunkIds, modelUsed) → MESSAGE_CREATED
     U-->>C: réponse assistant
 ```
 
@@ -127,7 +145,7 @@ propriétaire.
 
 1. **Validation de bout en bout** avec toute l'infra (postgres + redis + qdrant + ollama +
    space-service) : envoyer un vrai message et vérifier la réponse basée sur les documents
-   indexés.
+   indexés, ainsi que la qualité du **rerank LLM** (paramètres à ajuster empiriquement).
 2. Remplir `tokenCount` sur la réponse (non renseigné pour l'instant).
 3. **Test live Gemini** : nécessite une `GEMINI_API_KEY` ; le câblage (endpoint compatible
    OpenAI + `completionsPath /chat/completions`) est vérifié à la compilation mais pas
@@ -147,15 +165,16 @@ Gemini** (avec clé) reste à faire.
 | `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Modèle d'embedding (identique à ingestion-service) |
 | `QDRANT_HOST` / `QDRANT_PORT` / `QDRANT_COLLECTION` | `localhost` / `6334` / `chunks` | Base vectorielle (collection unique) |
 | `SPACE_SERVICE_URL` | `http://localhost:8082` | Persona de l'espace (appel service-à-service) |
-| `CHAT_MAX_RETRIEVED_CHUNKS` | `5` | Nombre de chunks injectés dans le prompt |
-| `CHAT_SIMILARITY_THRESHOLD` | `0.7` | Seuil de similarité minimal d'un chunk |
+| `CHAT_RETRIEVAL_TOP_K` | `40` | Nombre de candidats du retrieval large |
+| `CHAT_RETRIEVAL_SIMILARITY_THRESHOLD` | `0.5` | Seuil de similarité minimal (phase retrieval large) |
+| `CHAT_MAX_RETRIEVED_CHUNKS` | `5` | Nombre de chunks gardés après rerank (injectés dans le prompt) |
 | `CHAT_MAX_HISTORY_MESSAGES` | `10` | Longueur d'historique conservée |
 
 ## Lancer
 
 ```bash
 docker compose up -d postgres redis qdrant
-mvn -pl common,chat-service -am spring-boot:run
+mvn -pl common,ai-common,chat-service -am spring-boot:run
 # Swagger : http://localhost:8084/swagger-ui.html
 # Sans clé API, choisir ollama (démarrer le profil ollama de docker-compose) ; space-service
 # doit tourner pour récupérer le persona (repli générique sinon).

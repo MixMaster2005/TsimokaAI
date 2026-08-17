@@ -34,7 +34,7 @@ public class FicheService {
     @Transactional
     public FicheResponse generate(UUID userId, GenerateFicheRequest request) {
         List<UUID> documentIds = request.documentIds() == null ? List.of() : request.documentIds();
-        String contentJson = generationService.generateContentJson(documentIds);
+        String contentJson = generationService.generateContentJson(request.spaceId(), documentIds);
 
         Fiche fiche = Fiche.builder()
                 .spaceId(request.spaceId())

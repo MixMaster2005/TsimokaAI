@@ -1,52 +1,67 @@
-package mg.esmia.miage.chatservice.config;
+package mg.esmia.miage.aicommon.config;
 
-import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
+import mg.esmia.miage.aicommon.ChatProviderResolver;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.model.ollama.autoconfigure.OllamaChatAutoConfiguration;
+import org.springframework.ai.model.openai.autoconfigure.OpenAiChatAutoConfiguration;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
- * Bascule de provider LLM par configuration (contrat "Base de projet" : ACTIVE_LLM_PROVIDER
- * = groq | gemini | ollama).
+ * Auto-configuration de la bascule multi-provider LLM (noyau partagé {@code ai-common}).
  *
- * <p><b>Groq</b> et <b>Ollama</b> : les starters Spring AI auto-configurent leur ChatModel
- * (OpenAiChatModel pointé sur le base-url Groq, OllamaChatModel pour le fallback local). On
- * expose un {@link ChatClient} par provider, qualifié par son identifiant, plus un
- * {@link ChatProviderResolver} qui centralise le choix au runtime.
+ * <p>Expose un {@link ChatClient} par provider (Groq, Gemini, Ollama) + un
+ * {@link ChatProviderResolver} qui centralise le choix au runtime selon
+ * {@code chat.llm.active-provider}. Chargeable dans tout service dépendant de
+ * {@code ai-common} (chat-service, space-service, fiche-service).
+ *
+ * <p>Les providers sont injectés dans le resolver via {@code ObjectProvider<ChatClient>}
+ * (pas d'injection directe) : un provider absent — pas de clé API configurée — ne fait
+ * jamais échouer le démarrage du service, il est simplement indisponible dans le resolver.
+ *
+ * <p><b>Groq</b> et <b>Ollama</b> : les starters Spring AI auto-configurent leur
+ * {@code ChatModel} (OpenAiChatModel pointé sur le base-url Groq, OllamaChatModel pour le
+ * fallback local) ; on ne fait que les envelopper dans un {@code ChatClient} qualifié.
  *
  * <p><b>Gemini</b> : Google expose une API compatible OpenAI officielle
  * ({@code https://generativelanguage.googleapis.com/v1beta/openai/}, clé AI Studio, noms de
  * modèles Gemini) — c'est un simple changement de base-url, comme pour Groq. MAIS le starter
  * OpenAI ne permet qu'UNE auto-configuration (déjà prise par Groq) : le bean auto-configuré
  * {@code openAiChatModel} est en effet {@code @ConditionalOnMissingBean(OpenAiApi.class)}.
- * On construit donc ici un modèle Gemini via une seconde instance {@link OpenAiApi}, en
+ * On construit donc un modèle Gemini via une seconde instance {@link OpenAiApi}, en
  * <b>variable locale</b> de la méthode {@code @Bean} (jamais un bean Spring), pour ne pas
  * supprimer l'auto-config Groq. Namespace dédié : {@code spring.ai.gemini.*}.
  */
-@Configuration
-@Slf4j
-public class LlmProviderConfig {
-
-    @Value("${chat.llm.active-provider:ollama}")
-    private String activeProvider;
+@AutoConfiguration
+@ConditionalOnClass(ChatModel.class)
+@AutoConfigureAfter({OpenAiChatAutoConfiguration.class, OllamaChatAutoConfiguration.class})
+public class LlmProviderAutoConfiguration {
 
     @Bean
     @Qualifier("groq")
+    @ConditionalOnBean(OpenAiChatModel.class)
     ChatClient groqChatClient(OpenAiChatModel groqModel) {
         return ChatClient.create(groqModel);
     }
 
     @Bean
     @Qualifier("ollama")
+    @ConditionalOnBean(OllamaChatModel.class)
     ChatClient ollamaChatClient(OllamaChatModel ollamaModel) {
         return ChatClient.create(ollamaModel);
     }
@@ -79,20 +94,20 @@ public class LlmProviderConfig {
     }
 
     @Bean
+    @ConditionalOnMissingBean
     ChatProviderResolver chatProviderResolver(
-            @Qualifier("groq") ChatClient groq,
-            @Qualifier("ollama") ChatClient ollama,
-            @Qualifier("gemini") ChatClient gemini,
+            @Qualifier("groq") ObjectProvider<ChatClient> groq,
+            @Qualifier("ollama") ObjectProvider<ChatClient> ollama,
+            @Qualifier("gemini") ObjectProvider<ChatClient> gemini,
             @Value("${chat.llm.active-provider:ollama}") String activeProvider) {
         return new ChatProviderResolver(Map.of(
-                "groq", groq,
-                "gemini", gemini,
-                "ollama", ollama
+                "groq", toSupplier(groq),
+                "gemini", toSupplier(gemini),
+                "ollama", toSupplier(ollama)
         ), activeProvider);
     }
 
-    @PostConstruct
-    public void logActiveProvider() {
-        log.info("ACTIVE_LLM_PROVIDER = {} (bascule via ChatProviderResolver)", activeProvider);
+    private static Supplier<ChatClient> toSupplier(ObjectProvider<ChatClient> provider) {
+        return () -> provider.getIfAvailable();
     }
 }

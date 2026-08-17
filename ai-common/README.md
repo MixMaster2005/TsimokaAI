@@ -1,0 +1,95 @@
+# 🧠 ai-common
+
+Librairie **IA partagée** entre les services qui consomment un LLM (`chat-service`,
+`space-service`, `fiche-service`). Un seul endroit pour la bascule de provider, pour éviter
+de dupliquer la configuration par service et de la faire diverger.
+
+> **Statut :** ✅ Stable — compilée, intégrée aux 3 services IA.
+
+## Rôle
+
+- **`ChatProviderResolver`** : résout le `ChatClient` du provider **actif**
+  (`chat.llm.active-provider` : `groq` | `gemini` | `ollama`). Le provider est sélectionné
+  par configuration, pas par code.
+  - `current()` : renvoie le `ChatClient` du provider actif.
+  - `activeProvider()` : nom du provider actif.
+  - Si le provider actif n'est pas disponible (non configuré / non enregistré), `current()`
+    lève `ApiException(ErrorCode.LLM_PROVIDER_UNAVAILABLE, 503)` — **pas de repli silencieux** :
+    chaque service décide de son comportement (fallback métier, circuit breaker).
+
+- **`LlmProviderAutoConfiguration`** (auto-configuration Spring Boot) : construit les beans
+  `ChatClient` qualifiés pour chaque provider :
+  - `groqChatClient` (qualifier `groq`) — starter OpenAI pointé sur
+    `https://api.groq.com/openai` (auto-config Spring AI).
+  - `ollamaChatClient` (qualifier `ollama`) — starter Ollama (auto-config Spring AI).
+  - `geminiChatClient` (qualifier `gemini`) — **`OpenAiApi` manuelle** (variable locale, pas
+    de bean `OpenAiApi`) pointée sur l'endpoint officiel compatible OpenAI de Gemini
+    (`https://generativelanguage.googleapis.com/v1beta/openai`) : un bean `OpenAiApi`
+    supprimerait l'auto-configuration Groq (une seule API OpenAI autorisée).
+  - `chatProviderResolver` (bean, `@ConditionalOnMissingBean`).
+
+## Pourquoi un module dédié ?
+
+- Les 3 services IA devaient tous charger : les starters OpenAI + Ollama, la configuration
+  des 3 providers, le `ChatProviderResolver` et ses bases (anciennement dupliqué dans
+  `chat-service`).
+- `ai-common` ne dépend **pas** de `common` dans le sens inverse (dépendance uniquement sur
+  les classes d'erreur `mg.esmia.miage.common.*`, inchangée).
+- Le circuit breaker (`spring-cloud-starter-circuitbreaker-resilience4j`) est fourni en
+  transitif pour que chaque service puisse annoter ses appels LLM.
+
+## Dépendances principales
+
+| Artifact | Rôle |
+|---|---|
+| `common` | Enveloppe API, `ErrorCode`, `ApiException` |
+| `spring-ai-starter-model-openai` | Provider Groq + base du client Gemini |
+| `spring-ai-starter-model-ollama` | Provider Ollama (chat + embedding) |
+| `spring-cloud-starter-circuitbreaker-resilience4j` | `@CircuitBreaker` utilisable par les services |
+
+## Configuration requise chez le consommateur
+
+`application.yml` du service consommateur (valeurs par défaut) :
+
+```yaml
+spring:
+  ai:
+    openai:
+      base-url: ${GROQ_BASE_URL:https://api.groq.com/openai}
+      api-key: ${GROQ_API_KEY:}
+      chat:
+        options:
+          model: ${GROQ_MODEL:llama-3.3-70b-versatile}
+    gemini:
+      base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+      api-key: ${GEMINI_API_KEY:}
+      chat:
+        options:
+          model: ${GEMINI_MODEL:gemini-2.5-flash}
+    ollama:
+      base-url: ${OLLAMA_URL:http://localhost:11434}
+      chat:
+        options:
+          model: ${OLLAMA_MODEL:qwen2.5:3b}
+      embedding:
+        options:
+          model: ${OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
+chat:
+  llm:
+    active-provider: ${ACTIVE_LLM_PROVIDER:ollama}
+```
+
+> ⚠️ Les valeurs `api-key` vides sont acceptées au démarrage (utile pour Ollama) ; un appel à
+> `ChatProviderResolver.current()` sur un provider non configuré lève
+> `LLM_PROVIDER_UNAVAILABLE` (503) à l'exécution.
+
+## Fichiers
+
+```
+ai-common/src/main/java/mg/esmia/miage/aicommon/
+├── ChatProviderResolver.java
+└── config/
+    └── LlmProviderAutoConfiguration.java
+ai-common/src/main/resources/META-INF/spring/
+└── org.springframework.boot.autoconfigure.AutoConfiguration.imports
+```

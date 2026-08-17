@@ -1,11 +1,12 @@
 # space-service
 
-> **Statut :** 🟡 CRUD complet — génération du persona pédagogique en **TODO**
+> **Statut :** 🟢 CRUD complet + persona pédagogique généré/enrichi par LLM (e2e à valider)
 > **Port :** `8082` · **Base :** `space_db` (PostgreSQL) · **Migrations :** Flyway
 
 Espaces de cours, groupes de travail et **persona pédagogique**. Le CRUD (espaces, groupes,
 membres) est complet et fonctionnel ; la génération/enrichissement du persona par LLM est
-le point IA **volontairement laissé à implémenter** pour le mémoire (`PersonaService`).
+implémentée dans `PersonaService` (prompts `resources/prompts/*.st`, provider via
+`ai-common`, circuit breaker `llm-persona`).
 
 ## Rôle
 
@@ -23,8 +24,14 @@ le point IA **volontairement laissé à implémenter** pour le mémoire (`Person
   (`groupes.space_id → spaces.id`, `membres_groupe.groupe_id → groupes.id`, en cascade).
 - **Persona = texte libre** stocké dans `spaces.assistant_persona` (TEXT). C'est le contrat
   entre ce service et `chat-service` : le persona devient l'instruction système du LLM.
-  À l'heure actuelle, un **persona template déterministe** est généré pour que la plateforme
-  reste fonctionnelle (pas de blocage en chaîne).
+  Il est **généré par LLM** à la création de l'espace (`persona-generation.st`) puis
+  **enrichi par LLM** après chaque ingestion (`persona-enrichment.st`, échantillon de chunks
+  lu dans Qdrant). En cas de panne LLM (ou circuit `llm-persona` ouvert), un **persona
+  « template » déterministe** est utilisé (génération) ou le persona est **laissé inchangé**
+  (enrichissement) : le flux n'est jamais bloqué.
+- **Accès au Qdrant** : l'échantillon de chunks est lu via le starter
+  `spring-ai-starter-vector-store-qdrant` (collection unique `chunks`, filtre
+  `space_id` + `document_id` en payload) — même collection qu'ingestion/chat/fiche.
 - **Suppression par événements** : `delete()` publie `SPACE_DELETED`. Chaque service concerné
   (ingestion, chat, fiche, analytics, gamification) purge ses données localement. Idem pour
   `USER_DELETED` reçu de `user.events`.
@@ -58,15 +65,19 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    A[Création de l'espace] --> B[generateInitialPersona<br/>LLM one-shot - TODO]
+    A[Création de l'espace] --> B[generateInitialPersona<br/>LLM one-shot persona-generation.st]
     B --> C[spaces.assistant_persona]
     C --> D[chat-service<br/>instruction système]
-    E[ingestion.events DOCUMENT_READY] --> F[enrichPersonaAfterIngestion<br/>récupère échantillon chunks + fusion LLM - TODO]
+    E[ingestion.events DOCUMENT_READY] --> F[enrichPersonaAfterIngestion<br/>échantillon chunks Qdrant + fusion LLM persona-enrichment.st]
     F --> C
+    B -. échec LLM .-> G[persona template déterministe]
+    G --> C
+    F -. échec LLM .-> C
 ```
 
-> Les flèches marquées **TODO** renvoient actuellement un persona générique (voir
-> `PersonaService`) : l'implémentation réelle est le cœur IA à écrire pour le mémoire.
+> Chaîne de repli : échec d'appel LLM ou circuit `llm-persona` ouvert → persona générique
+> (création) ou persona inchangé (enrichissement). Le service ne bloque jamais le flux de
+> création d'espace ni l'ingestion.
 
 ## Endpoints
 
@@ -110,24 +121,25 @@ Toutes les routes sont protégées par JWT (vérifié à la gateway) ; l'identit
 - `groupes` : `id`, `space_id (FK cascade)`, `nom`, `description`, `created_by` (logique).
 - `membres_groupe` : `id`, `groupe_id (FK cascade)`, `user_id` (logique), `role_groupe`, `UNIQUE(groupe_id, user_id)`.
 
-## Non implémenté (cœur IA du mémoire)
+## Cœur IA : `PersonaService`
 
-`PersonaService` — deux méthodes à écrire :
+1. **`generateInitialPersona(spaceName, subjectTag, description)`** : appel LLM one-shot
+   (provider via `ACTIVE_LLM_PROVIDER`, cf. `ai-common`) avec le prompt
+   `persona-generation.st`, à partir du nom/tag/description de l'espace, pour produire les
+   instructions système injectées par chat-service. Fallback = persona « template ».
+2. **`enrichPersonaAfterIngestion(currentPersona, spaceId, documentId, chunkCount)`** :
+   lit un échantillon des chunks du document ingéré **directement dans Qdrant** (filtre
+   `space_id == 'x' and document_id == 'y'`, seuil 0, requête neutre — on veut un échantillon
+   représentatif, pas les chunks « les plus proches ») puis fusionne le vocabulaire
+   disciplinaire dans le persona via `persona-enrichment.st`. Fallback = persona inchangé.
 
-1. **`generateInitialPersona(...)`** : appel LLM one-shot (provider via `ACTIVE_LLM_PROVIDER`)
-   à partir du nom/tag/description de l'espace pour produire les instructions système.
-2. **`enrichPersonaAfterIngestion(...)`** : récupérer un échantillon des chunks du document
-   ingéré (appel REST vers ingestion-service, ou enrichissement de l'événement `DOCUMENT_READY`)
-   puis fusionner le vocabulaire disciplinaire dans le persona via un nouvel appel LLM.
-
-**Point ouvert** : enrichir `IngestionEvent` côté ingestion-service pour qu'il transporte
-plus d'information exploitable (résumé, extrait), ou faire un appel REST retour — à trancher
-dans le mémoire.
+**Point ouvert** : la taille d'échantillon est fixée par `persona.sample-size` (défaut 8
+chunks, tronqués à 800 caractères). À ajuster empiriquement lors du test e2e.
 
 ## Lancer
 
 ```bash
-docker compose up -d postgres redis
-mvn -pl common,space-service -am spring-boot:run
+docker compose up -d postgres redis qdrant ollama
+mvn -pl common,ai-common,space-service -am spring-boot:run
 # Swagger : http://localhost:8082/swagger-ui.html
 ```

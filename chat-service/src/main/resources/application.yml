@@ -64,7 +64,7 @@ spring:
     vectorstore:
       qdrant:
         # Collection UNIQUE partagée (Option A multi-tenant) : chaque point porte son
-        # space_id en payload, filtré au retrieval (QuestionAnswerAdvisor).
+        # space_id en payload, filtré au retrieval (RagPipelineAdvisor).
         host: ${QDRANT_HOST:localhost}
         port: ${QDRANT_PORT:6334}
         use-tls: ${QDRANT_USE_TLS:false}
@@ -79,9 +79,24 @@ chat:
   llm:
     # Bascule selon l'environnement (contrat de configuration) : groq | gemini | ollama
     active-provider: ${ACTIVE_LLM_PROVIDER:ollama}
+  # Pipeline RAG (RagPipelineAdvisor) : retrieval large + rerank + contexte
+  retrieval:
+    top-k: ${CHAT_RETRIEVAL_TOP_K:40}
+    similarity-threshold: ${CHAT_RETRIEVAL_SIMILARITY_THRESHOLD:0.5}
   max-retrieved-chunks: ${CHAT_MAX_RETRIEVED_CHUNKS:5}
   max-history-messages: ${CHAT_MAX_HISTORY_MESSAGES:10}
-  similarity-threshold: ${CHAT_SIMILARITY_THRESHOLD:0.7}
+
+# Résilience : circuit breaker autour de l'appel RAG+LLM (ChatLlmService).
+resilience4j:
+  circuitbreaker:
+    instances:
+      llm-chat:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 3
 
 management:
   endpoints:

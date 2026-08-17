@@ -17,4 +17,6 @@ public final class ErrorCode {
     public static final String UNAUTHENTICATED = "UNAUTHENTICATED";
     public static final String INTERNAL_ERROR = "INTERNAL_ERROR";
     public static final String UPSTREAM_SERVICE_ERROR = "UPSTREAM_SERVICE_ERROR";
+    /** Provider LLM actif non disponible (non configuré ou non enregistré). */
+    public static final String LLM_PROVIDER_UNAVAILABLE = "LLM_PROVIDER_UNAVAILABLE";
 }

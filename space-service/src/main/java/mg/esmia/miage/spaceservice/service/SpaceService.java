@@ -75,7 +75,8 @@ public class SpaceService {
     @Transactional
     public void enrichPersonaAfterIngestion(UUID spaceId, String documentId, int chunkCount) {
         spaceRepository.findById(spaceId).ifPresent(space -> {
-            String enriched = personaService.enrichPersonaAfterIngestion(space.getAssistantPersona(), documentId, chunkCount);
+            String enriched = personaService.enrichPersonaAfterIngestion(
+                    space.getAssistantPersona(), spaceId, documentId, chunkCount);
             space.setAssistantPersona(enriched);
             spaceRepository.save(space);
         });

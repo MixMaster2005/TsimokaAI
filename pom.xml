@@ -27,7 +27,10 @@
              n'ont pas pu être validées par une build réelle ici). -->
         <spring-boot.version>3.3.5</spring-boot.version>
         <spring-cloud.version>2023.0.3</spring-cloud.version>
-        <spring-ai.version>1.0.0</spring-ai.version>
+        <!-- Spring AI 1.1.8 = dernière ligne 1.x compatible Spring Boot 3.3.x.
+             Spring AI 2.0.x impose Spring Boot 4.1 (vérifié sur Maven Central en août 2026) —
+             migration de plateforme non retenue ici, cf. ARCHITECTURE.md §6.3. -->
+        <spring-ai.version>1.1.8</spring-ai.version>
         <lombok.version>1.18.34</lombok.version>
         <mapstruct.version>1.6.2</mapstruct.version>
         <springdoc.version>2.6.0</springdoc.version>
@@ -37,6 +40,7 @@
 
     <modules>
         <module>common</module>
+        <module>ai-common</module>
         <module>api-gateway</module>
         <module>user-service</module>
         <module>space-service</module>
@@ -73,6 +77,11 @@
             <dependency>
                 <groupId>mg.esmia.miage</groupId>
                 <artifactId>common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>mg.esmia.miage</groupId>
+                <artifactId>ai-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

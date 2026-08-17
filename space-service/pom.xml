@@ -14,14 +14,27 @@
     <name>space-service</name>
     <description>
         CRUD espaces de cours + groupes de travail (implémentation complète, générique).
-        Génération/enrichissement du persona pédagogique via LLM : NON implémenté ici
-        (TODO volontaire, cœur métier IA laissé à l'auteur du mémoire) — voir PersonaService.
+        Génération/enrichissement du persona pédagogique via LLM (PersonaService) :
+        implémenté (prompts .st, @CircuitBreaker, bascule provider via ai-common).
     </description>
 
     <dependencies>
         <dependency>
             <groupId>mg.esmia.miage</groupId>
             <artifactId>common</artifactId>
+        </dependency>
+        <!-- Noyau partagé IA : bascule Groq/Gemini/Ollama (ChatProviderResolver) +
+             starters Spring AI OpenAI/Ollama + resilience4j (transitifs). -->
+        <dependency>
+            <groupId>mg.esmia.miage</groupId>
+            <artifactId>ai-common</artifactId>
+        </dependency>
+        <!-- Base vectorielle partagée (collection UNIQUE "chunks", Option A) : l'enrichissement
+             du persona lit un échantillon de chunks du document ré-ingéré pour en fusionner
+             le vocabulaire disciplinaire. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-vector-store-qdrant</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

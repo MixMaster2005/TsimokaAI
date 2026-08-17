@@ -1,11 +1,12 @@
 # fiche-service
 
-> **Statut :** 🟡 CRUD complet — génération Map-Reduce en **TODO**
-> **Port :** `8085` · **Base :** `fiche_db` (PostgreSQL) · **LLM :** Ollama (configuré)
+> **Statut :** 🟢 CRUD complet + génération Map-Reduce implémentée (e2e à valider)
+> **Port :** `8085` · **Base :** `fiche_db` (PostgreSQL) · **LLM :** Groq / Gemini / Ollama
 
 Fiches de révision, partage, annotations et validation enseignant. Le CRUD complet
 (fiches, partage, annotations, validation) est **fonctionnel** ; la **génération du contenu**
-par le pattern Map-Reduce est le **cœur IA à implémenter** (`FicheGenerationService`).
+par le pattern **Map-Reduce** est implémentée dans `FicheGenerationService` (prompts
+`fiche-map.st` / `fiche-reduce.st`, provider via `ai-common`, circuit breaker `llm-fiche`).
 
 ## Rôle
 
@@ -18,13 +19,21 @@ par le pattern Map-Reduce est le **cœur IA à implémenter** (`FicheGenerationS
 ## Choix techniques
 
 - **Contenu structuré en JSONB** : `content_json` (colonne PostgreSQL `jsonb`) porte une
-  structure typée `sections[]` avec types `definition`, `key_points`, `example` (contrat de la
-  « Base de projet »). Le front peut donc rendre la fiche de façon déterministe.
+  structure typée `{ definition, key_points[], example }` (cf. « Base de projet », sections
+  `definition` / `key_points` / `example`). Le front peut donc rendre la fiche de façon
+  déterministe.
 - **Traçabilité des sources** : `source_document_ids UUID[]` (références logiques vers
   ingestion-service).
 - **Génération par pattern Map-Reduce** (conforme CDC §4.4) :
-  - **MAP** : par document → résumé intermédiaire structuré (appel LLM one-shot).
-  - **REDUCE** : fusion des résumés en une fiche unique cohérente.
+  - **MAP** : pour chaque document, les chunks sont lus **directement dans Qdrant** (collection
+    unique `chunks`, filtre `space_id` + `document_id` en payload) puis un résumé intermédiaire
+    structuré est produit par un appel LLM one-shot (`fiche-map.st`). Liste vide = un MAP sur
+    tout le corpus de l'espace.
+  - **REDUCE** : fusion des résumés en une fiche unique cohérente, **validée structurellement**
+    par `StructuredOutputValidationAdvisor` (3 tentatives max) + `entity(FicheContent.class)`
+    (`fiche-reduce.st`).
+  - Résilience : circuit breaker `llm-fiche` → en échec, erreur métier 503 (pas de fiche
+    placeholder trompeuse).
 - **Obsolescence automatique** : à chaque `DOCUMENT_READY` reçu pour un espace, toutes les
   fiches existantes de cet espace sont marquées `obsolete = true` (une fiche ne peut pas être
   à jour si un nouveau document a été ingéré après sa génération).
@@ -32,7 +41,7 @@ par le pattern Map-Reduce est le **cœur IA à implémenter** (`FicheGenerationS
   (une nouvelle validation écrase la précédente — upsert).
 - **Partage orienté** : `groupeId` **OU** `destinataireId` (un seul des deux, validé métier).
 
-## Génération de fiche (pattern Map-Reduce, cible)
+## Génération de fiche (pattern Map-Reduce)
 
 ```mermaid
 flowchart LR
@@ -41,16 +50,14 @@ flowchart LR
     end
     REQ --> MAP
     subgraph MAP[Phase MAP - par document]
-        M1[Charger les chunks du document<br/>via ingestion-service]
-        M2[LLM one-shot<br/>résumé intermédiaire structuré]
+        M1[Charger les chunks du document<br/>Qdrant - filtre space_id + document_id]
+        M2[LLM one-shot<br/>résumé intermédiaire structuré - fiche-map.st]
     end
-    MAP --> RED[Phase REDUCE<br/>LLM - fusion des résumés]
-    RED --> JSON[sections: definition / key_points / example]
+    MAP --> RED[Phase REDUCE<br/>LLM - fusion des résumés - fiche-reduce.st]
+    RED --> VAL[StructuredOutputValidationAdvisor<br/>entity FicheContent]
+    VAL --> JSON[{"definition","key_points","example"}]
     JSON --> DB[(fiches.content_json)]
 ```
-
-> ❗ **État actuel** : `FicheGenerationService.generateContentJson()` retourne un **placeholder
-> statique** (structure vide, sections « TODO »). La génération réelle est à écrire.
 
 ## Cycle de vie d'une fiche
 
@@ -111,26 +118,36 @@ Toutes les routes sont protégées par JWT.
 - `annotations` : `id`, `fiche_id (FK cascade)`, `auteur_id` (logique), `contenu`, `section_ref`, `created_at`.
 - `validation_fiche` : `id`, `fiche_id (FK cascade, UNIQUE)`, `enseignant_id`, `statut`, `commentaire`, `validated_at`.
 
-## Non implémenté (cœur IA du mémoire) — `FicheGenerationService`
+## Cœur IA : `FicheGenerationService`
 
-- **MAP** : récupérer les chunks de chaque document (appel REST vers ingestion-service, ou
-  lecture des métadonnées exposées) puis produire un **résumé intermédiaire structuré** par
-  appel LLM one-shot.
-- **REDUCE** : fusionner les résumés en une **fiche unique cohérente** respectant la structure
-  `definition / key_points / example` et sérialiser en JSON pour `content_json`.
-- Provider LLM : bascule par `ACTIVE_LLM_PROVIDER` (Ollama configuré ; Groq/Gemini à câbler).
+- **MAP** : pour chaque document, lecture des chunks **depuis Qdrant** (filtre `space_id` +
+  `document_id` en payload, seuil 0 + requête neutre pour récupérer le contenu sans dépendre
+  de la pertinence, plafond `FICHE_MAX_CHUNKS_PER_DOCUMENT` = 50) puis **résumé intermédiaire
+  structuré** par appel LLM one-shot (`fiche-map.st`). DocumentIds vide = un MAP sur tout le
+  corpus de l'espace (filtre `space_id` seul).
+- **REDUCE** : fusion des résumés en une **fiche unique cohérente** (`fiche-reduce.st`),
+  structure `definition / key_points / example` garantie par
+  `StructuredOutputValidationAdvisor` + `entity(FicheContent.class)`, sérialisée en JSON pour
+  `content_json`.
+- Provider LLM : bascule par `ACTIVE_LLM_PROVIDER` (Groq / Gemini / Ollama via `ai-common`),
+  circuit breaker `llm-fiche` → en échec, `ApiException` 503 (génération à relancer).
 
 ## Variables d'environnement
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `OLLAMA_URL` | `http://localhost:11434` | LLM de génération (fallback local) |
-| `OLLAMA_MODEL` | `qwen2.5:3b` | Modèle de génération |
+| `ACTIVE_LLM_PROVIDER` | `ollama` | `groq` \| `gemini` \| `ollama` |
+| `GROQ_API_KEY` / `GROQ_MODEL` | — / `llama-3.3-70b-versatile` | Provider Groq (compatible OpenAI) |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | — / `gemini-2.5-flash` | Provider Gemini (endpoint OpenAI-compatible) |
+| `OLLAMA_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `qwen2.5:3b` | LLM de génération (fallback local) |
+| `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Modèle d'embedding (identique à ingestion-service) |
+| `QDRANT_HOST` / `QDRANT_PORT` / `QDRANT_COLLECTION` | `localhost` / `6334` / `chunks` | Lecture des chunks (phase MAP) |
+| `FICHE_MAX_CHUNKS_PER_DOCUMENT` | `50` | Plafond de chunks lus par document |
 
 ## Lancer
 
 ```bash
-docker compose up -d postgres redis
-mvn -pl common,fiche-service -am spring-boot:run
+docker compose up -d postgres redis qdrant
+mvn -pl common,ai-common,fiche-service -am spring-boot:run
 # Swagger : http://localhost:8085/swagger-ui.html
 ```

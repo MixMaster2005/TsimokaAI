@@ -3,7 +3,6 @@ package mg.esmia.miage.chatservice.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import mg.esmia.miage.chatservice.client.SpaceClient;
-import mg.esmia.miage.chatservice.config.ChatProviderResolver;
 import mg.esmia.miage.chatservice.dto.MessageResponse;
 import mg.esmia.miage.chatservice.dto.SendMessageRequest;
 import mg.esmia.miage.chatservice.entity.Conversation;
@@ -12,12 +11,6 @@ import mg.esmia.miage.chatservice.repository.MessageRepository;
 import mg.esmia.miage.common.events.ChatEvent;
 import mg.esmia.miage.common.events.EventChannels;
 import mg.esmia.miage.common.messaging.RedisEventPublisher;
-import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
-import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,24 +18,21 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Orchestration RAG (cf. CDC §4.3 et "Base de projet") — câblée :
+ * Orchestration chat (cf. CDC §4.3 et ARCHITECTURE.md §6.3) :
  *
- *   1. Historique récent de la conversation (CHAT_MAX_HISTORY_MESSAGES) injecté dans le
- *      prompt système (l'historique est persisté en base et reconstruit ici — pas de
- *      ChatMemory en mémoire Spring AI, cf. README « Choix techniques »).
- *   2. Persona pédagogique récupéré depuis space-service via {@link SpaceClient}
- *      (défaillance non bloquante : bascule sur un persona générique).
- *   3. Retrieval : {@link QuestionAnswerAdvisor} sur la collection UNIQUE "chunks"
- *      (Option A multi-tenant), filtrée sur {@code space_id} en payload
- *      ({@code filterExpression}), topK = CHAT_MAX_RETRIEVED_CHUNKS.
- *   4. Appel au LLM actif selon ACTIVE_LLM_PROVIDER (groq / gemini / ollama) via
- *      {@link ChatProviderResolver} ; les IDs des chunks réellement utilisés sont extraits
- *      de la métadonnée {@link QuestionAnswerAdvisor#RETRIEVED_DOCUMENTS}.
- *   5. Persistance du message ASSISTANT (retrievedChunkIds + modelUsed) et publication
- *      MESSAGE_CREATED pour les deux messages (USER puis ASSISTANT).
+ *   1. Le message USER est persisté immédiatement (événement MESSAGE_CREATED tout de suite,
+ *      même si l'appel LLM dure ou échoue).
+ *   2. L'appel RAG+LLM est délégué à {@link ChatLlmService} (circuit breaker {@code llm-chat}) :
+ *      {@code RagPipelineAdvisor} (rewrite → retrieval topK élevé filtré {@code space_id} →
+ *      rerank LLM → contexte) + {@code MessageChatMemoryAdvisor}/{@link JpaBackedChatMemory}
+ *      (historique injecté et persisté via l'unique repository).
+ *   3. Le {@code MessageChatMemoryAdvisor.after()} persiste le message ASSISTANT (sans
+ *      chunkIds/modelUsed) : {@link ChatService} retrouve ce message, l'enrichit
+ *      (retrievedChunkIds + modelUsed) et publie l'événement. En cas de fallback du circuit
+ *      breaker (l'advisor n'a rien persisté), le message ASSISTANT est persisté ici-même.
  *
- * Défaillance LLM ou retrieval non bloquante : réponse ASSISTANT dégradée persistée quand
- * même, afin de ne jamais casser la conversation.
+ * Persona : récupéré depuis space-service via {@link SpaceClient} (défaillance non bloquante —
+ * bascule sur un persona générique, sans ouvrir le circuit breaker).
  */
 @Service
 @RequiredArgsConstructor
@@ -51,18 +41,8 @@ public class ChatService {
 
     private final MessageRepository messageRepository;
     private final RedisEventPublisher eventPublisher;
-    private final ChatProviderResolver chatProviderResolver;
-    private final VectorStore vectorStore;
+    private final ChatLlmService chatLlmService;
     private final SpaceClient spaceClient;
-
-    @Value("${chat.max-history-messages:10}")
-    private int maxHistoryMessages;
-
-    @Value("${chat.max-retrieved-chunks:5}")
-    private int maxRetrievedChunks;
-
-    @Value("${chat.similarity-threshold:0.7}")
-    private double similarityThreshold;
 
     private static final String FALLBACK_PERSONA = """
             Tu es un assistant pédagogique (TsimokaAI) aidant un étudiant à comprendre ses
@@ -80,16 +60,10 @@ public class ChatService {
         userMessage = messageRepository.save(userMessage);
         publishMessageCreated(conversation, userMessage);
 
-        LlmOutcome outcome = generateAssistantReply(conversation, request.content());
+        LlmOutcome outcome = chatLlmService.generate(conversation, request.content(),
+                resolvePersona(conversation));
 
-        Message assistantMessage = Message.builder()
-                .conversationId(conversation.getId())
-                .role(Message.Role.ASSISTANT)
-                .content(outcome.content())
-                .retrievedChunkIds(outcome.chunkIds())
-                .modelUsed(outcome.modelUsed())
-                .build();
-        assistantMessage = messageRepository.save(assistantMessage);
+        Message assistantMessage = findOrPersistAssistant(conversation, outcome);
         publishMessageCreated(conversation, assistantMessage);
 
         return MessageResponse.from(assistantMessage);
@@ -100,90 +74,50 @@ public class ChatService {
                 .map(MessageResponse::from).toList();
     }
 
-    private LlmOutcome generateAssistantReply(Conversation conversation, String question) {
-        String persona = spaceClient.getAssistantPersona(conversation.getSpaceId(), conversation.getUserId());
-        String systemPrompt = buildSystemPrompt(persona, conversation.getId());
+    /**
+     * Persona pédagogique depuis space-service ; défaillance non bloquante (persona générique).
+     * Résolu ici (hors du circuit breaker) pour ne pas ouvrir {@code llm-chat} quand seul
+     * space-service est indisponible.
+     */
+    private String resolvePersona(Conversation conversation) {
         try {
-            ChatResponse response = chatProviderResolver.current()
-                    .prompt()
-                    .system(systemPrompt)
-                    .advisors(buildQaAdvisor(conversation.getSpaceId()))
-                    .user(question)
-                    .call()
-                    .chatResponse();
-            String content = response.getResult().getOutput().getText();
-            return new LlmOutcome(content, extractRetrievedChunkIds(response), chatProviderResolver.activeProvider());
+            String persona = spaceClient.getAssistantPersona(conversation.getSpaceId(), conversation.getUserId());
+            return (persona == null || persona.isBlank()) ? FALLBACK_PERSONA : persona;
         } catch (Exception e) {
-            log.error("Échec de l'appel RAG+LLM (provider={}), réponse dégradée renvoyée",
-                    chatProviderResolver.activeProvider(), e);
-            return new LlmOutcome("(Réponse dégradée : l'appel au LLM a échoué — " + e.getMessage() + ")",
-                    new UUID[0], chatProviderResolver.activeProvider());
+            log.warn("Persona indisponible (spaceId={}), bascule sur le persona générique", conversation.getSpaceId(), e);
+            return FALLBACK_PERSONA;
         }
     }
 
     /**
-     * Retrieval Qdrant : collection UNIQUE "chunks", points filtrés par {@code space_id} en
-     * payload (Option A). Le QuestionAnswerAdvisor fusionne les chunks les plus proches dans
-     * le prompt de l'utilisateur.
+     * Le message ASSISTANT est normalement déjà persisté par {@code MessageChatMemoryAdvisor.after()}
+     * (via {@link JpaBackedChatMemory}, contenu identique) : on l'enrichit alors avec
+     * retrievedChunkIds + modelUsed. S'il n'existe pas (fallback circuit breaker, l'advisor n'a
+     * pas tourné), on le persiste ici-même.
      */
-    private QuestionAnswerAdvisor buildQaAdvisor(UUID spaceId) {
-        return QuestionAnswerAdvisor.builder(vectorStore)
-                .searchRequest(SearchRequest.builder()
-                        .filterExpression("space_id == '" + spaceId + "'")
-                        .topK(maxRetrievedChunks)
-                        .similarityThreshold(similarityThreshold)
-                        .build())
+    private Message findOrPersistAssistant(Conversation conversation, LlmOutcome outcome) {
+        List<Message> history = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getId());
+        for (int i = history.size() - 1; i >= 0; i--) {
+            Message message = history.get(i);
+            if (message.getRole() == Message.Role.ASSISTANT && message.getContent().equals(outcome.content())) {
+                message.setRetrievedChunkIds(outcome.chunkIds());
+                message.setModelUsed(outcome.modelUsed());
+                return messageRepository.save(message);
+            }
+        }
+        Message assistantMessage = Message.builder()
+                .conversationId(conversation.getId())
+                .role(Message.Role.ASSISTANT)
+                .content(outcome.content())
+                .retrievedChunkIds(outcome.chunkIds())
+                .modelUsed(outcome.modelUsed())
                 .build();
-    }
-
-    /** Extraction des IDs des chunks réellement utilisés (métadonnée de la réponse LLM). */
-    private UUID[] extractRetrievedChunkIds(ChatResponse response) {
-        List<Document> docs = response.getMetadata().get(QuestionAnswerAdvisor.RETRIEVED_DOCUMENTS);
-        if (docs == null || docs.isEmpty()) {
-            return new UUID[0];
-        }
-        return docs.stream()
-                .map(Document::getId)
-                .map(id -> {
-                    try {
-                        return UUID.fromString(id);
-                    } catch (IllegalArgumentException e) {
-                        return null;
-                    }
-                })
-                .filter(java.util.Objects::nonNull)
-                .toArray(UUID[]::new);
-    }
-
-    /**
-     * Prompt système = persona de l'espace + historique récent de la conversation
-     * (transcription role:contenu des CHAT_MAX_HISTORY_MESSAGES derniers messages).
-     */
-    private String buildSystemPrompt(String persona, UUID conversationId) {
-        String effectivePersona = (persona == null || persona.isBlank()) ? FALLBACK_PERSONA : persona;
-        return effectivePersona + "\n\n" + buildHistoryContext(conversationId);
-    }
-
-    private String buildHistoryContext(UUID conversationId) {
-        List<Message> history = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
-        List<Message> tail = history.size() > maxHistoryMessages
-                ? history.subList(history.size() - maxHistoryMessages, history.size())
-                : history;
-        StringBuilder sb = new StringBuilder("Historique de la conversation :\n");
-        for (Message m : tail) {
-            String speaker = m.getRole() == Message.Role.USER ? "Étudiant" : "Assistant";
-            sb.append(speaker).append(" : ").append(m.getContent()).append("\n\n");
-        }
-        return sb.toString().strip();
+        return messageRepository.save(assistantMessage);
     }
 
     private void publishMessageCreated(Conversation conversation, Message message) {
         eventPublisher.publish(EventChannels.CHAT_EVENTS, ChatEvent.messageCreated(
                 message.getId().toString(), conversation.getId().toString(), conversation.getSpaceId().toString(),
                 conversation.getUserId().toString(), message.getRole().name(), message.getContent()));
-    }
-
-    /** Résultat du pipeline RAG+LLM avant persistance du message ASSISTANT. */
-    private record LlmOutcome(String content, UUID[] chunkIds, String modelUsed) {
     }
 }
