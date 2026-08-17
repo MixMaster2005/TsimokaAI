@@ -37,8 +37,9 @@ pipeline custom `RagPipelineAdvisor` (réécriture de requête → retrieval lar
      Échec = les `topN` premiers candidats.
   4. **Augmentation** : le contexte est injecté dans le prompt système. Contexte vide →
      **anti-hallucination** : le modèle répond honnêtement qu'il ne trouve pas l'information.
-  Les IDs des chunks réellement utilisés sont exposés dans la métadonnée `RAG_RETRIEVED_DOCUMENTS`
-  de la réponse (`retrieved_chunk_ids`).
+  Les IDs des chunks réellement utilisés sont exposés dans la métadonnée
+  `rag_retrieved_documents` (clé posée par `RagPipelineAdvisor.RETRIEVED_DOCUMENTS`) de la
+  réponse (`retrieved_chunk_ids`).
 - **Embedding** : même modèle qu'`ingestion-service` (`nomic-embed-text`) pour que les vecteurs
   indexés soient dans le même espace (propriété `spring.ai.ollama.embedding.options.model`).
 - **Persona de l'espace** : appel REST service-à-service à `space-service`
@@ -88,7 +89,7 @@ sequenceDiagram
     participant V as Qdrant
     participant S as space-service
     participant L as LLM (groq/gemini/ollama)
-    C->>U: POST /messages { content }
+    C->>U: POST /api/v1/conversations/{id}/messages { content }
     U->>U: persist message USER + publish MESSAGE_CREATED
     U->>S: GET /api/v1/spaces/{id} → persona (REST interne, header X-User-Id)
     S-->>U: persona (repli générique si échec)
@@ -173,7 +174,7 @@ Gemini** (avec clé) reste à faire.
 ## Lancer
 
 ```bash
-docker compose up -d postgres redis qdrant
+docker compose --profile ollama up -d postgres redis qdrant ollama
 mvn -pl common,ai-common,chat-service -am spring-boot:run
 # Swagger : http://localhost:8084/swagger-ui.html
 # Sans clé API, choisir ollama (démarrer le profil ollama de docker-compose) ; space-service

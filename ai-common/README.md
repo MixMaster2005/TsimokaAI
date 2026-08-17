@@ -33,8 +33,8 @@ de dupliquer la configuration par service et de la faire diverger.
 - Les 3 services IA devaient tous charger : les starters OpenAI + Ollama, la configuration
   des 3 providers, le `ChatProviderResolver` et ses bases (anciennement dupliqué dans
   `chat-service`).
-- `ai-common` ne dépend **pas** de `common` dans le sens inverse (dépendance uniquement sur
-  les classes d'erreur `mg.esmia.miage.common.*`, inchangée).
+- `common` ne dépend **pas** de `ai-common` (dépendance à sens unique `ai-common` → `common`,
+  aucune dépendance circulaire).
 - Le circuit breaker (`spring-cloud-starter-circuitbreaker-resilience4j`) est fourni en
   transitif pour que chaque service puisse annoter ses appels LLM.
 

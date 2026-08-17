@@ -46,24 +46,24 @@ par le pattern **Map-Reduce** est implémentée dans `FicheGenerationService` (p
 ```mermaid
 flowchart LR
     subgraph Entrée
-        REQ[POST /fiches/generate<br/>spaceId + documentIds]
+        REQ["POST /api/v1/fiches/generate<br/>spaceId + documentIds"]
     end
     REQ --> MAP
-    subgraph MAP[Phase MAP - par document]
-        M1[Charger les chunks du document<br/>Qdrant - filtre space_id + document_id]
-        M2[LLM one-shot<br/>résumé intermédiaire structuré - fiche-map.st]
+    subgraph MAP["Phase MAP - par document"]
+        M1["Charger les chunks du document<br/>Qdrant - filtre space_id + document_id"]
+        M2["LLM one-shot<br/>résumé intermédiaire structuré - fiche-map.st"]
     end
-    MAP --> RED[Phase REDUCE<br/>LLM - fusion des résumés - fiche-reduce.st]
-    RED --> VAL[StructuredOutputValidationAdvisor<br/>entity FicheContent]
-    VAL --> JSON[{"definition","key_points","example"}]
-    JSON --> DB[(fiches.content_json)]
+    MAP --> RED["Phase REDUCE<br/>LLM - fusion des résumés - fiche-reduce.st"]
+    RED --> VAL["StructuredOutputValidationAdvisor<br/>entity FicheContent"]
+    VAL --> JSON["JSON : definition / key_points[] / example"]
+    JSON --> DB[("fiches.content_json")]
 ```
 
 ## Cycle de vie d'une fiche
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Générée : POST /fiches/generate
+    [*] --> Générée : POST /api/v1/fiches/generate
     Générée --> Obsolète : DOCUMENT_READY reçu (nouvelle ingestion)
     Générée --> En_validation : validation créée
     En_validation --> Validée : enseignant (statut VALIDEE)
@@ -147,7 +147,7 @@ Toutes les routes sont protégées par JWT.
 ## Lancer
 
 ```bash
-docker compose up -d postgres redis qdrant
+docker compose --profile ollama up -d postgres redis qdrant ollama
 mvn -pl common,ai-common,fiche-service -am spring-boot:run
 # Swagger : http://localhost:8085/swagger-ui.html
 ```

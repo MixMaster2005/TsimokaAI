@@ -65,12 +65,12 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    A[Création de l'espace] --> B[generateInitialPersona<br/>LLM one-shot persona-generation.st]
-    B --> C[spaces.assistant_persona]
-    C --> D[chat-service<br/>instruction système]
-    E[ingestion.events DOCUMENT_READY] --> F[enrichPersonaAfterIngestion<br/>échantillon chunks Qdrant + fusion LLM persona-enrichment.st]
+    A["Création de l'espace"] --> B["generateInitialPersona<br/>LLM one-shot persona-generation.st"]
+    B --> C["spaces.assistant_persona"]
+    C --> D["chat-service<br/>instruction système"]
+    E["ingestion.events DOCUMENT_READY"] --> F["enrichPersonaAfterIngestion<br/>échantillon chunks Qdrant + fusion LLM persona-enrichment.st"]
     F --> C
-    B -. échec LLM .-> G[persona template déterministe]
+    B -. échec LLM .-> G["persona template déterministe"]
     G --> C
     F -. échec LLM .-> C
 ```
@@ -139,7 +139,7 @@ chunks, tronqués à 800 caractères). À ajuster empiriquement lors du test e2e
 ## Lancer
 
 ```bash
-docker compose up -d postgres redis qdrant ollama
+docker compose --profile ollama up -d postgres redis qdrant ollama
 mvn -pl common,ai-common,space-service -am spring-boot:run
 # Swagger : http://localhost:8082/swagger-ui.html
 ```

@@ -140,8 +140,8 @@ autorisait le repli : chat-service implémente donc un **pipeline custom** — `
    dépendance** — pas de provider de reranking dédié (type Cohere/Jina), cohérent avec l'arbitrage
    global « éviter les services externes additionnels ». Échec = les `topN` premiers candidats.
 4. **Augmentation du contexte** (`ContextualQueryAugmenter` 2.0) : les documents retenus sont
-   injectés dans le prompt système (et exposés en métadonnée `RAG_RETRIEVED_DOCUMENTS` pour la
-   traçabilité `retrieved_chunk_ids`). **Anti-hallucination assumé** : si le contexte est vide,
+   injectés dans le prompt système (et exposés en métadonnée `rag_retrieved_documents` — clé
+   `RagPipelineAdvisor.RETRIEVED_DOCUMENTS` — pour la traçabilité `retrieved_chunk_ids`). **Anti-hallucination assumé** : si le contexte est vide,
    le modèle est invité à répondre honnêtement qu'il ne trouve pas l'information dans les cours,
    plutôt que d'inventer.
 

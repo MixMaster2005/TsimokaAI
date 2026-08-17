@@ -64,23 +64,23 @@ flowchart TB
         FE["Frontend Next.js<br/>(hors dépôt)"]
     end
     subgraph Edge
-        GW[api-gateway :8080<br/>JWT · rate limiting · CORS · routage]
+        GW["api-gateway :8080<br/>JWT · rate limiting · CORS · routage"]
     end
     subgraph Services
-        US[user-service :8081]
-        SS[space-service :8082]
-        IS[ingestion-service :8083]
-        CS[chat-service :8084]
-        FS[fiche-service :8085]
-        AS[analytics-service :8086]
-        GS[gamification-service :8087]
+        US["user-service :8081"]
+        SS["space-service :8082"]
+        IS["ingestion-service :8083"]
+        CS["chat-service :8084"]
+        FS["fiche-service :8085"]
+        AS["analytics-service :8086"]
+        GS["gamification-service :8087"]
     end
     subgraph Infrastructure
-        PG[(PostgreSQL 16<br/>une base par service)]
-        RD[(Redis 7<br/>pub/sub + rate limit)]
+        PG[("PostgreSQL 16<br/>une base par service")]
+        RD[("Redis 7<br/>pub/sub + rate limit")]
         QD[("Qdrant — collection unique chunks<br/>multi-tenant (space_id en payload)")]
-        MO[(MinIO<br/>documents)]
-        OL[Ollama<br/>LLM local - profil optionnel]
+        MO[("MinIO<br/>documents")]
+        OL["Ollama<br/>LLM local - profil optionnel"]
     end
     FE --> GW
     GW --> US & SS & IS & CS & FS & AS & GS
@@ -211,11 +211,12 @@ curl -X POST http://localhost:8080/api/v1/spaces \
 ### Lancer un seul service en local (développement)
 
 ```bash
-# Démarrer uniquement l'infra dont le service a besoin, ex. pour chat-service :
-docker compose up -d postgres redis qdrant
+# Démarrer uniquement l'infra dont le service a besoin, ex. pour chat-service
+# (provider par défaut = ollama, embeddings inclus) :
+docker compose --profile ollama up -d postgres redis qdrant ollama
 
 cd chat-service
-mvn -pl ../common,. -am spring-boot:run \
+mvn -pl ../common,../ai-common,. -am spring-boot:run \
   -Dspring-boot.run.arguments="--DB_URL=jdbc:postgresql://localhost:5432/chat_db"
 ```
 
@@ -234,9 +235,10 @@ mvn -pl ../common,. -am spring-boot:run \
 - **`docling-worker`** : tests unitaires Python (extraction, placeholders, transcription,
   plafond d'images, dégradation Gemini) — `python -m unittest tests.test_converter -v`
   (dans `docling-worker/`).
-- **Services Java** : `spring-boot-starter-test` et H2 pour user-service sont en place ;
-  aucun test Java n'est encore écrit (scaffold généré). Ajout de tests d'intégration par
-  service **recommandé** en parallèle de l'implémentation du cœur IA (voir [Contribuer](#contribuer)).
+- **Services Java** : `ingestion-service` dispose de tests unitaires pour le chunking
+  (`MarkdownChunkingServiceTest`) ; les autres services ont `spring-boot-starter-test` en place
+  sans tests écrits (scaffold généré). Ajout de tests d'intégration par service **recommandé**
+  en parallèle de la validation du cœur IA (voir [Contribuer](#contribuer)).
 
 ## Feuille de route
 
