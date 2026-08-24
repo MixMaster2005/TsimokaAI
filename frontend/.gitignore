@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+.env
+*.local
+
+# généré par le plugin TanStack Router — ne jamais committer un état obsolète,
+# régénéré automatiquement au premier `npm run dev` ou `npm run build`
+src/routeTree.gen.ts
+
+.DS_Store
+*.log

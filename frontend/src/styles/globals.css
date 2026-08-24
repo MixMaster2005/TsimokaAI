@@ -1,0 +1,182 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ============================================================================
+   TOKENS DU CONTRAT DE DESIGN — TsimokaAI
+   Source de vérité : page Notion "🎨 Contrat de Design — TsimokaAI".
+   Toute couleur ajoutée ici DOIT d'abord être ajoutée à cette page Notion —
+   ce fichier ne fait que la traduire en CSS, jamais l'inverse.
+
+   Format OKLCH (convention shadcn/Tailwind v4 depuis leur migration).
+   Valeurs calculées directement depuis les hex du contrat (sRGB -> OKLab -> OKLCH),
+   pas approximées à la main, pour rester fidèle aux couleurs choisies.
+   ============================================================================ */
+
+:root {
+  /* --- Surface Papier (par défaut : tout sauf l'écran de chat) --- */
+  --papier-bg: oklch(94.8% 0.020 94.5);
+  --papier-carte: oklch(98.1% 0.011 95.2);
+  --papier-border: oklch(87.2% 0.032 93.0);
+  --encre: oklch(24.9% 0.009 173.4);
+  --encre-muted: oklch(49.3% 0.015 156.7);
+
+  /* --- Surface Ardoise (réservée à l'écran de chat — voir .surface-ardoise plus bas) --- */
+  --ardoise-bg: oklch(21.7% 0.014 179.8);
+  --ardoise-bg-raised: oklch(26.0% 0.018 172.3);
+  --ardoise-border: oklch(33.3% 0.022 172.5);
+  --craie: oklch(92.8% 0.024 90.8);
+  --craie-muted: oklch(72.2% 0.016 145.4);
+
+  /* --- Tags disciplinaires (subject_tag) — RÉSERVÉS au marquage disciplinaire.
+     Contrat de couleur : jamais réutilisés comme couleur décorative ailleurs. --- */
+  --tag-sciences: oklch(49.3% 0.089 244.2);
+  --tag-info: oklch(65.4% 0.118 77.6);
+  --tag-lettres: oklch(50.8% 0.117 39.2);
+  --tag-eco: oklch(54.1% 0.097 129.8);
+  --tag-droit-shs: oklch(47.6% 0.088 309.0);
+  --tag-langues: oklch(55.3% 0.118 358.1);
+
+  /* --- Système & états --- */
+  --succes: oklch(53.4% 0.085 145.3);
+  --attention: oklch(67.1% 0.123 76.5);
+  --erreur: oklch(50.3% 0.132 23.1);
+
+  /* --- Rayons : le contrat impose un rayon NET sur le composant Fiche (2px,
+     effet carton/papier réel — pas de rounded-2xl SaaS générique) distinct
+     du rayon des boutons/inputs (4px). On garde donc --radius pour la chaîne
+     shadcn standard (boutons, inputs, popovers…) et --radius-fiche à part,
+     utilisé uniquement par le composant Fiche (jamais par les primitives shadcn). --- */
+  --radius: 0.25rem; /* 4px */
+  --radius-fiche: 0.125rem; /* 2px */
+
+  /* ---------- Mapping vers les variables sémantiques shadcn/ui ----------
+     C'est CE bloc que consomment les composants components/ui/*.
+     Si demain le contrat de design change une couleur, on ne touche QUE
+     le bloc ci-dessus — jamais les composants shadcn eux-mêmes. */
+  --background: var(--papier-bg);
+  --foreground: var(--encre);
+  --card: var(--papier-carte);
+  --card-foreground: var(--encre);
+  --popover: var(--papier-carte);
+  --popover-foreground: var(--encre);
+  --primary: var(--encre);
+  --primary-foreground: var(--papier-carte);
+  --secondary: var(--papier-carte);
+  --secondary-foreground: var(--encre);
+  --muted: var(--papier-bg);
+  --muted-foreground: var(--encre-muted);
+  --accent: var(--tag-sciences);
+  --accent-foreground: oklch(100% 0 0);
+  --destructive: var(--erreur);
+  --destructive-foreground: oklch(100% 0 0);
+  --border: var(--papier-border);
+  --input: var(--papier-border);
+  --ring: var(--tag-sciences);
+}
+
+/* ============================================================================
+   SURFACE ARDOISE — appliquée UNIQUEMENT au wrapper de la route de chat
+   (routes/_app/espaces/$spaceId/chat.tsx). Réutilise le mécanisme .dark de
+   shadcn (redéfinition des mêmes variables sémantiques dans un scope) mais
+   sous un nom qui reflète notre vrai contrat : ce n'est pas un thème sombre
+   au choix de l'utilisateur, c'est LA surface du chat, point.
+   Contrat de surface : ne jamais appliquer cette classe ailleurs que sur
+   l'écran de chat, et ne jamais mélanger les deux surfaces sur un même écran.
+   ============================================================================ */
+.surface-ardoise {
+  --background: var(--ardoise-bg);
+  --foreground: var(--craie);
+  --card: var(--ardoise-bg-raised);
+  --card-foreground: var(--craie);
+  --popover: var(--papier-carte); /* les chips/popovers restent des îlots Papier, même sur Ardoise — cf. citation-chip du prototype HTML */
+  --popover-foreground: var(--encre);
+  --primary: var(--craie);
+  --primary-foreground: var(--ardoise-bg);
+  --secondary: var(--ardoise-bg-raised);
+  --secondary-foreground: var(--craie);
+  --muted: var(--ardoise-bg-raised);
+  --muted-foreground: var(--craie-muted);
+  --border: var(--ardoise-border);
+  --input: var(--ardoise-border);
+  --ring: var(--tag-sciences);
+}
+
+/* ============================================================================
+   Typographie — trois rôles, jamais interchangés (contrat de design §4) :
+   Fraunces = titres de fiches / hero / marginalia UNIQUEMENT
+   IBM Plex Sans = tout le reste de l'UI (défaut)
+   IBM Plex Mono = eyebrows, timestamps, subject_tag, request_id, badges
+   ============================================================================ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Tokens BRUTS également exposés comme utilitaires Tailwind explicites
+     (bg-papier-bg, text-encre, border-ardoise-border…) — utile pour les
+     endroits qui doivent rester sur UNE surface fixe quoi qu'il arrive
+     (ex: routes/_public/route.tsx, qui n'est jamais concerné par la bascule
+     .surface-ardoise). Pour tout ce qui doit s'adapter automatiquement à la
+     surface courante (Papier ou Ardoise), préférer les utilitaires
+     sémantiques ci-dessus (bg-background, text-foreground…). */
+  --color-papier-bg: var(--papier-bg);
+  --color-papier-carte: var(--papier-carte);
+  --color-papier-border: var(--papier-border);
+  --color-encre: var(--encre);
+  --color-encre-muted: var(--encre-muted);
+  --color-ardoise-bg: var(--ardoise-bg);
+  --color-ardoise-bg-raised: var(--ardoise-bg-raised);
+  --color-ardoise-border: var(--ardoise-border);
+  --color-craie: var(--craie);
+  --color-craie-muted: var(--craie-muted);
+
+  /* Tags disciplinaires exposés comme utilitaires Tailwind : bg-tag-sciences, text-tag-eco… */
+  --color-tag-sciences: var(--tag-sciences);
+  --color-tag-info: var(--tag-info);
+  --color-tag-lettres: var(--tag-lettres);
+  --color-tag-eco: var(--tag-eco);
+  --color-tag-droit-shs: var(--tag-droit-shs);
+  --color-tag-langues: var(--tag-langues);
+  --color-succes: var(--succes);
+  --color-attention: var(--attention);
+  --color-erreur: var(--erreur);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-fiche: var(--radius-fiche);
+
+  --font-display: "Fraunces", ui-serif, serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  /* Focus clavier visible partout — contrat d'accessibilité §8, jamais désactivé sans remplacement */
+  :focus-visible {
+    outline: 2px dashed var(--attention);
+    outline-offset: 2px;
+  }
+}
