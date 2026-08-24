@@ -4,6 +4,8 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import mg.esmia.miage.aicommon.ChatProviderResolver;
+import mg.esmia.miage.chatservice.client.IngestionClient;
+import mg.esmia.miage.chatservice.dto.Citation;
 import mg.esmia.miage.chatservice.entity.Conversation;
 import mg.esmia.miage.chatservice.rag.RagPipelineAdvisor;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
@@ -12,7 +14,9 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.document.Document;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -44,6 +48,7 @@ public class ChatLlmService {
     private final ChatProviderResolver chatProviderResolver;
     private final RagPipelineAdvisor ragPipelineAdvisor;
     private final JpaBackedChatMemory jpaBackedChatMemory;
+    private final IngestionClient ingestionClient;
 
     @CircuitBreaker(name = "llm-chat", fallbackMethod = "fallbackAssistantReply")
     public LlmOutcome generate(Conversation conversation, String question, String systemPrompt) {
@@ -60,8 +65,10 @@ public class ChatLlmService {
                     .call()
                     .chatResponse();
             String content = response.getResult().getOutput().getText();
-            return new LlmOutcome(content, extractRetrievedChunkIds(response),
-                    chatProviderResolver.activeProvider());
+            List<Document> retrieved = extractRetrievedDocuments(response);
+            return new LlmOutcome(content, chunkIdsOf(retrieved),
+                    chatProviderResolver.activeProvider(),
+                    buildCitations(retrieved, conversation.getUserId()));
         } catch (Exception e) {
             log.error("Échec RAG+LLM (provider={}), bascule sur le fallback du circuit breaker",
                     chatProviderResolver.activeProvider(), e);
@@ -76,12 +83,17 @@ public class ChatLlmService {
         return new LlmOutcome(FALLBACK_REPLY, new UUID[0], chatProviderResolver.activeProvider());
     }
 
-    /** Extraction des IDs des chunks réellement utilisés (métadonnée posée par le RagPipelineAdvisor). */
-    private UUID[] extractRetrievedChunkIds(ChatResponse response) {
+    /**
+     * Extraction des chunks réellement utilisés (métadonnée posée par le RagPipelineAdvisor).
+     * Payload Qdrant par point : {document_id, space_id, chunk_index, content} — cf.
+     * ingestion-service/QdrantVectorService.
+     */
+    private List<Document> extractRetrievedDocuments(ChatResponse response) {
         List<Document> docs = response.getMetadata().get(RagPipelineAdvisor.RETRIEVED_DOCUMENTS);
-        if (docs == null || docs.isEmpty()) {
-            return new UUID[0];
-        }
+        return docs == null ? List.of() : docs;
+    }
+
+    private UUID[] chunkIdsOf(List<Document> docs) {
         return docs.stream()
                 .map(Document::getId)
                 .map(id -> {
@@ -93,5 +105,43 @@ public class ChatLlmService {
                 })
                 .filter(Objects::nonNull)
                 .toArray(UUID[]::new);
+    }
+
+    /**
+     * Citations lisibles dérivées des documents retrievés : documentId/chunkIndex/extrait
+     * viennent du payload Qdrant ; le nom de fichier est résolu via ingestion-service
+     * ({@link IngestionClient}, non bloquant — null => citation sans nom).
+     */
+    private List<Citation> buildCitations(List<Document> docs, UUID requesterUserId) {
+        if (docs.isEmpty()) {
+            return List.of();
+        }
+        // Un nom par documentId : plusieurs chunks d'un même document = une seule résolution REST.
+        Map<UUID, String> namesByDocument = new HashMap<>();
+        return docs.stream()
+                .map(doc -> toCitation(doc, requesterUserId, namesByDocument))
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private Citation toCitation(Document doc, UUID requesterUserId, Map<UUID, String> namesByDocument) {
+        try {
+            UUID chunkId = UUID.fromString(doc.getId());
+            Object documentIdRaw = doc.getMetadata().get("document_id");
+            Object chunkIndexRaw = doc.getMetadata().get("chunk_index");
+            UUID documentId = documentIdRaw == null ? null : UUID.fromString(documentIdRaw.toString());
+            Integer chunkIndex = chunkIndexRaw instanceof Number n ? n.intValue() : null;
+
+            String documentName = null;
+            if (documentId != null) {
+                documentName = namesByDocument.computeIfAbsent(documentId,
+                        id -> ingestionClient.getDocumentName(id, requesterUserId));
+            }
+            return Citation.of(chunkId, documentId, chunkIndex, doc.getText(), documentName);
+        } catch (IllegalArgumentException e) {
+            // Chunk sans ID/UUID exploitable : pas de citation, la traçabilité brute est conservée à part.
+            log.warn("Chunk retrievé avec identifiant non-UUID ({}), citation ignorée", doc.getId());
+            return null;
+        }
     }
 }

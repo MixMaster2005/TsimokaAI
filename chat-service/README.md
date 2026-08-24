@@ -44,9 +44,12 @@ pipeline custom `RagPipelineAdvisor` (réécriture de requête → retrieval lar
   indexés soient dans le même espace (propriété `spring.ai.ollama.embedding.options.model`).
 - **Persona de l'espace** : appel REST service-à-service à `space-service`
   (`GET /api/v1/spaces/{id}`) via `SpaceClient` (RestClient). Les headers `X-User-Id` injectés
-  par la gateway sont **reproduits en interne** avec le propriétaire de la conversation (contrat
-  de sécurité : les backends font confiance aux headers, cf. `common/UserContextFilter`).
+  par la gateway en temps normal sont reproduits en interne avec l'identité du propriétaire.
   Défaillance non bloquante : persona générique si space-service est injoignable.
+- **Noms de documents des citations** : appel REST service-à-service à `ingestion-service`
+  (`GET /api/v1/documents/{id}`) via `IngestionClient`, même contrat de headers internes.
+  Non bloquant : citation sans nom si ingestion est injoignable ou si le document appartient
+  à un autre membre de l'espace (403). Config `ingestion-service.url`.
 - **Historique — `JpaBackedChatMemory` + `MessageChatMemoryAdvisor`** : la base reste la source
   de vérité **unique** ; `JpaBackedChatMemory` implémente `ChatMemory` par-dessus
   `MessageRepository` (aucun store en mémoire Spring AI). `MessageChatMemoryAdvisor.before()`
@@ -99,7 +102,7 @@ sequenceDiagram
     V-->>U: candidats
     U->>L: rerank (2e appel LLM) + chat + MessageChatMemoryAdvisor(historique)
     L-->>U: réponse assistant + métadonnée RETRIEVED_DOCUMENTS
-    U->>U: assistant persisté par l'advisor → enrichi (chunkIds, modelUsed) → MESSAGE_CREATED
+    U->>U: assistant persisté par l'advisor → enrichi (chunkIds, modelUsed) + citations résolues (IngestionClient) → MESSAGE_CREATED
     U-->>C: réponse assistant
 ```
 
@@ -126,6 +129,12 @@ propriétaire.
   `chat.events`. `analytics-service` ne compte que les messages `USER` comme questions.
 - `retrieved_chunk_ids` est rempli avec les IDs des chunks réellement utilisés (métadonnée
   `RETRIEVED_DOCUMENTS`) ; `model_used` avec le provider actif (ex. `ollama` / `groq`).
+- **Citations lisibles** : au moment de la génération, chaque chunk utilisé est résolu en
+  `{chunkId, documentId, chunkIndex, documentName, excerpt}` (payload Qdrant + nom de
+  fichier via `IngestionClient` → ingestion-service, appel non bloquant) et persisté en
+  JSONB sur le message ASSISTANT. Une seule résolution à l'écriture, jamais d'appel réseau
+  à la lecture. Messages antérieurs à la feature / fallback circuit breaker → liste vide,
+  le front retombe sur les UUID bruts.
 - Les messages sont horodatés et ordonnés par `created_at` (historique stable).
 
 ## Événements
@@ -138,9 +147,11 @@ propriétaire.
 
 ## Modèle de données
 
+Migrations Flyway (`db/migration`) : `V1__init.sql`, `V2__message_citations.sql`.
+
 - `conversations` : `id`, `space_id` (logique), `user_id` (logique), `title`, horodatages.
 - `messages` : `id`, `conversation_id (FK cascade)`, `role`, `content`, `retrieved_chunk_ids UUID[]`,
-  `model_used`, `token_count`, `created_at`.
+  `citations JSONB`, `model_used`, `token_count`, `created_at`.
 
 ## Non implémenté (reste à faire pour le mémoire)
 

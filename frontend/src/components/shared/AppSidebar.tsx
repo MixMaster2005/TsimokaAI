@@ -91,7 +91,7 @@ export function AppSidebar() {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Rappels récents</DropdownMenuLabel>
             {!rappels || rappels.length === 0 ? (
-              <DropdownMenuItem disabled>Aucun rappel pour l\u2019instant</DropdownMenuItem>
+              <DropdownMenuItem disabled>Aucun rappel pour l'instant</DropdownMenuItem>
             ) : (
               rappels.slice(0, 5).map((r) => (
                 <DropdownMenuItem key={r.id} disabled className="flex-col items-start whitespace-normal">

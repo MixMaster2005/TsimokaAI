@@ -2,11 +2,13 @@ package mg.esmia.miage.chatservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import mg.esmia.miage.chatservice.dto.Citation;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -41,6 +43,16 @@ public class Message {
     @Column(name = "retrieved_chunk_ids", columnDefinition = "uuid[]")
     @Builder.Default
     private UUID[] retrievedChunkIds = new UUID[0];
+
+    /**
+     * Citations lisibles (document source + extrait) résolues au moment de la génération
+     * — cf. {@code dto.Citation}. Vide pour les messages antérieurs à la feature et pour
+     * les réponses de fallback du circuit breaker (aucun contexte retrievé).
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "citations", columnDefinition = "jsonb")
+    @Builder.Default
+    private List<Citation> citations = List.of();
 
     @Column(name = "model_used")
     private String modelUsed;

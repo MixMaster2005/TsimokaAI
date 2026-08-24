@@ -30,7 +30,7 @@ function Chat() {
   if (!conversations || conversations.length === 0) {
     return (
       <div className="surface-ardoise flex h-full flex-col items-center justify-center gap-3 bg-background text-foreground">
-        <p className="text-sm text-muted-foreground">Aucune conversation dans cet espace pour l\u2019instant.</p>
+        <p className="text-sm text-muted-foreground">Aucune conversation dans cet espace pour l'instant.</p>
         <button
           onClick={() =>
             createConversation.mutate(

@@ -80,7 +80,7 @@ function ParametresEspace() {
           </div>
         ) : (
           <Button variant="destructive" onClick={() => setConfirmDelete(true)}>
-            Supprimer l\u2019espace
+            Supprimer l'espace
           </Button>
         )}
       </div>

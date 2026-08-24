@@ -16,12 +16,26 @@ export interface Space {
   description: string | null;
   subjectTag: string | null;
   assistantPersona: string | null;
+  /**
+   * true = l'utilisateur courant possède l'espace (écriture réservée) ;
+   * false = il l'a rejoint via code d'invitation (accès lecture/participation).
+   * Toujours renseigné par le back depuis la feature d'invitation.
+   */
+  owner?: boolean;
   createdAt: string;
   updatedAt: string;
 
   // Non fournis par SpaceResponse actuellement — cf. note ci-dessus
   documentCount?: number;
   lastActivityAt?: string;
+}
+
+/** Membre d'un espace (hors propriétaire) — calqué sur MembreSpaceResponse.java. */
+export interface MembreEspace {
+  id: string;
+  spaceId: string;
+  userId: string;
+  joinedAt: string;
 }
 
 export interface CreateSpacePayload {

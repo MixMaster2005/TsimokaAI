@@ -80,6 +80,8 @@ Toutes les routes sont protégées par JWT.
 |---|---|---|---|
 | POST | `/api/v1/fiches/generate` | connecté | Générer une fiche (spaceId + documentIds) |
 | GET | `/api/v1/fiches?spaceId={id}` | connecté | Lister **mes** fiches d'un espace |
+| GET | `/api/v1/fiches/mine` | connecté | Vue transverse : toutes mes fiches, tous espaces |
+| GET | `/api/v1/fiches/espace/{spaceId}` | enseignant (admin) | Toutes les fiches d'un espace (file de validation) |
 | GET | `/api/v1/fiches/{id}` | propriétaire/admin | Détail d'une fiche |
 | DELETE | `/api/v1/fiches/{id}` | propriétaire/admin | Supprimer (cascade partages/annotations/validation) |
 | POST | `/api/v1/fiches/{id}/share` | propriétaire | Partager à un groupe ou un destinataire |

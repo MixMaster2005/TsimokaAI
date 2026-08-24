@@ -3,8 +3,9 @@
 > **Statut :** ✅ Complet
 > **Port :** `8080` · **Framework :** Spring Cloud Gateway (WebFlux / réactif)
 
-Point d'entrée **unique** de la plateforme. Le frontend (Next.js, hors dépôt) ne parle
-jamais directement à un microservice : toute requête passe par cette gateway.
+Point d'entrée **unique** de la plateforme. Le frontend React/Vite (`frontend/`, nginx en
+Docker) ne parle jamais directement à un microservice : toute requête passe par cette
+gateway — nginx proxifie `/api` vers elle, et `VITE_API_BASE_URL` pointe dessus en dev.
 
 ## Rôle
 
@@ -38,7 +39,7 @@ jamais directement à un microservice : toute requête passe par cette gateway.
 ```mermaid
 sequenceDiagram
     autonumber
-    participant F as Frontend (Next.js)
+    participant F as Frontend (React/Vite)
     participant G as api-gateway
     participant R as Redis (rate limiter)
     participant S as Microservice

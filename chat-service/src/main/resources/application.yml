@@ -75,6 +75,11 @@ spring:
 space-service:
   url: ${SPACE_SERVICE_URL:http://localhost:8082}
 
+# Appel REST service-à-service vers ingestion-service pour résoudre les noms de documents
+# des citations RAG (même contrat de headers internes, cf. IngestionClient).
+ingestion-service:
+  url: ${INGESTION_SERVICE_URL:http://localhost:8083}
+
 chat:
   llm:
     # Bascule selon l'environnement (contrat de configuration) : groq | gemini | ollama

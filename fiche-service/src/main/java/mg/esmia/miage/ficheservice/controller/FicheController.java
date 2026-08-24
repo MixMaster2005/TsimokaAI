@@ -39,6 +39,27 @@ public class FicheController {
         return ApiResponse.success(ficheService.listMine(spaceId, UUID.fromString(ctx.userId())), ctx.requestId());
     }
 
+    /**
+     * Vue transverse "Mes fiches" : toutes les fiches de l'utilisateur, tous espaces
+     * confondus, plus récentes d'abord. Le chemin littéral {@code mine} est déclaré avant
+     * le {@code GET /{id}} variable — Spring résout les chemins exacts en priorité.
+     */
+    @GetMapping("/mine")
+    public ApiResponse<List<FicheResponse>> listAllMine() {
+        UserContext ctx = authenticated();
+        return ApiResponse.success(ficheService.listAllMine(UUID.fromString(ctx.userId())), ctx.requestId());
+    }
+
+    /**
+     * Toutes les fiches d'un espace — vue enseignant (ADMIN uniquement, 403 sinon).
+     * Chemin littéral déclaré avant le {@code GET /{id}} variable.
+     */
+    @GetMapping("/espace/{spaceId}")
+    public ApiResponse<List<FicheResponse>> listForSpace(@PathVariable UUID spaceId) {
+        UserContext ctx = authenticated();
+        return ApiResponse.success(ficheService.listForSpace(spaceId, ctx.isAdmin()), ctx.requestId());
+    }
+
     @GetMapping("/{id}")
     public ApiResponse<FicheResponse> getById(@PathVariable UUID id) {
         UserContext ctx = authenticated();

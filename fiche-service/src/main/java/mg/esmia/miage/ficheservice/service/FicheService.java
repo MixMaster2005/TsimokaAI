@@ -63,6 +63,22 @@ public class FicheService {
         return ficheRepository.findBySpaceIdAndUserId(spaceId, userId).stream().map(FicheResponse::from).toList();
     }
 
+    /** Vue transverse "Mes fiches" : toutes les fiches de l'utilisateur, tous espaces confondus. */
+    public List<FicheResponse> listAllMine(UUID userId) {
+        return ficheRepository.findByUserIdOrderByGeneratedAtDesc(userId).stream().map(FicheResponse::from).toList();
+    }
+
+    /**
+     * Toutes les fiches d'un espace — réservé aux admins (enseignants) : c'est la file
+     * de travail qui leur permet de découvrir les fiches à valider.
+     */
+    public List<FicheResponse> listForSpace(UUID spaceId, boolean isAdmin) {
+        if (!isAdmin) {
+            throw new ForbiddenException("Réservé aux enseignants");
+        }
+        return ficheRepository.findBySpaceId(spaceId).stream().map(FicheResponse::from).toList();
+    }
+
     @Transactional
     public void delete(UUID id, UUID requesterId, boolean isAdmin) {
         Fiche fiche = findOrThrow(id);

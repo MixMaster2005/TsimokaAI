@@ -7,4 +7,6 @@ export const espaceKeys = {
   all: ['espaces'] as const,
   mine: () => [...espaceKeys.all, 'mine'] as const,
   detail: (id: string) => [...espaceKeys.all, 'detail', id] as const,
+  membres: (id: string) => [...espaceKeys.all, 'membres', id] as const,
+  inviteCode: (id: string) => [...espaceKeys.all, 'invite-code', id] as const,
 };

@@ -86,11 +86,18 @@ Toutes les routes sont protégées par JWT (vérifié à la gateway) ; l'identit
 
 | Méthode | Route | Rôle | Description |
 |---|---|---|---|
-| POST | `/api/v1/spaces` | connecté | Créer un espace (génère le persona) |
-| GET | `/api/v1/spaces` | connecté | Lister **mes** espaces |
-| GET | `/api/v1/spaces/{id}` | propriétaire/admin | Détail d'un espace |
+| POST | `/api/v1/spaces` | connecté | Créer un espace (génère le persona + le code d'invitation) |
+| GET | `/api/v1/spaces` | connecté | Lister **mes** espaces (possédés + rejoints) |
+| POST | `/api/v1/spaces/join` | connecté | Rejoindre un espace via son code (`{code}`) |
+| GET | `/api/v1/spaces/all` | admin | Vue enseignant : tous les espaces de la plateforme |
+| GET | `/api/v1/spaces/{id}` | propriétaire/membre/admin | Détail d'un espace |
 | PUT | `/api/v1/spaces/{id}` | propriétaire/admin | Mettre à jour nom/description/tag |
 | DELETE | `/api/v1/spaces/{id}` | propriétaire/admin | Supprimer (publie `SPACE_DELETED`) |
+| GET | `/api/v1/spaces/{id}/membres` | propriétaire/membre/admin | Lister les membres (hors propriétaire) |
+| DELETE | `/api/v1/spaces/{id}/membres/me` | membre | Quitter l'espace |
+| DELETE | `/api/v1/spaces/{id}/membres/{memberId}` | propriétaire/admin | Retirer un membre |
+| GET | `/api/v1/spaces/{id}/invite-code` | propriétaire/admin | Lire le code d'invitation |
+| POST | `/api/v1/spaces/{id}/invite-code/regenerate` | propriétaire/admin | Régénérer le code (l'ancien meurt) |
 | POST | `/api/v1/spaces/{spaceId}/groupes` | connecté | Créer un groupe (créateur = ANIMATEUR) |
 | GET | `/api/v1/spaces/{spaceId}/groupes` | connecté | Lister les groupes d'un espace |
 | POST | `/api/v1/groupes/{groupeId}/membres` | connecté | Ajouter un membre |
@@ -99,13 +106,24 @@ Toutes les routes sont protégées par JWT (vérifié à la gateway) ; l'identit
 
 ## Règles métier
 
-- **Propriétaire ou admin** pour lire/modifier/supprimer un espace ; sinon `403 FORBIDDEN`.
-- **`UNIQUE(groupe_id, user_id)`** : un utilisateur ne peut pas être membre deux fois du
-  même groupe → `409 CONFLICT`.
+- **Espaces partagés** : un espace reste mono-PROPRIÉTAIRE (`user_id`, écriture réservée).
+  Un autre étudiant peut le rejoindre via son **code d'invitation** (8 caractères, alphabet
+  sans caractères ambigus O/0/I/1/L) : il devient **membre** — accès en lecture et
+  participation, jamais en écriture sur l'espace lui-même. `SpaceResponse.owner` dit au
+  client dans quel cas il est.
+- Le code n'est exposé que via l'endpoint dédié (propriétaire uniquement) : jamais dans
+  `SpaceResponse` lu par un membre.
+- **Propriétaire ou admin** pour modifier/supprimer ; lecture étendue aux membres ;
+  sinon `403 FORBIDDEN`.
+- **`UNIQUE(space_id, user_id)`** sur les adhésions comme sur `UNIQUE(groupe_id, user_id)`
+  → doublon = `409 CONFLICT`. Rejoindre son propre espace ou retirer le propriétaire des
+  membres = `409 CONFLICT` aussi.
+- **`UNIQUE(invite_code)`** sur `spaces` ; régénération possible à tout moment.
 - Le **créateur** d'un groupe est automatiquement inscrit comme `ANIMATEUR`.
-- La suppression d'un **groupe** supprime aussi ses membres (cascade FK).
+- La suppression d'un **groupe** supprime aussi ses membres (cascade FK) ; la suppression
+  d'un **espace** supprime groupes ET adhésions (cascade FK).
 - Un `USER_DELETED` reçu supprime **tous les espaces et groupes** de l'utilisateur (cascade
-  par événement).
+  par événement) ; ses adhésions partent en cascade avec les espaces.
 
 ## Événements
 
@@ -115,9 +133,19 @@ Toutes les routes sont protégées par JWT (vérifié à la gateway) ; l'identit
 | `ingestion.events` | `DOCUMENT_READY` | consommé | Enrichit le persona de l'espace |
 | `user.events` | `USER_DELETED` | consommé | Purge les espaces de l'utilisateur |
 
+⚠️ Pas d'événement `MEMBER_REMOVED` : retirer un membre ne purge rien chez les autres
+services (ses conversations/fiches restent dans l'historique de l'espace — choix assumé,
+à re-discuter si la RGPD entre en jeu).
+
 ## Modèle de données
 
-- `spaces` : `id`, `user_id` (logique), `name`, `description`, `subject_tag`, `assistant_persona`, horodatages.
+Migrations Flyway (`db/migration`) : `V1__init.sql` (schéma initial),
+`V2__invite_code_and_membres.sql` (partage).
+
+- `spaces` : `id`, `user_id` (logique), `name`, `description`, `subject_tag`,
+  `assistant_persona`, `invite_code UNIQUE NOT NULL`, horodatages.
+- `membres_space` : `id`, `space_id (FK cascade)`, `user_id` (logique), `joined_at`,
+  `UNIQUE(space_id, user_id)` — adhésions via code d'invitation.
 - `groupes` : `id`, `space_id (FK cascade)`, `nom`, `description`, `created_by` (logique).
 - `membres_groupe` : `id`, `groupe_id (FK cascade)`, `user_id` (logique), `role_groupe`, `UNIQUE(groupe_id, user_id)`.
 

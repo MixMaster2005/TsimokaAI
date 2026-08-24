@@ -19,7 +19,7 @@ function Etagere() {
       <div className="flex items-start justify-between px-8 pt-7">
         <div>
           <p className="font-mono text-xs uppercase tracking-wide text-encre-muted">Mes espaces</p>
-          <h1 className="font-display text-2xl font-semibold text-encre">L\u2019étagère</h1>
+          <h1 className="font-display text-2xl font-semibold text-encre">L'étagère</h1>
         </div>
         <CreateEspaceModal trigger={<Button>Créer un espace</Button>} />
       </div>

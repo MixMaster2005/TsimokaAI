@@ -52,7 +52,7 @@ function TableauDeBord() {
           </div>
 
           <div className="rounded-fiche border border-papier-border bg-papier-carte p-5">
-            <h3 className="mb-3 font-display text-sm font-semibold text-encre">Recommandations de l\u2019IA</h3>
+            <h3 className="mb-3 font-display text-sm font-semibold text-encre">Recommandations de l'IA</h3>
             <div className="flex flex-col gap-3">
               {dashboard.recommandations.map((r) => (
                 <div key={r.id} className="text-sm">
@@ -63,7 +63,7 @@ function TableauDeBord() {
                 </div>
               ))}
               {dashboard.recommandations.length === 0 && (
-                <p className="text-sm text-encre-muted">Rien à signaler pour l\u2019instant.</p>
+                <p className="text-sm text-encre-muted">Rien à signaler pour l'instant.</p>
               )}
             </div>
           </div>

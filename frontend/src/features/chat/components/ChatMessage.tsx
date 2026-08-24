@@ -24,7 +24,7 @@ export function ChatMessage({ message, animate = false }: ChatMessageProps) {
   return (
     <div className="mb-6">
       <p className="text-base leading-relaxed text-foreground">{revealed}</p>
-      <CitationChips chunkIds={message.retrievedChunkIds} />
+      <CitationChips citations={message.citations ?? []} fallbackChunkIds={message.retrievedChunkIds} />
     </div>
   );
 }

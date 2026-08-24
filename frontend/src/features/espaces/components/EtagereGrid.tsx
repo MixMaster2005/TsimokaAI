@@ -15,7 +15,7 @@ export function EtagereGrid() {
   if (!espaces || espaces.length === 0) {
     return (
       <p className="px-8 py-6 text-sm text-encre-muted">
-        Aucun espace pour l\u2019instant — crée le premier avec le bouton ci-dessus.
+        Aucun espace pour l'instant — crée le premier avec le bouton ci-dessus.
       </p>
     );
   }

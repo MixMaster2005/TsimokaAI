@@ -102,6 +102,7 @@ public class ChatService {
             if (message.getRole() == Message.Role.ASSISTANT && message.getContent().equals(outcome.content())) {
                 message.setRetrievedChunkIds(outcome.chunkIds());
                 message.setModelUsed(outcome.modelUsed());
+                message.setCitations(outcome.citations());
                 return messageRepository.save(message);
             }
         }
@@ -111,6 +112,7 @@ public class ChatService {
                 .content(outcome.content())
                 .retrievedChunkIds(outcome.chunkIds())
                 .modelUsed(outcome.modelUsed())
+                .citations(outcome.citations())
                 .build();
         return messageRepository.save(assistantMessage);
     }

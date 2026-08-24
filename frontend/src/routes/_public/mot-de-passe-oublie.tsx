@@ -26,7 +26,7 @@ function MotDePasseOublie() {
   if (envoye) {
     return (
       <p className="max-w-sm text-center text-sm text-encre-muted">
-        Si un compte existe avec cet email, un lien de réinitialisation vient d\u2019être envoyé.
+        Si un compte existe avec cet email, un lien de réinitialisation vient d'être envoyé.
       </p>
     );
   }

@@ -11,21 +11,23 @@ import { sessionQueryOptions } from '@/features/auth/api/use-session';
  * dupliquée route par route.
  *
  * ⚠️ Cette route sert la variante STUDENT. La variante ADMIN (enseignant)
- * a sa propre coquille (nav totalement différente, cf. cartographie UI C.2) —
- * à créer en `_app-enseignant` séparé plutôt que de brancher un `if role`
- * ici, pour ne pas transformer ce fichier en fourre-tout conditionnel.
- * Le `beforeLoad` ci-dessous devra alors aussi rediriger un ADMIN qui
- * atterrit ici vers son propre layout.
+ * vit sous `routes/enseignant/` (coquille + nav totalement différentes) et les
+ * deux guards sont bilatéraux : un ADMIN qui atterrit ici repart vers
+ * `/enseignant`, un non-ADMIN qui atterrit sous /enseignant repart vers /
  */
 export const Route = createFileRoute('/_app')({
   beforeLoad: async ({ context: { queryClient } }) => {
+    let session;
     try {
-      await queryClient.ensureQueryData(sessionQueryOptions);
+      session = await queryClient.ensureQueryData(sessionQueryOptions);
     } catch {
       // TODO : mémoriser location.href (ex: dans un search param typé via
       // validateSearch sur /_public/connexion) pour rediriger l'utilisateur
       // vers sa page d'origine après connexion, plutôt que systématiquement /.
-      // throw redirect({ to: '/connexion' });
+      throw redirect({ to: '/connexion' });
+    }
+    if (session.role === 'ADMIN') {
+      throw redirect({ to: '/enseignant' });
     }
   },
   component: AppLayout,

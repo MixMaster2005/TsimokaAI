@@ -1,6 +1,8 @@
 # TsimokaAI — Frontend
 
-Scaffold React (SPA, Vite) + TanStack Router (routing par fichiers) + TanStack Query + shadcn/ui.
+SPA React (Vite) + TanStack Router (routing par fichiers) + TanStack Query + shadcn/ui.
+Deux applications dans un seul bundle : **App Étudiant** (`_app`) et **App Enseignant**
+(`enseignant`, rôle ADMIN), chacune avec son layout, sa sidebar et son guard.
 
 ## Démarrer
 
@@ -10,21 +12,37 @@ cp .env.example .env   # ajuster VITE_API_BASE_URL si besoin
 npm run dev
 ```
 
-`npm run build` fait tourner `tsc -b` (type-check strict) puis `vite build` — les deux passent sans erreur sur ce scaffold.
+`npm run build` fait tourner `tsc -b` (type-check strict) puis `vite build`.
+
+## Docker
+
+Le service `frontend` de la racine construit ce dossier via un Dockerfile multi-stage :
+build Vite dans node, puis nginx sert le bundle et **proxifie `/api` vers api-gateway**.
+Conséquence : `VITE_API_BASE_URL` est vide au build → requêtes relatives, même origine,
+zéro CORS. Le fallback SPA (refresh sur une URL profonde → `index.html`) est géré par
+nginx. Port exposé : **3000**.
+
+```bash
+docker compose up --build frontend
+```
 
 ## Ce qui est réellement câblé (pas juste stub)
 
-Vérifié contre le vrai code du repo backend (`github.com/MixMaster2005/TsimokaAI`) pendant le scaffolding, pas deviné :
+Vérifié contre le vrai code du repo backend pendant le scaffolding, pas deviné :
 
 - **auth** — login/register/session/update-profile/delete-account, sur les vraies routes de `user-service`
 - **espaces** — CRUD complet, `SpineCard`/`EtagereGrid`/`CreateEspaceModal`, plus `get-tag-color.ts` qui résout le fait que `subjectTag` est un `String` libre côté back (pas un enum)
-- **chat** — conversations, messages, envoi (avec ajout optimiste du message utilisateur + effet "craie" client-side), sur les vraies routes de `chat-service`
+- **adhésion par code** — bouton d'onboarding actif : `JoinEspaceModal` (POST `/api/v1/spaces/join`), page Membres avec code d'invitation du propriétaire (copier/régénérer), retrait de membre, quitter l'espace ; `SpaceResponse.owner` distingue posséder / rejoindre
+- **chat** — conversations, messages, envoi (avec ajout optimiste + effet "craie" client-side), sur les vraies routes de `chat-service`
+- **citations chat** — `MessageResponse.citations` (document source + extrait, persistés à la génération côté back) affichées par `CitationChips` ; repli placeholder sur les anciens messages (UUID bruts seulement)
 - **fiches** — génération, liste, détail, composant signature `FicheCard` (+ variantes chip/sceau), sur `fiche-service` — y compris le vrai format `content_json` (`definition`/`key_points`/`example`)
+- **mes fiches transverse** — page branchée sur `GET /api/v1/fiches/mine` (endpoint ajouté au back pour lever le blocage du scaffolding)
+- **actions fiche** — partage (`ShareFicheModal` vers groupe ou membre de l'espace), annotations (liste + ajout), validation enseignante (tampon VALIDÉE / À REVOIR, verdict réservé ADMIN)
 - **documents** — upload multipart, liste avec statut, polling automatique tant qu'un document n'est pas `READY`/`FAILED`
 - **groupes** — liste + création, sur `space-service`
 - **objectifs** / **gamification** (badges, rappels) — câblés sur les vrais DTO, avec les vraies valeurs d'enum (voir plus bas)
 - **dashboard étudiant** — progression, recommandations, taux de réussite par matière (agrégé via `useQueries` sur tous les espaces, cf. note dans `use-student-dashboard.ts`)
-- **Layout Espace** (Chat/Fiches/Documents/Membres/Paramètres) et **Layout App Étudiant** en entier
+- **Layout App Étudiant** en entier + **Layout App Enseignant v1** (cf. plus bas)
 
 ## Corrections apportées à la doc existante (Notion)
 
@@ -33,17 +51,37 @@ En vérifiant le code réel, deux divergences trouvées avec la cartographie UI 
 1. `ObjectifRevision.Statut` réel : `EN_COURS / ATTEINT / ABANDONNE` — pas `EXPIRE`.
 2. `Recommandation.Type` réel : `REVISION_NOTION_FAIBLE / CHAPITRE_DIFFICILE / RELANCE_INACTIVITE` — pas `NOTION_A_REVOIR / CHAPITRE_A_RETRAVAILLER / CONSEIL_PERSONNALISE`.
 
-## Limitations backend découvertes pendant le scaffolding (pas des bugs front)
+## Layout App — Enseignant (v1)
 
-- **"Mes fiches" transverse** (`routes/_app/mes-fiches.tsx`) : `FicheController.listMine` exige un `spaceId`, aucun endpoint "toutes mes fiches tous espaces". Page non implémentable en l'état — voir le commentaire en tête de fichier pour les deux options d'ajout côté back.
-- **Rejoindre un espace par code** : aucune route de ce type repérée dans `SpaceController` — bouton désactivé dans `onboarding/bienvenue.tsx`.
-- **Citations du chat** : `Message.retrievedChunkIds` ne donne que des UUID de chunks, pas de nom de document lisible — aucun endpoint de résolution repéré dans `ingestion-service`. `CitationChips.tsx` affiche un placeholder en attendant.
-- **`/` partagé par deux layouts** : `_app` et `_public` sont tous deux pathless, donc en conflit sur `/`. Résolu en laissant `/` à l'étagère (app) et en déplaçant la Landing à `/accueil` — voir le commentaire dans `routes/_public/route.tsx`, ce compromis vaut le coup d'être rediscuté avant un vrai lancement public.
+`routes/enseignant/` + `AppSidebarEnseignant`, rôle ADMIN uniquement. Guards bilatéraux :
+un ADMIN sous `_app` repart vers `/enseignant`, un étudiant sous `/enseignant` repart vers
+`/`. Parcours : tableau de bord (tous les espaces, `GET /api/v1/spaces/all`) → fiches d'un
+espace (`GET /api/v1/fiches/espace/{spaceId}`) → détail avec verdict (tampon du contrat de
+design). Ces deux endpoints ont été ajoutés côté back : sans eux, aucun enseignant ne peut
+découvrir quoi que ce soit (les espaces sont privés).
+
+**Périmètre v1 assumé** : les agrégats "chapitres difficiles avec densité d'encre" du
+contrat de design demandent des endpoints analytiques qui n'existent pas encore côté
+analytics-service — pas simulés côté front.
+
+## Limitations connues (réelles, pas des stubs)
+
+- **Pas de nom lisible hors session** : user-service n'expose pas de résolution batch
+  d'utilisateurs — membres d'un espace, annotations et partages affichent des UUID tronqués.
+- **Citations sans nom possible** : la résolution du nom de document se fait côté
+  chat-service avec l'identité de l'utilisateur de la conversation ; si le chunk vient d'un
+  document déposé par un AUTRE membre, ingestion-service répond 403 → citation affichée
+  sans nom de fichier (l'extrait reste là).
+- **Refresh silencieux non branché** : TODO dans `lib/api-client.ts` (401) et
+  `features/auth/api/use-login.ts`.
+- **GenerateFicheModal** (choix du périmètre de génération) reste à écrire — le bouton
+  génère sur tout le corpus de l'espace.
+- **`/` partagé par deux layouts** : `_app` et `_public` sont tous deux pathless, donc en
+  conflit sur `/`. Résolu en laissant `/` à l'étagère (app) et en déplaçant la Landing à
+  `/accueil` — compromis à retrancher avant un vrai lancement public.
 
 ## Ce qui n'a délibérément pas été fait
 
-- **Layout App — Enseignant** (sidebar différente, cf. cartographie UI C.2) : pas commencé, le rôle ADMIN n'est pas géré côté front pour l'instant (`beforeLoad` de `_app` ne vérifie que la présence d'une session, pas le rôle).
-- **Partage de fiche / annotations / validation enseignant** : DTO repérés (`ShareFicheRequest`, `ValidationController`) mais pas branchés — actions notées en commentaire dans `fiches/$ficheId.tsx`.
 - **shadcn/ui** : composants écrits à la main (voir plus bas), pas générés par la vraie CLI.
 
 ## shadcn/ui — écrit à la main, à régénérer
@@ -61,20 +99,23 @@ npx shadcn@latest add button card input label tabs dialog avatar dropdown-menu s
 ```
 src/
 ├── routes/          # WIRING UNIQUEMENT (loader, validateSearch, composition) — voir chaque fichier
+│   ├── _app/        # app étudiant (pathless, guard auth + anti-ADMIN)
+│   ├── enseignant/  # app enseignant (PRÉFIXÉ — pas pathless, sinon conflit de chemins avec _app)
+│   └── _public/     # landing, connexion, inscription
 ├── features/        # logique métier par domaine (api/, components/, types.ts, lib/)
 ├── components/
 │   ├── ui/          # shadcn — ne pas éditer en profondeur, wrap au lieu de modifier
-│   └── shared/       # transverse à ≥2 features (AppSidebar)
+│   └── shared/      # transverse à ≥2 features (AppSidebar, AppSidebarEnseignant)
 ├── lib/             # api-client, query-client, utils (cn)
 └── styles/globals.css  # tokens du contrat de design → variables shadcn, .surface-ardoise
 ```
 
-Détail des conventions (query key factories, quand extraire un composant, `.surface-ardoise`, etc.) : voir la conversation qui a précédé ce scaffold, ou directement les commentaires en tête de chaque fichier de `lib/` et `features/*/api/keys.ts`.
+Détail des conventions (query key factories, quand extraire un composant, `.surface-ardoise`, etc.) : voir les commentaires en tête de chaque fichier de `lib/` et `features/*/api/keys.ts`.
 
 ## Prochaines étapes suggérées
 
 1. Régénérer `components/ui/` via la vraie CLI shadcn.
-2. Trancher les 3 limitations backend ci-dessus (mes-fiches, join by code, citations lisibles) — ce sont des décisions produit/back, pas du travail front.
-3. Layout App — Enseignant.
-4. Partage de fiche + annotations + validation enseignant.
-5. Générer `types/api.d.ts` depuis un futur schéma OpenAPI (springdoc côté back + `openapi-typescript` côté front) pour ne plus avoir à vérifier les DTO à la main comme pendant ce scaffolding.
+2. Brancher le refresh silencieux du token (401 → POST `/api/v1/auth/refresh` → replay).
+3. Résoudre les noms d'utilisateurs (endpoint batch user-service) pour remplacer les UUID tronqués.
+4. Agrégats enseignant côté analytics-service (chapitres difficiles, densité d'encre).
+5. Générer `types/api.d.ts` depuis un futur schéma OpenAPI (springdoc côté back + `openapi-typescript` côté front) pour ne plus avoir à vérifier les DTO à la main.

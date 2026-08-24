@@ -32,7 +32,7 @@ function FichesEspace() {
       </div>
 
       {fiches?.length === 0 && (
-        <p className="text-sm text-muted-foreground">Aucune fiche générée pour l\u2019instant dans cet espace.</p>
+        <p className="text-sm text-muted-foreground">Aucune fiche générée pour l'instant dans cet espace.</p>
       )}
 
       <div className="flex flex-col gap-2">

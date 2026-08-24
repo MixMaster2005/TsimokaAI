@@ -61,7 +61,7 @@ compteurs, enrichissements) passe par **Redis Pub/Sub**.
 ```mermaid
 flowchart TB
     subgraph Client
-        FE["Frontend Next.js<br/>(hors dépôt)"]
+        FE["Frontend React/Vite<br/>(frontend/, port 3000)"]
     end
     subgraph Edge
         GW["api-gateway :8080<br/>JWT · rate limiting · CORS · routage"]
@@ -152,6 +152,7 @@ diagrammes, endpoints, événements et **parties non implémentées**.
 | `fiche-service` | 8085 | Génération de fiches, partage, annotation, validation | 🟢 Génération Map-Reduce — e2e à faire | [README](fiche-service/README.md) |
 | `analytics-service` | 8086 | Tableaux de bord, statistiques, recommandations | ✅ Complet | [README](analytics-service/README.md) |
 | `gamification-service` | 8087 | Objectifs, badges, suivi hebdo, rappels | ✅ Complet | [README](gamification-service/README.md) |
+| `frontend` | 3000 | SPA React/Vite (étudiant + enseignant), servie par nginx avec proxy `/api` → gateway | 🟢 Étudiant complet, enseignant v1 — e2e à faire | [README](frontend/README.md) |
 | `common` | — | Lib partagée (JAR) | ✅ Stable | [README](common/README.md) |
 | `ai-common` | — | Lib IA partagée (JAR) | ✅ Stable | [README](ai-common/README.md) |
 
@@ -188,10 +189,16 @@ Une fois démarré :
 
 | Ressource | URL |
 |---|---|
-| Gateway (point d'entrée) | http://localhost:8080 |
+| Frontend (point d'entrée utilisateur) | http://localhost:3000 |
+| Gateway (point d'entrée API) | http://localhost:8080 |
 | Swagger par service | http://localhost:`<port>`/swagger-ui.html |
 | Console MinIO | http://localhost:9001 |
 | Dashboard Qdrant | http://localhost:6333/dashboard |
+
+Le frontend est servi par nginx qui **proxifie `/api` vers la gateway** : le navigateur
+ne parle qu'à http://localhost:3000 (même origine, zéro CORS). En dev hors Docker,
+`npm run dev` dans `frontend/` appelle directement la gateway (`VITE_API_BASE_URL`,
+cf. `frontend/.env.example`).
 
 ### Test rapide bout-en-bout
 
@@ -206,6 +213,13 @@ curl -X POST http://localhost:8080/api/v1/spaces \
   -H "Authorization: Bearer <accessToken>" \
   -H "Content-Type: application/json" \
   -d '{"name":"Algèbre linéaire","subjectTag":"Mathématiques"}'
+
+# 3. Un autre utilisateur rejoint l'espace avec son code d'invitation
+#    (le code est visible par le propriétaire : GET /api/v1/spaces/{id}/invite-code)
+curl -X POST http://localhost:8080/api/v1/spaces/join \
+  -H "Authorization: Bearer <accessTokenAutreEtudiant>" \
+  -H "Content-Type: application/json" \
+  -d '{"code":"A7K2M9XQ"}'
 ```
 
 ### Lancer un seul service en local (développement)
