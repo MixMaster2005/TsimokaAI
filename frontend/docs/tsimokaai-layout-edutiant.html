@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TsimokaAI — Layout App Étudiant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,340;0,9..144,480;0,9..144,600;1,9..144,480&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ardoise-bg:#131C1A; --ardoise-bg-raised:#1B2723; --ardoise-border:#2B3A35;
+    --craie:#EDE7D6; --craie-muted:#8E9993;
+    --papier-bg:#F2EEDF; --papier-carte:#FBF9F1; --papier-border:#DCD5BE;
+    --encre:#1D2321; --encre-muted:#5B645E;
+    --tag-sciences:#2F6690; --tag-info:#9C7522; --tag-lettres:#9C4A2E;
+    --tag-eco:#5C7A3A; --tag-droit-shs:#6B4E82; --tag-langues:#A85272;
+    --succes:#4C7A4E; --attention:#C08A2E; --erreur:#A23F3F;
+    --font-display:'Fraunces', serif; --font-sans:'IBM Plex Sans', sans-serif; --font-mono:'IBM Plex Mono', monospace;
+    --radius-fiche:2px; --radius-btn:4px;
+    --sidebar-w:250px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:var(--font-sans); color:var(--encre); background:#0d1210; -webkit-font-smoothing:antialiased;}
+  button, input, select{font-family:inherit;}
+  button{cursor:pointer;}
+  :focus-visible{outline:2px dashed var(--attention); outline-offset:2px;}
+  a{color:inherit;}
+
+  .preview-banner{
+    background:#0d1210; color:var(--craie-muted); font-family:var(--font-mono);
+    font-size:.7rem; letter-spacing:.03em; padding:7px 20px; text-align:center;
+  }
+  .preview-banner strong{color:var(--craie); font-weight:600;}
+
+  .app-shell{ display:flex; min-height:calc(100vh - 32px); max-width:1200px; margin:0 auto; box-shadow:0 0 60px rgba(0,0,0,.35); }
+
+  /* ============ SIDEBAR (chrome de navigation, toujours en Ardoise) ============ */
+  .sidebar{
+    width:var(--sidebar-w); flex:none; background:var(--ardoise-bg);
+    color:var(--craie); display:flex; flex-direction:column;
+    border-right:1px solid var(--ardoise-border);
+  }
+  .sidebar__brand{
+    display:flex; align-items:center; gap:8px; padding:20px 18px 16px 18px;
+    font-family:var(--font-display); font-weight:600; font-size:1.05rem;
+  }
+  .sidebar__resume{
+    margin:0 14px 14px 14px; padding:10px 12px; background:var(--ardoise-bg-raised);
+    border:1px solid var(--ardoise-border); border-radius:var(--radius-btn);
+    font-size:.76rem; cursor:pointer; transition:border-color .15s ease;
+  }
+  .sidebar__resume:hover{ border-color:var(--craie-muted); }
+  .sidebar__resume .eyebrow{ font-family:var(--font-mono); text-transform:uppercase; font-size:.62rem; letter-spacing:.06em; color:var(--craie-muted); display:block; margin-bottom:3px; }
+  .sidebar__resume .space-name{ font-weight:500; }
+  .sidebar__resume .arrow{ float:right; color:var(--craie-muted); }
+
+  .sidebar__nav{ padding:6px 10px; display:flex; flex-direction:column; gap:2px; }
+  .sidebar__nav-label{ font-family:var(--font-mono); text-transform:uppercase; font-size:.62rem; letter-spacing:.07em; color:var(--craie-muted); padding:14px 8px 6px 8px; }
+  .nav-btn{
+    display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+    background:transparent; border:none; color:var(--craie-muted);
+    padding:9px 10px; border-radius:var(--radius-btn); font-size:.87rem; font-weight:500;
+    border-left:2px solid transparent;
+  }
+  .nav-btn:hover{ background:var(--ardoise-bg-raised); color:var(--craie); }
+  .nav-btn.active{ background:var(--ardoise-bg-raised); color:var(--craie); border-left-color:var(--tag-sciences); }
+  .nav-btn .ic{ width:16px; text-align:center; opacity:.85; }
+  .nav-btn.secondary{ font-size:.82rem; opacity:.85; }
+
+  .sidebar__bell{ position:relative; display:flex; align-items:center; gap:8px; }
+  .bell-dot{ width:6px; height:6px; border-radius:50%; background:var(--attention); position:absolute; top:8px; left:20px; }
+  .bell-dropdown{
+    display:none; position:absolute; left:100%; top:0; margin-left:8px; width:250px;
+    background:var(--papier-carte); color:var(--encre); border:1px solid var(--papier-border);
+    border-radius:var(--radius-fiche); box-shadow:0 8px 20px rgba(0,0,0,.25); padding:10px; z-index:30;
+  }
+  .bell-dropdown.open{ display:block; }
+  .bell-dropdown h4{ margin:2px 6px 8px 6px; font-family:var(--font-mono); text-transform:uppercase; font-size:.65rem; letter-spacing:.05em; color:var(--encre-muted); }
+  .bell-item{ padding:7px 6px; border-bottom:1px solid var(--papier-border); font-size:.78rem; line-height:1.4; }
+  .bell-item:last-child{ border-bottom:none; }
+  .bell-item b{ display:block; font-size:.68rem; font-family:var(--font-mono); text-transform:uppercase; color:var(--tag-eco); margin-bottom:2px; }
+
+  .sidebar__footer{ margin-top:auto; padding:14px; border-top:1px solid var(--ardoise-border); display:flex; align-items:center; gap:10px; }
+  .avatar{ width:34px; height:34px; border-radius:50%; background:var(--tag-droit-shs); flex:none; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:.75rem; font-weight:600; color:#fff; }
+  .sidebar__footer .who{ min-width:0; }
+  .sidebar__footer .name{ font-size:.84rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sidebar__footer .links{ font-family:var(--font-mono); font-size:.65rem; color:var(--craie-muted); }
+  .sidebar__footer .links a{ text-decoration:none; }
+  .sidebar__footer .links a:hover{ color:var(--craie); }
+
+  /* ============ MAIN CONTENT ============ */
+  .main{ flex:1; min-width:0; }
+  .view{ display:none; }
+  .view.active{ display:block; animation:fadeIn .2s ease; }
+  @keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
+  .view--papier{ background:var(--papier-bg); min-height:100%; }
+  .view--ardoise{ background:var(--ardoise-bg); min-height:100%; color:var(--craie); }
+
+  .view-header{ padding:26px 30px 4px 30px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+  .view-eyebrow{ font-family:var(--font-mono); text-transform:uppercase; font-size:.68rem; letter-spacing:.07em; color:var(--encre-muted); }
+  .view-title{ font-family:var(--font-display); font-weight:600; font-size:1.5rem; margin:3px 0 0 0; }
+
+  .btn{ font-family:var(--font-sans); font-size:.8rem; font-weight:500; border:1px solid var(--papier-border); background:var(--papier-carte); color:var(--encre); padding:8px 14px; border-radius:var(--radius-btn); }
+  .btn:hover{ background:#fff; }
+  .btn--primary{ background:var(--encre); color:var(--papier-carte); border-color:var(--encre); }
+  .btn--primary:hover{ background:#000; }
+  .btn-row{ display:flex; gap:8px; flex:none; }
+
+  /* --- Étagère --- */
+  .resume-card{
+    margin:18px 30px 0 30px; padding:16px 18px; background:var(--papier-carte);
+    border:1px solid var(--papier-border); border-left:4px solid var(--tag-sciences);
+    border-radius:var(--radius-fiche); display:flex; align-items:center; justify-content:space-between; gap:16px; cursor:pointer;
+  }
+  .resume-card:hover{ background:#fff; }
+  .resume-card .eyebrow{ font-family:var(--font-mono); text-transform:uppercase; font-size:.65rem; letter-spacing:.06em; color:var(--encre-muted); }
+  .resume-card .snippet{ font-size:.88rem; margin-top:3px; }
+  .resume-card .snippet i{ color:var(--encre-muted); font-style:normal; }
+  .resume-card .go{ font-family:var(--font-mono); font-size:.78rem; white-space:nowrap; color:var(--tag-sciences); }
+
+  .cta-row{ display:flex; gap:10px; padding:18px 30px 4px 30px; }
+
+  .shelf{ display:flex; gap:14px; padding:20px 30px 8px 30px; overflow-x:auto; }
+  .spine{
+    position:relative; flex:none; width:76px; height:230px; border-radius:var(--radius-fiche);
+    display:flex; align-items:flex-end; padding:14px 10px; color:#fff; border:none;
+    box-shadow:0 2px 4px rgba(0,0,0,.12); transition:transform .15s ease, box-shadow .15s ease; text-align:left;
+  }
+  .spine:hover{ transform:translateY(-5px); box-shadow:0 10px 18px rgba(0,0,0,.18); }
+  .spine::before{ content:""; position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,.4), transparent 65%); border-radius:inherit; }
+  .spine__label{ position:relative; writing-mode:vertical-rl; transform:rotate(180deg); font-family:var(--font-display); font-weight:500; font-size:.95rem; line-height:1.3; }
+  .spine__count{ position:absolute; top:10px; right:9px; font-family:var(--font-mono); font-size:.6rem; background:rgba(255,255,255,.22); padding:2px 5px; border-radius:2px; }
+
+  /* --- Grilles génériques --- */
+  .dash-grid{ padding:22px 30px 40px 30px; display:grid; grid-template-columns:1.4fr 1fr; gap:20px; }
+  @media (max-width:820px){ .dash-grid{ grid-template-columns:1fr; } .app-shell{ flex-direction:column; } .sidebar{ width:100%; flex-direction:row; flex-wrap:wrap; } .sidebar__nav{ flex-direction:row; flex-wrap:wrap; } }
+
+  .panel{ background:var(--papier-carte); border:1px solid var(--papier-border); border-radius:var(--radius-fiche); padding:18px 20px; margin-bottom:18px; }
+  .panel h3{ font-family:var(--font-display); font-weight:600; font-size:1rem; margin:0 0 12px 0; }
+  .panel h3 small{ font-family:var(--font-mono); font-weight:400; font-size:.68rem; color:var(--encre-muted); text-transform:none; }
+
+  .notion-row{ display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--papier-border); font-size:.86rem; }
+  .notion-row:last-child{ border-bottom:none; }
+  .notion-row__meta{ font-family:var(--font-mono); font-size:.62rem; text-transform:uppercase; letter-spacing:.04em; color:var(--encre-muted); }
+  .notion--maitrisee{ color:var(--encre); font-weight:500; }
+  .notion--en-cours{ color:rgba(29,35,33,.65); text-decoration:underline; text-decoration-style:dotted; text-underline-offset:3px; }
+  .notion--fragile{ color:rgba(29,35,33,.35); border-bottom:1px dotted rgba(29,35,33,.35); padding-bottom:1px; }
+  .notion--fragile ~ .notion-row__meta, .notion-row.is-fragile .notion-row__meta{ color:var(--attention); }
+  .space-tag-label{ display:inline-flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:.68rem; color:var(--encre-muted); margin:12px 0 4px 0; text-transform:uppercase; letter-spacing:.04em; }
+  .space-tag-label .dot{ width:7px; height:7px; border-radius:50%; }
+
+  .bar-row{ display:flex; align-items:center; gap:10px; padding:7px 0; font-size:.83rem; }
+  .bar-row .label{ width:120px; flex:none; }
+  .bar-track{ flex:1; height:6px; background:var(--papier-bg); border-radius:3px; overflow:hidden; }
+  .bar-fill{ height:100%; background:var(--encre); border-radius:3px; }
+  .bar-row .pct{ width:34px; text-align:right; font-family:var(--font-mono); font-size:.72rem; color:var(--encre-muted); }
+
+  .weak-callout{ display:flex; align-items:center; gap:10px; background:var(--papier-bg); border-left:4px solid var(--attention); padding:10px 12px; border-radius:2px; font-size:.84rem; margin-top:4px; }
+
+  .reco-item{ padding:10px 0; border-bottom:1px solid var(--papier-border); font-size:.85rem; line-height:1.45; }
+  .reco-item:last-child{ border-bottom:none; }
+  .reco-type{ display:inline-block; font-family:var(--font-mono); font-size:.62rem; text-transform:uppercase; letter-spacing:.04em; padding:2px 6px; border-radius:2px; margin-bottom:5px; color:#fff; }
+  .reco-type.notion{ background:var(--tag-sciences); }
+  .reco-type.chapitre{ background:var(--attention); }
+  .reco-type.conseil{ background:var(--tag-droit-shs); }
+  .reco-item .ts{ font-family:var(--font-mono); font-size:.66rem; color:var(--encre-muted); margin-left:6px; }
+
+  .history-item{ display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--papier-border); font-size:.8rem; }
+  .history-item:last-child{ border-bottom:none; }
+  .history-item .hd{ width:6px; height:6px; border-radius:50%; flex:none; }
+  .history-item .when{ margin-left:auto; font-family:var(--font-mono); font-size:.66rem; color:var(--encre-muted); }
+
+  /* --- Objectifs --- */
+  .obj-row{ display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--papier-border); font-size:.85rem; }
+  .obj-row:last-child{ border-bottom:none; }
+  .pill{ font-family:var(--font-mono); font-size:.62rem; text-transform:uppercase; letter-spacing:.04em; padding:3px 8px; border-radius:10px; }
+  .pill--en-cours{ background:#e7e2d0; color:var(--encre-muted); }
+  .pill--atteint{ background:var(--succes); color:#fff; }
+  .pill--expire{ background:var(--erreur); color:#fff; }
+  .obj-form{ display:none; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .obj-form.open{ display:flex; }
+  .obj-form input, .obj-form select{ font-size:.8rem; padding:7px 9px; border:1px solid var(--papier-border); border-radius:var(--radius-btn); background:#fff; }
+  .obj-form input[type=text]{ flex:1; min-width:160px; }
+
+  .stat-row{ display:flex; gap:10px; }
+  .stat-box{ flex:1; background:var(--papier-bg); border-radius:var(--radius-fiche); padding:10px; text-align:center; }
+  .stat-box .n{ font-family:var(--font-display); font-weight:600; font-size:1.3rem; }
+  .stat-box .l{ font-family:var(--font-mono); font-size:.62rem; text-transform:uppercase; color:var(--encre-muted); letter-spacing:.03em; margin-top:2px; }
+
+  .streak{ display:flex; gap:7px; margin-top:12px; }
+  .streak-dot{ width:15px; height:15px; border-radius:50%; border:1.5px solid var(--encre); }
+  .streak-dot.filled{ background:var(--encre); }
+
+  .badge-shelf{ display:flex; gap:12px; flex-wrap:wrap; margin-top:6px; }
+  .badge-seal{ width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; text-align:center; font-family:var(--font-mono); font-size:.56rem; line-height:1.15; text-transform:uppercase; color:#fff; flex:none; }
+  .badge-seal.locked{ background:transparent !important; border:2px dashed var(--papier-border); color:var(--encre-muted); }
+
+  .rappel-item{ display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--papier-border); font-size:.8rem; }
+  .rappel-item:last-child{ border-bottom:none; }
+  .rappel-item .when{ font-family:var(--font-mono); font-size:.66rem; color:var(--encre-muted); }
+
+  /* --- Mes fiches --- */
+  .filter-row{ display:flex; gap:8px; padding:16px 30px 4px 30px; flex-wrap:wrap; }
+  .chip-filter{ font-family:var(--font-mono); font-size:.72rem; padding:6px 12px; border-radius:20px; border:1px solid var(--papier-border); background:var(--papier-carte); color:var(--encre-muted); }
+  .chip-filter.active{ background:var(--encre); color:var(--papier-carte); border-color:var(--encre); }
+  .fiche-list{ padding:14px 30px 8px 30px; }
+  .fiche-row{ display:flex; align-items:center; gap:12px; background:var(--papier-carte); border:1px solid var(--papier-border); border-radius:var(--radius-fiche); padding:0; margin-bottom:8px; overflow:hidden; }
+  .fiche-row__spine{ width:6px; align-self:stretch; flex:none; }
+  .fiche-row__body{ flex:1; padding:10px 12px; min-width:0; }
+  .fiche-row__title{ font-weight:500; font-size:.88rem; }
+  .fiche-row__meta{ font-family:var(--font-mono); font-size:.66rem; color:var(--encre-muted); margin-top:2px; }
+  .fiche-row__status{ font-family:var(--font-mono); font-size:.62rem; text-transform:uppercase; letter-spacing:.03em; padding:4px 9px; border-radius:10px; margin-right:14px; flex:none; }
+  .st-validee{ background:var(--succes); color:#fff; }
+  .st-attente{ background:#e7e2d0; color:var(--encre-muted); }
+  .st-rejetee{ background:var(--erreur); color:#fff; }
+  .st-obsolete{ background:var(--attention); color:#fff; }
+  .section-label{ padding:20px 30px 0 30px; font-family:var(--font-mono); text-transform:uppercase; font-size:.68rem; letter-spacing:.06em; color:var(--encre-muted); }
+
+  /* --- Paramètres --- */
+  .settings-card{ max-width:480px; margin:20px 30px 40px 30px; background:var(--papier-carte); border:1px solid var(--papier-border); border-radius:var(--radius-fiche); padding:24px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-family:var(--font-mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.04em; color:var(--encre-muted); margin-bottom:5px; }
+  .field input{ width:100%; padding:9px 11px; border:1px solid var(--papier-border); border-radius:var(--radius-btn); background:#fff; font-size:.88rem; }
+  .danger-zone{ margin-top:22px; padding-top:16px; border-top:1px dashed var(--papier-border); }
+  .danger-zone p{ font-size:.78rem; color:var(--encre-muted); margin:0 0 10px 0; }
+  .btn--danger{ background:transparent; color:var(--erreur); border:1px solid var(--erreur); }
+  .btn--danger:hover{ background:var(--erreur); color:#fff; }
+
+  /* ============ ESPACE (sous-shell, déclenché depuis l'étagère) ============ */
+  .espace-header{ padding:20px 30px 0 30px; }
+  .back-link{ background:none; border:none; color:var(--craie-muted); font-family:var(--font-mono); font-size:.74rem; padding:0; margin-bottom:14px; }
+  .back-link:hover{ color:var(--craie); }
+  .espace-title-row{ display:flex; align-items:center; gap:10px; }
+  .espace-title-row .dot{ width:10px; height:10px; border-radius:50%; }
+  .espace-title-row h2{ font-family:var(--font-display); font-weight:600; font-size:1.4rem; margin:0; }
+  .espace-desc{ font-size:.82rem; color:var(--craie-muted); margin:4px 0 0 0; }
+  .espace-tabs{ display:flex; gap:2px; margin-top:16px; border-bottom:1px solid var(--ardoise-border); padding:0 30px; }
+  .espace-tab{ background:none; border:none; color:var(--craie-muted); font-size:.84rem; font-weight:500; padding:10px 14px; border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .espace-tab:hover{ color:var(--craie); }
+  .espace-tab.active{ color:var(--craie); border-bottom-color:var(--tag-sciences); }
+  .espace-panel{ display:none; }
+  .espace-panel.active{ display:block; }
+
+  .chat-wrap{ max-width:680px; margin:0 auto; padding:20px 24px 110px 24px; }
+  .msg{ margin-bottom:22px; }
+  .msg--assistant{ font-size:1rem; line-height:1.6; }
+  .msg--assistant .chalk-word{ display:inline-block; opacity:0; transform:translateY(4px); animation:chalkIn .4s ease forwards; }
+  @keyframes chalkIn{ to{ opacity:1; transform:translateY(0);} }
+  .msg--user{ display:flex; justify-content:flex-end; }
+  .msg--user .bubble{ background:var(--ardoise-bg-raised); border:1px solid var(--ardoise-border); padding:11px 15px; border-radius:var(--radius-btn); max-width:80%; font-size:.92rem; }
+  .cite{ font-family:var(--font-mono); color:#e0b25a; font-size:.82em; }
+  .citation-row{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  .citation-chip{ display:flex; align-items:center; gap:8px; background:var(--papier-carte); color:var(--encre); border-radius:var(--radius-fiche); padding:6px 10px 6px 0; font-size:.72rem; max-width:220px; }
+  .citation-chip__spine{ width:5px; align-self:stretch; flex:none; }
+  .citation-chip__text b{ font-family:var(--font-mono); display:block; font-size:.65rem; text-transform:uppercase; opacity:.6; }
+  .chat-input-bar{ position:sticky; bottom:0; max-width:680px; margin:0 auto; padding:12px 24px 22px 24px; background:linear-gradient(to top, var(--ardoise-bg) 60%, transparent); }
+  #chatForm{ display:flex; gap:8px; background:var(--ardoise-bg-raised); border:1px solid var(--ardoise-border); border-radius:var(--radius-btn); padding:5px 5px 5px 14px; }
+  #chatInput{ flex:1; background:transparent; border:none; color:var(--craie); font-size:.9rem; padding:9px 0; }
+  #chatInput::placeholder{ color:var(--craie-muted); }
+  #chatInput:focus{ outline:none; }
+  #chatForm button{ background:var(--craie); color:var(--ardoise-bg); border:none; font-weight:600; font-size:.82rem; padding:0 16px; border-radius:3px; }
+
+  .stub-panel{ padding:24px 30px 40px 30px; color:var(--craie-muted); font-size:.86rem; max-width:600px; line-height:1.6; }
+  .stub-panel h4{ color:var(--craie); font-family:var(--font-display); font-weight:600; font-size:1.05rem; margin:0 0 8px 0; }
+</style>
+</head>
+<body>
+
+<div class="preview-banner">Aperçu du <strong>Layout App — Étudiant</strong> · clique une matière ou le bloc "Reprendre" pour voir comment on atteint le Chat</div>
+
+<div class="app-shell">
+
+  <!-- ============ SIDEBAR ============ -->
+  <nav class="sidebar">
+    <div class="sidebar__brand">🌱 TsimokaAI</div>
+
+    <div class="sidebar__resume" onclick="openEspace('sciences')">
+      <span class="eyebrow">Reprendre</span>
+      <span class="space-name">Algorithmique S3</span>
+      <span class="arrow">→</span>
+    </div>
+
+    <div class="sidebar__nav">
+      <div class="sidebar__nav-label">Principal</div>
+      <button class="nav-btn active" data-view="etagere"><span class="ic">▤</span> Mes espaces</button>
+      <button class="nav-btn" data-view="dashboard"><span class="ic">◐</span> Tableau de bord</button>
+      <button class="nav-btn" data-view="objectifs"><span class="ic">✦</span> Objectifs & badges</button>
+
+      <div class="sidebar__nav-label">Secondaire</div>
+      <button class="nav-btn secondary" data-view="fiches"><span class="ic">▥</span> Mes fiches</button>
+
+      <div class="sidebar__nav-label" style="position:relative;">
+        <span class="sidebar__bell" onclick="document.getElementById('bellDrop').classList.toggle('open')" style="cursor:pointer;">
+          🔔 <span style="text-transform:none; letter-spacing:0; font-size:.7rem;">Rappels</span>
+        </span>
+        <span class="bell-dot"></span>
+        <div class="bell-dropdown" id="bellDrop">
+          <h4>Rappels récents</h4>
+          <div class="bell-item"><b>Objectif</b>Il te reste 2 jours pour "Réviser les tris" — Algorithmique S3</div>
+          <div class="bell-item"><b>Suggestion</b>3 notions fragiles en Microéconomie cette semaine</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar__footer">
+      <div class="avatar">CB</div>
+      <div class="who">
+        <div class="name">Claude Bernard</div>
+        <div class="links"><a href="#" onclick="switchView(event,'parametres')">Paramètres</a> · <a href="#">Déconnexion</a></div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============ MAIN CONTENT ============ -->
+  <main class="main">
+
+    <!-- ===== ÉTAGÈRE ===== -->
+    <section id="view-etagere" class="view view--papier active">
+      <div class="view-header">
+        <div><div class="view-eyebrow">Mes espaces</div><h2 class="view-title">L'étagère</h2></div>
+        <div class="btn-row"><button class="btn">Rejoindre</button><button class="btn btn--primary">Créer un espace</button></div>
+      </div>
+
+      <div class="resume-card" onclick="openEspace('sciences')">
+        <div>
+          <div class="eyebrow">Reprendre où j'en étais · Algorithmique S3</div>
+          <div class="snippet"><i>"Quicksort est en moyenne aussi rapide que mergesort mais…"</i></div>
+        </div>
+        <div class="go">Continuer →</div>
+      </div>
+
+      <div class="shelf">
+        <button class="spine" style="background:var(--tag-sciences)" onclick="openEspace('sciences')"><span class="spine__count">14</span><span class="spine__label">Algorithmique S3</span></button>
+        <button class="spine" style="background:var(--tag-info)" onclick="openEspace('info')"><span class="spine__count">6</span><span class="spine__label">Réseaux</span></button>
+        <button class="spine" style="background:var(--tag-lettres)" onclick="openEspace('lettres')"><span class="spine__count">9</span><span class="spine__label">Littérature comparée</span></button>
+        <button class="spine" style="background:var(--tag-eco)" onclick="openEspace('eco')"><span class="spine__count">3</span><span class="spine__label">Microéconomie</span></button>
+        <button class="spine" style="background:var(--tag-droit-shs)" onclick="openEspace('droit')"><span class="spine__count">11</span><span class="spine__label">Droit des contrats</span></button>
+      </div>
+    </section>
+
+    <!-- ===== TABLEAU DE BORD ===== -->
+    <section id="view-dashboard" class="view view--papier">
+      <div class="view-header"><div><div class="view-eyebrow">Tableau de bord</div><h2 class="view-title">Ma progression</h2></div></div>
+      <div class="dash-grid">
+        <div>
+          <div class="panel">
+            <h3>Progression par espace</h3>
+            <div class="space-tag-label"><span class="dot" style="background:var(--tag-sciences)"></span>Algorithmique S3</div>
+            <div class="notion-row"><span class="notion--maitrisee">Tri par fusion</span><span class="notion-row__meta">Maîtrisée</span></div>
+            <div class="notion-row"><span class="notion--en-cours">Tri rapide</span><span class="notion-row__meta">En cours</span></div>
+            <div class="notion-row is-fragile"><span class="notion--fragile">Complexité amortie</span><span class="notion-row__meta" style="color:var(--attention)">Fragile</span></div>
+
+            <div class="space-tag-label"><span class="dot" style="background:var(--tag-eco)"></span>Microéconomie</div>
+            <div class="notion-row is-fragile"><span class="notion--fragile">Élasticité-prix</span><span class="notion-row__meta" style="color:var(--attention)">Fragile</span></div>
+            <div class="notion-row is-fragile"><span class="notion--fragile">Surplus du consommateur</span><span class="notion-row__meta" style="color:var(--attention)">Fragile</span></div>
+
+            <div class="weak-callout">⚠ <div><strong>Microéconomie</strong> — matière la plus fragile, 4 notions à revoir.</div></div>
+          </div>
+
+          <div class="panel">
+            <h3>Taux de réussite estimé par matière</h3>
+            <div class="bar-row"><span class="label">Algorithmique</span><div class="bar-track"><div class="bar-fill" style="width:78%"></div></div><span class="pct">78%</span></div>
+            <div class="bar-row"><span class="label">Réseaux</span><div class="bar-track"><div class="bar-fill" style="width:64%"></div></div><span class="pct">64%</span></div>
+            <div class="bar-row"><span class="label">Littérature</span><div class="bar-track"><div class="bar-fill" style="width:85%"></div></div><span class="pct">85%</span></div>
+            <div class="bar-row"><span class="label">Microéconomie</span><div class="bar-track"><div class="bar-fill" style="width:41%"></div></div><span class="pct">41%</span></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="panel">
+            <h3>Recommandations de l'IA</h3>
+            <div class="reco-item"><span class="reco-type notion">Notion à revoir</span><span class="ts">il y a 2h</span><br>La complexité amortie revient souvent dans tes questions sans être totalement stabilisée — Algorithmique S3.</div>
+            <div class="reco-item"><span class="reco-type chapitre">Chapitre à retravailler</span><span class="ts">hier</span><br>L'élasticité-prix mériterait une fiche dédiée avant le prochain TD — Microéconomie.</div>
+            <div class="reco-item"><span class="reco-type conseil">Conseil personnalisé</span><span class="ts">il y a 3 jours</span><br>Tu progresses plus vite le matin sur cet espace : essaie de caler tes révisions d'Algo avant midi.</div>
+          </div>
+          <div class="panel">
+            <h3>Historique des sessions</h3>
+            <div class="history-item"><span class="hd" style="background:var(--tag-sciences)"></span>Conversation · Algorithmique S3<span class="when">aujourd'hui</span></div>
+            <div class="history-item"><span class="hd" style="background:var(--tag-eco)"></span>Fiche consultée · Microéconomie<span class="when">hier</span></div>
+            <div class="history-item"><span class="hd" style="background:var(--tag-lettres)"></span>Conversation · Littérature<span class="when">il y a 2j</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== OBJECTIFS & MOTIVATION ===== -->
+    <section id="view-objectifs" class="view view--papier">
+      <div class="view-header">
+        <div><div class="view-eyebrow">Motivation</div><h2 class="view-title">Objectifs & badges</h2></div>
+        <button class="btn btn--primary" onclick="document.getElementById('objForm').classList.toggle('open')">+ Nouvel objectif</button>
+      </div>
+      <div class="dash-grid">
+        <div>
+          <div class="panel">
+            <h3>Mes objectifs</h3>
+            <div class="obj-row"><span>Réviser les tris avant vendredi</span><span class="pill pill--en-cours">En cours</span></div>
+            <div class="obj-row"><span>Terminer la fiche microéconomie</span><span class="pill pill--atteint">Atteint</span></div>
+            <div class="obj-row"><span>Relire droit des contrats</span><span class="pill pill--expire">Expiré</span></div>
+            <div class="obj-form" id="objForm">
+              <input type="text" placeholder="Titre de l'objectif">
+              <input type="date">
+              <select><option>Tous les espaces</option><option>Algorithmique S3</option><option>Microéconomie</option></select>
+              <button class="btn btn--primary" type="button">Créer</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="panel">
+            <h3>Suivi hebdomadaire</h3>
+            <div class="stat-row">
+              <div class="stat-box"><div class="n">4</div><div class="l">Sessions</div></div>
+              <div class="stat-box"><div class="n">3h20</div><div class="l">Temps total</div></div>
+              <div class="stat-box"><div class="n">2/3</div><div class="l">Objectifs</div></div>
+            </div>
+            <div class="streak">
+              <span class="streak-dot filled"></span><span class="streak-dot filled"></span><span class="streak-dot filled"></span><span class="streak-dot filled"></span><span class="streak-dot"></span><span class="streak-dot"></span><span class="streak-dot"></span>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>Badges</h3>
+            <div class="badge-shelf">
+              <div class="badge-seal" style="background:var(--tag-sciences)">1ère<br>fiche</div>
+              <div class="badge-seal" style="background:var(--succes)">7 jours<br>d'affilée</div>
+              <div class="badge-seal locked">15 jours<br>d'affilée</div>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>Rappels programmés</h3>
+            <div class="rappel-item"><span>Réviser les tris</span><span class="when">demain 18h</span></div>
+            <div class="rappel-item"><span>Point microéconomie</span><span class="when">vendredi 9h</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== MES FICHES ===== -->
+    <section id="view-fiches" class="view view--papier">
+      <div class="view-header"><div><div class="view-eyebrow">Vue transverse</div><h2 class="view-title">Mes fiches</h2></div></div>
+      <div class="filter-row">
+        <span class="chip-filter active">Tous les espaces</span>
+        <span class="chip-filter">Algorithmique S3</span>
+        <span class="chip-filter">Microéconomie</span>
+        <span class="chip-filter">Droit des contrats</span>
+      </div>
+      <div class="fiche-list">
+        <div class="fiche-row">
+          <div class="fiche-row__spine" style="background:var(--tag-sciences)"></div>
+          <div class="fiche-row__body"><div class="fiche-row__title">Complexité des algorithmes de tri</div><div class="fiche-row__meta">Algorithmique S3 · mis à jour hier</div></div>
+          <div class="fiche-row__status st-validee">Validée</div>
+        </div>
+        <div class="fiche-row">
+          <div class="fiche-row__spine" style="background:var(--tag-eco)"></div>
+          <div class="fiche-row__body"><div class="fiche-row__title">Élasticité-prix de la demande</div><div class="fiche-row__meta">Microéconomie · en attente depuis 2j</div></div>
+          <div class="fiche-row__status st-attente">En attente</div>
+        </div>
+        <div class="fiche-row">
+          <div class="fiche-row__spine" style="background:var(--tag-sciences)"></div>
+          <div class="fiche-row__body"><div class="fiche-row__title">Recherche dichotomique</div><div class="fiche-row__meta">Algorithmique S3 · document source mis à jour</div></div>
+          <div class="fiche-row__status st-obsolete">Obsolète</div>
+        </div>
+      </div>
+      <div class="section-label">Partagées avec moi</div>
+      <div class="fiche-list">
+        <div class="fiche-row">
+          <div class="fiche-row__spine" style="background:var(--tag-droit-shs)"></div>
+          <div class="fiche-row__body"><div class="fiche-row__title">La formation du contrat</div><div class="fiche-row__meta">Droit des contrats · groupe B</div></div>
+          <div class="fiche-row__status st-validee">Validée</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PARAMÈTRES DU COMPTE ===== -->
+    <section id="view-parametres" class="view view--papier">
+      <div class="view-header"><div><div class="view-eyebrow">Compte</div><h2 class="view-title">Paramètres</h2></div></div>
+      <div class="settings-card">
+        <div class="field"><label>Nom affiché</label><input type="text" value="Claude Bernard"></div>
+        <div class="field"><label>Email</label><input type="email" value="claude.bernard@esmia.mg"></div>
+        <div class="field"><label>Nouveau mot de passe</label><input type="password" placeholder="••••••••"></div>
+        <button class="btn btn--primary">Enregistrer</button>
+        <div class="danger-zone">
+          <p>Supprimer ton compte efface aussi tes espaces, fiches et conversations. Cette action est irréversible.</p>
+          <button class="btn btn--danger">Supprimer mon compte</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ESPACE (Chat par défaut) — atteint depuis l'étagère ou "Reprendre" ===== -->
+    <section id="view-espace" class="view view--ardoise">
+      <div class="espace-header">
+        <button class="back-link" onclick="switchView(null,'etagere')">← Mes espaces</button>
+        <div class="espace-title-row"><span class="dot" id="espaceDot" style="background:var(--tag-sciences)"></span><h2 id="espaceName">Algorithmique S3</h2></div>
+        <p class="espace-desc" id="espaceDesc">persona : rigoureux, exemples en pseudo-code</p>
+      </div>
+      <div class="espace-tabs">
+        <button class="espace-tab active" data-tab="chat">Chat</button>
+        <button class="espace-tab" data-tab="fiches">Fiches</button>
+        <button class="espace-tab" data-tab="documents">Documents</button>
+        <button class="espace-tab" data-tab="membres">Membres</button>
+        <button class="espace-tab" data-tab="parametres">Paramètres</button>
+      </div>
+
+      <div id="tab-chat" class="espace-panel active">
+        <div class="chat-wrap">
+          <div class="msg msg--assistant" id="msgIntro"></div>
+          <div class="citation-row">
+            <div class="citation-chip"><span class="citation-chip__spine" style="background:var(--tag-sciences)"></span><span class="citation-chip__text"><b>Cours_Algo_Tri.pdf</b>segment 12</span></div>
+            <div class="citation-chip"><span class="citation-chip__spine" style="background:var(--tag-sciences)"></span><span class="citation-chip__text"><b>TD3_Tris.pdf</b>segment 4</span></div>
+          </div>
+          <div class="msg msg--user"><div class="bubble">Peux-tu comparer quicksort et mergesort niveau stabilité ?</div></div>
+          <div class="msg msg--assistant" id="msgReply"></div>
+        </div>
+        <div class="chat-input-bar">
+          <form id="chatForm"><input id="chatInput" type="text" placeholder="Écris ta question sur le cours…" autocomplete="off"><button type="submit">Envoyer</button></form>
+        </div>
+      </div>
+
+      <div id="tab-fiches" class="espace-panel"><div class="stub-panel"><h4>Fiches de cet espace</h4>Liste des fiches générées sur "Algorithmique S3", avec le même composant que dans "Mes fiches" — non détaillé ici, l'objectif de cette maquette est le layout App Étudiant.</div></div>
+      <div id="tab-documents" class="espace-panel"><div class="stub-panel"><h4>Documents ingérés</h4>Liste des PDF/slides déposés, statut d'ingestion, zone d'upload.</div></div>
+      <div id="tab-membres" class="espace-panel"><div class="stub-panel"><h4>Membres & groupes</h4>Liste des membres de l'espace et des groupes de travail.</div></div>
+      <div id="tab-parametres" class="espace-panel"><div class="stub-panel"><h4>Paramètres de l'espace</h4>Visible ici car tu es le créateur de cet espace — nom, tag, persona, code d'invitation.</div></div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  const SPACES = {
+    sciences: { name:'Algorithmique S3', tag:'var(--tag-sciences)', desc:'persona : rigoureux, exemples en pseudo-code' },
+    info:     { name:'Réseaux', tag:'var(--tag-info)', desc:'persona : concret, schémas de flux' },
+    lettres:  { name:'Littérature comparée', tag:'var(--tag-lettres)', desc:'persona : analytique, citations sourcées' },
+    eco:      { name:'Microéconomie', tag:'var(--tag-eco)', desc:'persona : pédagogique, graphiques annotés' },
+    droit:    { name:'Droit des contrats', tag:'var(--tag-droit-shs)', desc:'persona : rigoureux, articles cités' },
+  };
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function switchView(e, viewId){
+    if(e) e.preventDefault();
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + viewId).classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === viewId));
+  }
+  document.querySelectorAll('.nav-btn[data-view]').forEach(btn => {
+    btn.addEventListener('click', () => switchView(null, btn.dataset.view));
+  });
+
+  function openEspace(key){
+    const s = SPACES[key];
+    document.getElementById('espaceName').textContent = s.name;
+    document.getElementById('espaceDesc').textContent = s.desc;
+    document.getElementById('espaceDot').style.background = s.tag;
+    switchView(null, 'espace');
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    // reset to chat tab
+    document.querySelectorAll('.espace-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('.espace-tab[data-tab="chat"]').classList.add('active');
+    document.querySelectorAll('.espace-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-chat').classList.add('active');
+  }
+
+  document.querySelectorAll('.espace-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.espace-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('.espace-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  function chalkReveal(container, html){
+    container.innerHTML = '';
+    const parts = html.split(/(<span class="cite">.*?<\/span>|\s+)/g).filter(Boolean);
+    let delay = 0;
+    parts.forEach(part => {
+      if (/^\s+$/.test(part)) { container.appendChild(document.createTextNode(part)); return; }
+      const span = document.createElement('span');
+      span.innerHTML = part; span.className = 'chalk-word';
+      if (reduceMotion) { span.style.animation = 'none'; span.style.opacity = 1; }
+      else { span.style.animationDelay = delay + 's'; delay += 0.045; }
+      container.appendChild(span);
+    });
+  }
+  chalkReveal(document.getElementById('msgIntro'), 'La complexité d\u2019un algorithme de tri décrit le nombre d\u2019opérations nécessaires selon la taille de la liste. <span class="cite">[1]</span> <span class="cite">[2]</span>');
+  setTimeout(() => chalkReveal(document.getElementById('msgReply'), 'Quicksort est en moyenne aussi rapide que mergesort mais n\u2019est pas stable : deux éléments égaux peuvent changer d\u2019ordre relatif.'), 700);
+
+  document.getElementById('chatForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim(); if (!text) return;
+    const wrap = document.querySelector('#tab-chat .chat-wrap');
+    const userMsg = document.createElement('div'); userMsg.className = 'msg msg--user';
+    userMsg.innerHTML = '<div class="bubble"></div>'; userMsg.querySelector('.bubble').textContent = text;
+    wrap.appendChild(userMsg); input.value = '';
+    setTimeout(() => {
+      const reply = document.createElement('div'); reply.className = 'msg msg--assistant';
+      wrap.appendChild(reply);
+      chalkReveal(reply, 'Bonne question — je m\u2019appuie sur les documents de cet espace pour te répondre précisément.');
+      reply.scrollIntoView({behavior:'smooth', block:'end'});
+    }, 450);
+  });
+</script>
+
+</body>
+</html>

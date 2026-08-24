@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TsimokaAI — Aperçu du contrat de design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,340;0,9..144,480;0,9..144,600;1,9..144,480&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ardoise-bg:#131C1A;
+    --ardoise-bg-raised:#1B2723;
+    --ardoise-border:#2B3A35;
+    --craie:#EDE7D6;
+    --craie-muted:#9FA89F;
+
+    --papier-bg:#F2EEDF;
+    --papier-carte:#FBF9F1;
+    --papier-border:#DCD5BE;
+    --encre:#1D2321;
+    --encre-muted:#5B645E;
+
+    --tag-sciences:#2F6690;
+    --tag-info:#9C7522;
+    --tag-lettres:#9C4A2E;
+    --tag-eco:#5C7A3A;
+    --tag-droit-shs:#6B4E82;
+    --tag-langues:#A85272;
+
+    --succes:#4C7A4E;
+    --attention:#C08A2E;
+    --erreur:#A23F3F;
+
+    --font-display:'Fraunces', serif;
+    --font-sans:'IBM Plex Sans', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+
+    --radius-fiche:2px;
+    --radius-btn:4px;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--font-sans);
+    background:#0d1210;
+    color:var(--encre);
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit;cursor:pointer;}
+  ::selection{background:#c9b98f;color:#1d2321;}
+
+  :focus-visible{
+    outline:2px dashed var(--attention);
+    outline-offset:2px;
+  }
+
+  /* ---------- Shell / nav de démo (pas partie du produit final) ---------- */
+  .preview-shell{
+    max-width:1040px;
+    margin:0 auto;
+    min-height:100vh;
+    background:var(--papier-bg);
+    box-shadow:0 0 60px rgba(0,0,0,.35);
+  }
+  .preview-banner{
+    background:#0d1210;
+    color:var(--craie-muted);
+    font-family:var(--font-mono);
+    font-size:.72rem;
+    letter-spacing:.03em;
+    padding:8px 20px;
+    text-align:center;
+  }
+  .preview-banner strong{color:var(--craie);font-weight:600;}
+
+  .preview-nav{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:16px 24px;
+    background:var(--papier-carte);
+    border-bottom:1px solid var(--papier-border);
+    flex-wrap:wrap;
+    position:sticky;
+    top:0;
+    z-index:20;
+  }
+  .preview-nav__brand{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:1.05rem;
+    color:var(--encre);
+    display:flex;
+    align-items:center;
+    gap:8px;
+    white-space:nowrap;
+  }
+  .preview-nav__tabs{
+    display:flex;
+    gap:4px;
+    overflow-x:auto;
+    padding-bottom:2px;
+  }
+  .preview-nav__tabs button{
+    border:1px solid transparent;
+    background:transparent;
+    color:var(--encre-muted);
+    font-size:.85rem;
+    font-weight:500;
+    padding:8px 14px;
+    border-radius:var(--radius-btn);
+    white-space:nowrap;
+    transition:background .15s ease, color .15s ease;
+  }
+  .preview-nav__tabs button:hover{ background:rgba(29,35,33,.06); color:var(--encre); }
+  .preview-nav__tabs button.active{
+    background:var(--encre);
+    color:var(--papier-carte);
+  }
+
+  main{ min-height:70vh; }
+
+  .view{ display:none; }
+  .view.active{ display:block; animation:fadeIn .25s ease; }
+  @keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
+
+  .view--ardoise{ background:var(--ardoise-bg); color:var(--craie); }
+  .view--papier{ background:var(--papier-bg); color:var(--encre); }
+
+  .view-header{
+    padding:28px 32px 0 32px;
+  }
+  .view-eyebrow{
+    font-family:var(--font-mono);
+    text-transform:uppercase;
+    font-size:.7rem;
+    letter-spacing:.08em;
+    opacity:.65;
+  }
+  .view-title{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:1.6rem;
+    margin:4px 0 0 0;
+  }
+
+  /* ======================================================
+     VUE 1 — ASSISTANT (Ardoise)
+     ====================================================== */
+  #view-chat .chat-wrap{
+    max-width:720px;
+    margin:0 auto;
+    padding:24px 24px 120px 24px;
+  }
+  .chat-space-bar{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 14px;
+    border:1px solid var(--ardoise-border);
+    border-radius:var(--radius-btn);
+    background:var(--ardoise-bg-raised);
+    margin-bottom:28px;
+  }
+  .dot{ width:9px; height:9px; border-radius:50%; flex:none; }
+  .chat-space-bar__name{ font-weight:500; font-size:.9rem; }
+  .chat-space-bar__persona{
+    font-family:var(--font-mono);
+    font-size:.7rem;
+    color:var(--craie-muted);
+    margin-left:auto;
+  }
+
+  .msg{ margin-bottom:26px; max-width:100%; }
+  .msg--assistant{ font-size:1.02rem; line-height:1.65; }
+  .msg--assistant .chalk-word{
+    display:inline-block;
+    opacity:0;
+    transform:translateY(4px);
+    animation:chalkIn .4s ease forwards;
+  }
+  @keyframes chalkIn{ to{ opacity:1; transform:translateY(0);} }
+
+  .msg--user{ display:flex; justify-content:flex-end; }
+  .msg--user .bubble{
+    background:var(--ardoise-bg-raised);
+    border:1px solid var(--ardoise-border);
+    padding:12px 16px;
+    border-radius:var(--radius-btn);
+    max-width:80%;
+    font-size:.94rem;
+    line-height:1.5;
+  }
+
+  .cite{
+    font-family:var(--font-mono);
+    color:#e0b25a;
+    font-size:.82em;
+    cursor:default;
+  }
+
+  .citation-row{
+    display:flex;
+    gap:10px;
+    margin-top:14px;
+    flex-wrap:wrap;
+  }
+  .citation-chip{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:var(--papier-carte);
+    color:var(--encre);
+    border-radius:var(--radius-fiche);
+    padding:7px 10px 7px 0;
+    font-size:.74rem;
+    max-width:230px;
+  }
+  .citation-chip__spine{ width:5px; align-self:stretch; border-radius:2px 0 0 2px; flex:none; }
+  .citation-chip__text{ line-height:1.3; }
+  .citation-chip__text b{ font-family:var(--font-mono); display:block; font-size:.68rem; letter-spacing:.03em; text-transform:uppercase; opacity:.6; margin-bottom:1px; }
+
+  .chat-input-bar{
+    position:sticky;
+    bottom:0;
+    max-width:720px;
+    margin:0 auto;
+    padding:14px 24px 24px 24px;
+    background:linear-gradient(to top, var(--ardoise-bg) 60%, transparent);
+  }
+  #chatForm{
+    display:flex;
+    gap:10px;
+    background:var(--ardoise-bg-raised);
+    border:1px solid var(--ardoise-border);
+    border-radius:var(--radius-btn);
+    padding:6px 6px 6px 16px;
+  }
+  #chatInput{
+    flex:1;
+    background:transparent;
+    border:none;
+    color:var(--craie);
+    font-family:var(--font-sans);
+    font-size:.92rem;
+    padding:10px 0;
+  }
+  #chatInput::placeholder{ color:var(--craie-muted); }
+  #chatInput:focus{ outline:none; }
+  #chatForm button{
+    background:var(--craie);
+    color:var(--ardoise-bg);
+    border:none;
+    font-weight:600;
+    font-size:.85rem;
+    padding:0 18px;
+    border-radius:3px;
+  }
+  #chatForm button:hover{ background:#fff; }
+
+  /* ======================================================
+     VUE 2 — MES ESPACES (Papier · Étagère)
+     ====================================================== */
+  .shelf{
+    display:flex;
+    gap:14px;
+    padding:32px;
+    overflow-x:auto;
+  }
+  .spine{
+    position:relative;
+    flex:none;
+    width:76px;
+    height:280px;
+    border-radius:var(--radius-fiche);
+    display:flex;
+    align-items:flex-end;
+    padding:16px 10px;
+    color:#fff;
+    transition:transform .15s ease, box-shadow .15s ease;
+    box-shadow:0 2px 4px rgba(0,0,0,.12);
+  }
+  .spine:hover{ transform:translateY(-6px); box-shadow:0 10px 18px rgba(0,0,0,.18); }
+  .spine::before{
+    content:"";
+    position:absolute; inset:0;
+    background:linear-gradient(to top, rgba(0,0,0,.4), transparent 65%);
+    border-radius:inherit;
+  }
+  .spine__label{
+    position:relative;
+    writing-mode:vertical-rl;
+    transform:rotate(180deg);
+    font-family:var(--font-display);
+    font-weight:500;
+    font-size:.98rem;
+    line-height:1.3;
+  }
+  .spine__count{
+    position:absolute; top:12px; right:10px;
+    font-family:var(--font-mono);
+    font-size:.62rem;
+    background:rgba(255,255,255,.22);
+    padding:2px 5px;
+    border-radius:2px;
+  }
+  .shelf-hint{
+    padding:0 32px 32px 32px;
+    font-size:.82rem;
+    color:var(--encre-muted);
+    max-width:560px;
+  }
+  .shelf-hint code{ font-family:var(--font-mono); background:var(--papier-carte); padding:1px 5px; border-radius:2px; border:1px solid var(--papier-border); }
+
+  /* ======================================================
+     VUE 3 — FICHE (Papier)
+     ====================================================== */
+  .fiche-stage{
+    padding:32px;
+    display:grid;
+    grid-template-columns:1.3fr .9fr;
+    gap:28px;
+    align-items:start;
+  }
+  @media (max-width:760px){ .fiche-stage{ grid-template-columns:1fr; } }
+
+  .fiche{
+    display:flex;
+    background:var(--papier-carte);
+    border-radius:var(--radius-fiche);
+    box-shadow:0 1px 2px rgba(29,35,33,.06), 0 8px 24px rgba(29,35,33,.06);
+    overflow:hidden;
+    opacity:0;
+    transform:translateY(8px);
+    animation:ficheIn .35s ease forwards;
+    animation-delay:.05s;
+  }
+  @keyframes ficheIn{ to{ opacity:1; transform:translateY(0);} }
+  .fiche__spine{ width:8px; flex:none; }
+  .fiche__body{ padding:22px 24px 18px 22px; flex:1; min-width:0; position:relative; }
+
+  .fiche__eyebrow{
+    font-family:var(--font-mono);
+    text-transform:uppercase;
+    font-size:.68rem;
+    letter-spacing:.07em;
+    color:var(--encre-muted);
+  }
+  .fiche__title{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:1.5rem;
+    margin:4px 0 16px 0;
+    line-height:1.25;
+  }
+  .fiche__section{ margin-bottom:16px; }
+  .fiche__section h4{
+    font-family:var(--font-mono);
+    text-transform:uppercase;
+    font-size:.7rem;
+    letter-spacing:.06em;
+    color:var(--tag-sciences);
+    margin:0 0 6px 0;
+  }
+  .fiche__section p, .fiche__section ul{
+    margin:0; font-size:.9rem; line-height:1.55; color:var(--encre);
+  }
+  .fiche__section ul{ padding-left:18px; }
+  .fiche__footer{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-top:14px;
+    padding-top:12px;
+    border-top:1px dashed var(--papier-border);
+    font-family:var(--font-mono);
+    font-size:.68rem;
+    color:var(--encre-muted);
+  }
+
+  .badge{
+    display:none;
+    align-items:center;
+    gap:5px;
+    font-family:var(--font-mono);
+    font-size:.66rem;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:#fff;
+    background:var(--attention);
+    padding:3px 8px;
+    border-radius:2px;
+  }
+  .badge.is-visible{ display:inline-flex; }
+
+  .fiche--shared{ position:relative; }
+  .fiche--shared::after{
+    content:"";
+    position:absolute; top:0; right:0;
+    width:0; height:0;
+    border-style:solid;
+    border-width:0 26px 26px 0;
+    border-color:transparent var(--papier-bg) transparent transparent;
+    filter:drop-shadow(-1px 1px 1px rgba(0,0,0,.12));
+  }
+  .fiche__share-tag{
+    position:absolute; top:8px; right:8px;
+    font-family:var(--font-mono);
+    font-size:.6rem;
+    color:var(--encre-muted);
+  }
+
+  .stamp{
+    position:absolute;
+    right:20px; bottom:16px;
+    font-family:var(--font-mono);
+    font-weight:600;
+    font-size:.72rem;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    border:2px solid var(--succes);
+    color:var(--succes);
+    padding:5px 10px;
+    border-radius:3px;
+    transform:rotate(-6deg);
+    opacity:.9;
+  }
+
+  .marginalia{
+    font-family:var(--font-display);
+    font-style:italic;
+    font-size:.86rem;
+    color:var(--tag-droit-shs);
+    border-left:2px solid var(--tag-droit-shs);
+    padding-left:10px;
+    margin-top:14px;
+  }
+
+  .side-panel{ display:flex; flex-direction:column; gap:18px; }
+  .side-panel h3{
+    font-family:var(--font-mono);
+    text-transform:uppercase;
+    font-size:.7rem;
+    letter-spacing:.06em;
+    color:var(--encre-muted);
+    margin:0 0 8px 0;
+  }
+  .variant-card{
+    background:var(--papier-carte);
+    border:1px solid var(--papier-border);
+    border-radius:var(--radius-fiche);
+    padding:14px;
+  }
+  .variant-card p{ font-size:.78rem; color:var(--encre-muted); margin:8px 0 0 0; line-height:1.45; }
+
+  .fiche-controls{
+    display:flex; gap:8px; flex-wrap:wrap;
+  }
+  .fiche-controls button{
+    font-family:var(--font-sans);
+    font-size:.78rem;
+    font-weight:500;
+    border:1px solid var(--papier-border);
+    background:var(--papier-carte);
+    color:var(--encre);
+    padding:8px 12px;
+    border-radius:var(--radius-btn);
+  }
+  .fiche-controls button:hover{ background:#fff; }
+
+  .badge-seal{
+    width:56px; height:56px;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    text-align:center;
+    font-family:var(--font-mono);
+    font-size:.58rem;
+    line-height:1.15;
+    text-transform:uppercase;
+    letter-spacing:.02em;
+    color:#fff;
+    border:2px dashed rgba(255,255,255,.5);
+    flex:none;
+  }
+
+  /* ======================================================
+     VUE 4 — DASHBOARD ÉTUDIANT (Papier)
+     ====================================================== */
+  .dash-grid{
+    padding:28px 32px 40px 32px;
+    display:grid;
+    grid-template-columns:1.4fr 1fr;
+    gap:24px;
+  }
+  @media (max-width:760px){ .dash-grid{ grid-template-columns:1fr; } }
+
+  .panel{
+    background:var(--papier-carte);
+    border:1px solid var(--papier-border);
+    border-radius:var(--radius-fiche);
+    padding:20px 22px;
+  }
+  .panel h3{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:1.05rem;
+    margin:0 0 14px 0;
+  }
+
+  .notion-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:9px 0;
+    border-bottom:1px solid var(--papier-border);
+    font-size:.88rem;
+  }
+  .notion-row:last-child{ border-bottom:none; }
+  .notion-row__state{
+    font-family:var(--font-mono);
+    font-size:.66rem;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--encre-muted);
+  }
+  .notion--maitrisee{ color:var(--encre); font-weight:500; }
+  .notion--en-cours{ color:rgba(29,35,33,.65); text-decoration:underline; text-decoration-style:dotted; text-underline-offset:3px; }
+  .notion--fragile{ color:rgba(29,35,33,.35); border-bottom:1px dotted rgba(29,35,33,.35); padding-bottom:1px; }
+  .notion--fragile .notion-row__state{ color:var(--attention); }
+
+  .weak-subject{
+    display:flex; align-items:center; gap:10px;
+    background:var(--papier-bg);
+    border-left:4px solid var(--attention);
+    padding:10px 12px;
+    border-radius:2px;
+    font-size:.84rem;
+    margin-top:14px;
+  }
+
+  .streak{ display:flex; gap:8px; margin-top:4px; }
+  .streak-dot{
+    width:16px; height:16px;
+    border-radius:50%;
+    border:1.5px solid var(--encre);
+  }
+  .streak-dot.filled{ background:var(--encre); }
+  .streak small{ display:block; font-family:var(--font-mono); font-size:.65rem; color:var(--encre-muted); margin-top:8px; }
+
+  .badge-shelf{ display:flex; gap:14px; margin-top:6px; flex-wrap:wrap; }
+  .badge-shelf .badge-seal{ width:64px; height:64px; font-size:.6rem; }
+
+  footer.preview-footer{
+    text-align:center;
+    font-family:var(--font-mono);
+    font-size:.68rem;
+    color:var(--encre-muted);
+    padding:18px;
+    border-top:1px solid var(--papier-border);
+  }
+</style>
+</head>
+<body>
+
+<div class="preview-shell">
+  <div class="preview-banner">Aperçu statique du <strong>contrat de design TsimokaAI</strong> — pas l'application finale, juste la direction visuelle en action</div>
+
+  <nav class="preview-nav">
+    <div class="preview-nav__brand">🌱 TsimokaAI</div>
+    <div class="preview-nav__tabs">
+      <button data-view="chat" class="active">Assistant</button>
+      <button data-view="espaces">Mes espaces</button>
+      <button data-view="fiche">Fiche</button>
+      <button data-view="dashboard">Tableau de bord</button>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- ============ VUE 1 : ASSISTANT (ARDOISE) ============ -->
+    <section id="view-chat" class="view view--ardoise active">
+      <div class="chat-wrap">
+        <div class="chat-space-bar">
+          <span class="dot" style="background:var(--tag-sciences)"></span>
+          <span class="chat-space-bar__name">Algorithmique S3</span>
+          <span class="chat-space-bar__persona">persona : rigoureux, exemples en pseudo-code</span>
+        </div>
+
+        <div class="msg msg--assistant" id="msgIntro"></div>
+
+        <div class="citation-row">
+          <div class="citation-chip">
+            <span class="citation-chip__spine" style="background:var(--tag-sciences)"></span>
+            <span class="citation-chip__text"><b>Cours_Algo_Tri.pdf</b>segment 12 · complexité en pire cas</span>
+          </div>
+          <div class="citation-chip">
+            <span class="citation-chip__spine" style="background:var(--tag-sciences)"></span>
+            <span class="citation-chip__text"><b>TD3_Tris.pdf</b>segment 4 · exemple annoté</span>
+          </div>
+        </div>
+
+        <div class="msg msg--user">
+          <div class="bubble">Peux-tu comparer quicksort et mergesort niveau stabilité ?</div>
+        </div>
+
+        <div class="msg msg--assistant" id="msgReply"></div>
+      </div>
+
+      <div class="chat-input-bar">
+        <form id="chatForm">
+          <input id="chatInput" type="text" placeholder="Écris ta question sur le cours…" autocomplete="off">
+          <button type="submit">Envoyer</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ============ VUE 2 : MES ESPACES (PAPIER · ÉTAGÈRE) ============ -->
+    <section id="view-espaces" class="view view--papier">
+      <div class="view-header">
+        <div class="view-eyebrow">Mes espaces</div>
+        <h2 class="view-title">L'étagère</h2>
+      </div>
+      <div class="shelf">
+        <div class="spine" style="background:var(--tag-sciences)">
+          <span class="spine__count">14</span>
+          <span class="spine__label">Algorithmique S3</span>
+        </div>
+        <div class="spine" style="background:var(--tag-info)">
+          <span class="spine__count">6</span>
+          <span class="spine__label">Réseaux</span>
+        </div>
+        <div class="spine" style="background:var(--tag-lettres)">
+          <span class="spine__count">9</span>
+          <span class="spine__label">Littérature comparée</span>
+        </div>
+        <div class="spine" style="background:var(--tag-eco)">
+          <span class="spine__count">3</span>
+          <span class="spine__label">Microéconomie</span>
+        </div>
+        <div class="spine" style="background:var(--tag-droit-shs)">
+          <span class="spine__count">11</span>
+          <span class="spine__label">Droit des contrats</span>
+        </div>
+        <div class="spine" style="background:var(--tag-langues)">
+          <span class="spine__count">5</span>
+          <span class="spine__label">Anglais juridique</span>
+        </div>
+      </div>
+      <p class="shelf-hint">Chaque dos de reliure reprend la couleur <code>subject_tag</code> de l'espace — le nombre en haut est le nombre de documents ingérés. Sur mobile, cette rangée devient un défilement horizontal (essaie de réduire la fenêtre).</p>
+    </section>
+
+    <!-- ============ VUE 3 : FICHE (PAPIER) ============ -->
+    <section id="view-fiche" class="view view--papier">
+      <div class="view-header">
+        <div class="view-eyebrow">Fiche de révision</div>
+        <h2 class="view-title">Le composant signature, dans ses trois variantes</h2>
+      </div>
+
+      <div class="fiche-stage">
+        <div>
+          <div class="fiche" id="ficheMain">
+            <div class="fiche__spine" style="background:var(--tag-sciences)"></div>
+            <div class="fiche__body">
+              <span class="badge" id="obsoleteBadge">Obsolète</span>
+              <div class="fiche__eyebrow">Fiche · Algorithmique S3</div>
+              <h3 class="fiche__title">Complexité des algorithmes de tri</h3>
+
+              <div class="fiche__section">
+                <h4>Définition</h4>
+                <p>La complexité d'un algorithme de tri mesure le nombre d'opérations élémentaires (comparaisons, échanges) nécessaires en fonction de la taille n de la liste, dans le pire cas, le cas moyen et le meilleur cas.</p>
+              </div>
+              <div class="fiche__section">
+                <h4>Points clés</h4>
+                <ul>
+                  <li>Tri rapide (quicksort) : O(n log n) en moyenne, O(n²) au pire</li>
+                  <li>Tri fusion (mergesort) : O(n log n) garanti, stable</li>
+                  <li>Tri fusion est stable, tri rapide en place ne l'est pas</li>
+                </ul>
+              </div>
+              <div class="fiche__section">
+                <h4>Exemple appliqué</h4>
+                <p>Trier [5, 2, 9, 1] par fusion : diviser en [5,2] et [9,1], trier récursivement, puis fusionner en comparant les têtes de liste à chaque étape.</p>
+              </div>
+
+              <div class="marginalia">« bien insister sur la stabilité à l'oral, c'est souvent la question piège » — annotation de groupe</div>
+
+              <div class="fiche__footer">
+                <span>3 documents sources · mis à jour hier</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="fiche-controls" style="margin-top:16px;">
+            <button id="toggleObsolete">Basculer le badge « obsolète »</button>
+            <button id="regenFiche">Rejouer l'apparition de la fiche</button>
+          </div>
+        </div>
+
+        <div class="side-panel">
+          <div>
+            <h3>Chip de citation</h3>
+            <div class="variant-card">
+              <div class="citation-chip" style="max-width:none;">
+                <span class="citation-chip__spine" style="background:var(--tag-sciences)"></span>
+                <span class="citation-chip__text"><b>Cours_Algo_Tri.pdf</b>segment 12</span>
+              </div>
+              <p>Utilisée sous les réponses du chat pour tracer les sources exactes utilisées (§4.3 du CDC).</p>
+            </div>
+          </div>
+
+          <div>
+            <h3>Sceau / badge</h3>
+            <div class="variant-card" style="display:flex; gap:14px; align-items:center;">
+              <div class="badge-seal" style="background:var(--tag-sciences)">1ère<br>fiche</div>
+              <p style="margin:0;">Version circulaire pour la gamification — même languette colorée, réduite à un sceau.</p>
+            </div>
+          </div>
+
+          <div>
+            <h3>Fiche partagée + validée</h3>
+            <div class="fiche fiche--shared" style="position:relative;">
+              <div class="fiche__spine" style="background:var(--tag-droit-shs)"></div>
+              <div class="fiche__body" style="padding:18px 20px 46px 18px;">
+                <span class="fiche__share-tag">groupe B</span>
+                <div class="fiche__eyebrow">Fiche · Droit des contrats</div>
+                <h3 class="fiche__title" style="font-size:1.1rem;">La formation du contrat</h3>
+                <p style="font-size:.82rem; color:var(--encre-muted); margin:0;">Pli de coin = partage actif · tampon = validation enseignant.</p>
+                <span class="stamp">Validée</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VUE 4 : DASHBOARD ÉTUDIANT (PAPIER) ============ -->
+    <section id="view-dashboard" class="view view--papier">
+      <div class="view-header">
+        <div class="view-eyebrow">Tableau de bord</div>
+        <h2 class="view-title">Vue étudiant</h2>
+      </div>
+
+      <div class="dash-grid">
+        <div class="panel">
+          <h3>Progression · Algorithmique S3</h3>
+          <div class="notion-row">
+            <span class="notion--maitrisee">Tri par fusion</span>
+            <span class="notion-row__state">Maîtrisée</span>
+          </div>
+          <div class="notion-row">
+            <span class="notion--maitrisee">Recherche dichotomique</span>
+            <span class="notion-row__state">Maîtrisée</span>
+          </div>
+          <div class="notion-row">
+            <span class="notion--en-cours">Tri rapide (quicksort)</span>
+            <span class="notion-row__state">En cours</span>
+          </div>
+          <div class="notion-row">
+            <span class="notion--fragile">Complexité amortie</span>
+            <span class="notion-row__state">Fragile</span>
+          </div>
+          <div class="notion-row">
+            <span class="notion--fragile">Programmation dynamique</span>
+            <span class="notion-row__state">Fragile</span>
+          </div>
+
+          <div class="weak-subject">
+            <span style="font-size:1.1rem;">⚠</span>
+            <div>
+              <strong style="font-size:.85rem;">Microéconomie</strong> — matière la plus fragile cette semaine, 4 notions à revoir.
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:20px;">
+          <div class="panel">
+            <h3>Suivi hebdomadaire</h3>
+            <div class="streak">
+              <span class="streak-dot filled"></span>
+              <span class="streak-dot filled"></span>
+              <span class="streak-dot filled"></span>
+              <span class="streak-dot filled"></span>
+              <span class="streak-dot"></span>
+              <span class="streak-dot"></span>
+              <span class="streak-dot"></span>
+            </div>
+            <small>4 sessions cette semaine · objectif : 5</small>
+          </div>
+
+          <div class="panel">
+            <h3>Badges</h3>
+            <div class="badge-shelf">
+              <div class="badge-seal" style="background:var(--tag-sciences)">1ère<br>fiche</div>
+              <div class="badge-seal" style="background:var(--succes)">7 jours<br>d'affilée</div>
+              <div class="badge-seal" style="background:var(--tag-droit-shs)">Fiche<br>validée</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="preview-footer">Contrat de design TsimokaAI · surfaces Ardoise/Papier · composant Fiche · tokens dans &lt;style&gt;</footer>
+</div>
+
+<script>
+  // Navigation entre les 4 vues de démo
+  const tabs = document.querySelectorAll('.preview-nav__tabs button');
+  const views = document.querySelectorAll('.view');
+  tabs.forEach(tab => tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    views.forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + tab.dataset.view).classList.add('active');
+  }));
+
+  // Effet "craie" : révélation mot par mot, respecte prefers-reduced-motion
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function chalkReveal(container, html){
+    container.innerHTML = '';
+    // on découpe en tokens en gardant les balises <span class="cite"> intactes
+    const parts = html.split(/(<span class="cite">.*?<\/span>|\s+)/g).filter(Boolean);
+    let delay = 0;
+    parts.forEach(part => {
+      if (/^\s+$/.test(part)) { container.appendChild(document.createTextNode(part)); return; }
+      const span = document.createElement('span');
+      span.innerHTML = part;
+      span.className = 'chalk-word';
+      if (reduceMotion) { span.style.animation = 'none'; span.style.opacity = 1; }
+      else { span.style.animationDelay = delay + 's'; delay += 0.045; }
+      container.appendChild(span);
+    });
+  }
+
+  chalkReveal(document.getElementById('msgIntro'),
+    'La complexité d\u2019un algorithme de tri décrit le nombre d\u2019opérations nécessaires selon la taille de la liste. Pour cette matière, on distingue surtout le pire cas et la stabilité. <span class="cite">[1]</span> <span class="cite">[2]</span>');
+
+  setTimeout(() => {
+    chalkReveal(document.getElementById('msgReply'),
+      'Quicksort est en moyenne aussi rapide que mergesort mais n\u2019est pas stable : deux éléments égaux peuvent changer d\u2019ordre relatif. Mergesort préserve toujours cet ordre, ce qui compte si tu tries par exemple des étudiants déjà classés par nom puis par note.');
+  }, 900);
+
+  // Formulaire de chat : ajoute un message utilisateur puis une réponse "craie"
+  document.getElementById('chatForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const wrap = document.querySelector('.chat-wrap');
+    const userMsg = document.createElement('div');
+    userMsg.className = 'msg msg--user';
+    userMsg.innerHTML = '<div class="bubble"></div>';
+    userMsg.querySelector('.bubble').textContent = text;
+    wrap.appendChild(userMsg);
+    input.value = '';
+    userMsg.scrollIntoView({behavior:'smooth', block:'end'});
+
+    setTimeout(() => {
+      const reply = document.createElement('div');
+      reply.className = 'msg msg--assistant';
+      wrap.appendChild(reply);
+      chalkReveal(reply, 'Bonne question — sur cet espace, je m\u2019appuie sur les documents que tu as déposés pour répondre avec le vocabulaire exact du cours plutôt qu\u2019une réponse générique.');
+      reply.scrollIntoView({behavior:'smooth', block:'end'});
+    }, 500);
+  });
+
+  // Fiche : badge obsolète + rejouer l'animation d'apparition
+  document.getElementById('toggleObsolete').addEventListener('click', () => {
+    document.getElementById('obsoleteBadge').classList.toggle('is-visible');
+  });
+  document.getElementById('regenFiche').addEventListener('click', () => {
+    const fiche = document.getElementById('ficheMain');
+    fiche.style.animation = 'none';
+    void fiche.offsetWidth; // reflow pour relancer l'animation
+    fiche.style.animation = null;
+    fiche.style.opacity = 0;
+    fiche.style.transform = 'translateY(8px)';
+    requestAnimationFrame(() => {
+      fiche.style.animation = 'ficheIn .35s ease forwards';
+    });
+  });
+</script>
+
+</body>
+</html>
