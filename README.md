@@ -167,6 +167,10 @@ diagrammes, endpoints, événements et **parties non implémentées**.
 
 ## Démarrage rapide
 
+> **Scripts d'exploitation** : tout le cycle de vie (prérequis, premier
+> démarrage, routine, logs, gestion d'un service, test e2e) est scripté dans
+> [`infra/scripts/`](infra/README.md) — documenté et commenté là-bas.
+
 ```bash
 # 1. Configurer l'environnement
 cp .env.example .env
