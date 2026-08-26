@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { documentsBySpaceQueryOptions, useDocuments } from '@/features/documents/api/use-documents';
 import { useUploadDocument } from '@/features/documents/api/use-upload-document';
+import { useRetryDocument } from '@/features/documents/api/use-retry-document';
 import type { DocumentStatus } from '@/features/documents/types';
 
 export const Route = createFileRoute('/_app/espaces/$spaceId/documents')({
@@ -24,6 +25,7 @@ function Documents() {
   const { spaceId } = useParams({ from: '/_app/espaces/$spaceId/documents' });
   const { data: documents } = useDocuments(spaceId);
   const uploadDocument = useUploadDocument(spaceId);
+  const retryDocument = useRetryDocument(spaceId);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
@@ -58,7 +60,19 @@ function Documents() {
                 {doc.chunkCount ? `${doc.chunkCount} segments` : '—'}
               </p>
             </div>
-            <Badge variant={STATUS_VARIANT[doc.status]}>{doc.status}</Badge>
+            <div className="flex items-center gap-2">
+              {(doc.status === 'PENDING' || doc.status === 'FAILED') && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={retryDocument.isPending}
+                  onClick={() => retryDocument.mutate(doc.id)}
+                >
+                  Réessayer
+                </Button>
+              )}
+              <Badge variant={STATUS_VARIANT[doc.status]}>{doc.status}</Badge>
+            </div>
           </div>
         ))}
       </div>

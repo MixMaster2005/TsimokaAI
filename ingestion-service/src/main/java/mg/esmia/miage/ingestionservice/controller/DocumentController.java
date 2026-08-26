@@ -48,6 +48,13 @@ public class DocumentController {
         return ApiResponse.success(null, ctx.requestId());
     }
 
+    @PostMapping("/{id}/retry")
+    public ApiResponse<DocumentResponse> retry(@PathVariable UUID id) {
+        UserContext ctx = authenticated();
+        return ApiResponse.success(
+                documentService.retry(id, UUID.fromString(ctx.userId()), ctx.isAdmin()), ctx.requestId());
+    }
+
     private UserContext authenticated() {
         UserContext ctx = UserContextHolder.get();
         if (ctx.userId() == null) {

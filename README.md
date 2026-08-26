@@ -193,6 +193,12 @@ docker exec tsimoka-ollama ollama pull nomic-embed-text
 #    tout upload de document : il est spawné à la demande par ingestion-service (pas un
 #    service permanent de docker-compose.yml). La clé Gemini est injectée au runtime.
 docker build -t docling-worker:latest ./docling-worker
+
+# 5. (Une seule fois) Déterminer le GID du groupe Docker sur l'hôte — requis pour
+#    que le user non-root 'spring' dans ingestion-service puisse accéder au socket.
+#    La valeur est écrite dans .env (DOCKER_GID=...).
+stat -c '%g' /var/run/docker.sock  # ex: 127
+#    → ajouter DOCKER_GID=<valeur> dans .env si absent
 ```
 
 Une fois démarré :

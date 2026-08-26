@@ -44,6 +44,10 @@ projet eux-mêmes). L'ordre numérique suit le cycle de vie.
 
 - **`.env` obligatoire** : copier `.env.example` à la racine puis renseigner au
   minimum `JWT_SECRET` et `ACTIVE_LLM_PROVIDER` (+ les clés du provider choisi).
+- **Docker Socket** : `ingestion-service` utilise `docker-java` pour spawner le
+  conteneur `docling-worker` à la demande. Le user non-root `spring` a besoin du
+  groupe Docker (`DOCKER_GID` dans `.env`) pour accéder au socket. Vérifier avec
+  `stat -c '%g' /var/run/docker.sock` et ajouter `DOCKER_GID=<valeur>` dans `.env`.
 - **Modèle d'embedding** : `01-premier-demarrage.sh` charge `nomic-embed-text`
   dans le conteneur ollama ; sans lui, tout upload de document échoue.
   Ajouter le modèle de chat local (`qwen2.5:3b`) seulement si

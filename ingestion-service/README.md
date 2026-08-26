@@ -186,6 +186,29 @@ Points de vigilance et limites :
 | `DOCLING_WORKER_STARTUP_TIMEOUT` | `30` | Timeout d'attente du `/health` (secondes) |
 | `DOCLING_WORKER_CONVERT_TIMEOUT` | `300` | Timeout d'un `POST /v1/convert` (secondes — large : légendes/transcriptions Gemini) |
 | `GEMINI_API_KEY` | *(vide)* | Clé API Gemini transmise au conteneur docling-worker (vision) |
+| `DOCKER_GID` | `127` | GID du groupe propriétaire du socket Docker sur l'hôte (déterminé par `stat -c '%g' /var/run/docker.sock`) |
+| `INGESTION_CORE_POOL_SIZE` | `2` | Taille du pool de threads pour le pipeline asynchrone |
+| `INGESTION_MAX_POOL_SIZE` | `4` | Taille maximale du pool de threads |
+| `INGESTION_QUEUE_CAPACITY` | `10` | Capacité de la file d'attente pour les tâches en excès |
+
+## Configuration Docker Socket
+
+L'ingestion-service utilise `docker-java` pour spawner le conteneur `docling-worker` à la demande. Pour que le user non-root `spring` puisse accéder au socket Docker de l'hôte :
+
+1. **Monter le socket** : `/var/run/docker.sock:/var/run/docker.sock`
+2. **Ajouter le groupe** : `group_add: - "${DOCKER_GID}"` dans `docker-compose.yml`
+3. **Définir `DOCKER_GID`** dans `.env` avec la valeur réelle du GID du groupe socket :
+   ```bash
+   stat -c '%g' /var/run/docker.sock
+   ```
+
+Vérification depuis le conteneur :
+```bash
+docker exec tsimoka-ingestion-service id
+# uid=100(spring) gid=101(spring) groups=101(spring),127
+docker exec tsimoka-ingestion-service ls -l /var/run/docker.sock
+# srw-rw---- 1 root 127 ...
+```
 
 ## Lancer
 
@@ -201,9 +224,11 @@ mvn -pl common,ingestion-service -am spring-boot:run
 
 ## Limites connues
 
-- **Concurrence d'ingestion non bornée** : `processAsync` (@Async) utilise le
-  `SimpleAsyncTaskExecutor` par défaut (un thread par upload, pas de pool) et chaque
-  conversion spawné son propre conteneur `docling-worker`. Sous charge, N uploads
+- **Concurrence d'ingestion bornée** : `processAsync` (@Async) utilise un
+  `ThreadPoolTaskExecutor` configuré (`ingestionExecutor`) avec pool borné
+  (`corePoolSize=2`, `maxPoolSize=4`, `queueCapacity=10`). Les tâches en excès
+  utilisent `CallerRunsPolicy` (le thread appelant exécute la tâche). Sous charge,
+  les uploads excédentaires ralentissent mais ne crashent pas.
   simultanés = N threads + N conteneurs + N×M appels Gemini → risque de saturation de la
   RAM (local) et de dépassement du quota Gemini. Analyse complète et pistes de correction
   dans [`docs/ingestion-concurrence.md`](../docs/ingestion-concurrence.md).

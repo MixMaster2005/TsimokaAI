@@ -101,6 +101,24 @@ docker build -t docling-worker:latest ./docling-worker
 Le conteneur est ensuite spawné automatiquement par `ingestion-service` (réseau `apa-net`,
 nom `docling-worker-<uuid>`, port 8090, env `GEMINI_API_KEY`) lors de chaque upload.
 
+## Configuration Docker Socket
+
+Le user non-root `spring` dans `ingestion-service` a besoin du groupe Docker pour
+accéder au socket `/var/run/docker.sock`. La configuration dans `docker-compose.yml` :
+
+```yaml
+ingestion-service:
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+  group_add:
+    - "${DOCKER_GID}"
+```
+
+Définir `DOCKER_GID` dans `.env` avec la valeur réelle :
+```bash
+stat -c '%g' /var/run/docker.sock  # ex: 127
+```
+
 ## Non implémenté / points ouverts
 
 1. **Modèle Gemini** : nom par défaut `gemini-2.5-flash` — à confirmer (facturation,

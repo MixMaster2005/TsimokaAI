@@ -64,7 +64,7 @@ public class IngestionPipelineService {
     private final MarkdownChunkingService chunkingService;
     private final QdrantVectorService qdrantVectorService;
 
-    @Async
+    @Async("ingestionExecutor")
     @Transactional
     public void processAsync(UUID documentId) {
         Document document = documentRepository.findById(documentId).orElse(null);

@@ -207,12 +207,18 @@ services:
       DOCKER_NETWORK: apa-net
       # Spec v2 : clé Gemini (vision) transmise au worker via docker-java à chaque spawn.
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+      # ThreadPoolTaskExecutor : file bornée pour limiter les workers Docker concurrents
+      INGESTION_CORE_POOL_SIZE: ${INGESTION_CORE_POOL_SIZE:-2}
+      INGESTION_MAX_POOL_SIZE: ${INGESTION_MAX_POOL_SIZE:-4}
+      INGESTION_QUEUE_CAPACITY: ${INGESTION_QUEUE_CAPACITY:-10}
     volumes:
       # ⚠️ SECURITE : monter le socket Docker de l'hôte équivaut à un accès ROOT sur l'hôte
       # (ingestion-service peut piloter tous les conteneurs). Acceptable en local/démo ;
       # en environnement partagé, cloisonner via un proxy type `docker-socket-proxy` et
       # pointer DOCKER_HOST_SOCKET dessus.
       - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - "${DOCKER_GID}"
     depends_on:
       postgres:
         condition: service_healthy
