@@ -27,7 +27,7 @@ public record Citation(
         String documentName,
         String excerpt
 ) {
-    /** Longueur maximale de l'extrait stocké/affiché (pas un roman). */
+    /** Longueur maximale de l'extrait stocké/affiché. */
     private static final int EXCERPT_MAX_LENGTH = 180;
 
     public static Citation of(UUID chunkId, UUID documentId, Integer chunkIndex,

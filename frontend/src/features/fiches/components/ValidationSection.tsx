@@ -11,8 +11,8 @@ import type { ValidationStatut } from '../types';
  *
  * Le tampon suit le contrat de design : VALIDÉE / À REVOIR en Plex Mono
  * majuscules, légèrement pivoté, en --succes / --attention (jamais rouge/vert
- * alarmiste). Les boutons de verdict ne s'affichent que pour un ADMIN — le
- * back refuse de toute façon (403), on évite juste l'appel voué à échouer.
+ * alarmiste). Les boutons de verdict ne s'affichent que pour le rôle ADMIN :
+ * l'endpoint renvoie 403 pour tout autre rôle.
  */
 export function ValidationSection({ ficheId }: { ficheId: string }) {
   const { data: session } = useSession();

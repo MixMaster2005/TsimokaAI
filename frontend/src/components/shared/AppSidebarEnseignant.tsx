@@ -16,13 +16,13 @@ import { setAccessToken } from '@/lib/api-client';
 /**
  * Chrome de navigation du Layout App — ENSEIGNANT (rôle ADMIN).
  *
- * Séparé d'AppSidebar plutôt qu'un `if (role)` : les deux rôles n'ont presque
- * aucun item en commun (pas d'objectifs ni de badges côté enseignant) et le
- * contrat de design décrit un usage ponctuel de configuration/supervision,
- * pas un quotidien à instrumenter comme celui de l'étudiant.
+ * Composant séparé d'AppSidebar plutôt qu'un `if (role)` : les deux rôles n'ont
+ * aucun item de navigation en commun et le contrat de design décrit un usage
+ * enseignant ponctuel (configuration, supervision), sans instrumentation
+ * quotidienne.
  *
- * Surface Ardoise permanente, même décision tranchée que la sidebar étudiant :
- * un rail persistant n'est ni "contenu Papier" ni "chat".
+ * Surface Ardoise permanente : même règle que la sidebar étudiant — un rail de
+ * navigation persistant n'est ni "contenu Papier" ni "chat".
  */
 const NAV_ITEMS = [
   { to: '/enseignant', label: 'Tableau de bord', icon: LayoutGrid },

@@ -7,9 +7,8 @@ import { cn } from '@/lib/utils';
 
 /**
  * Vue transverse "Mes fiches" : toutes les fiches de l'étudiant, tous espaces
- * confondus, plus récentes d'abord (tri fait côté back). Repose sur
- * GET /api/v1/fiches/mine — l'endpoint ajouté à FicheController pour lever le
- * blocage noté pendant le scaffolding (listMine exigeait un spaceId obligatoire).
+ * confondus, plus récentes d'abord (tri effectué côté back).
+ * Endpoint : GET /api/v1/fiches/mine (FicheController.listAllMine).
  */
 export const Route = createFileRoute('/_app/mes-fiches')({
   loader: ({ context: { queryClient } }) => queryClient.ensureQueryData(fichesMineQueryOptions),
@@ -46,7 +45,7 @@ function MesFiches() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-encre">{fiche.title}</p>
                 <p className="font-mono text-[0.68rem] text-encre-muted">
-                  {/* L'espace d'origine est l'info clé ici : on vient justement de tous les espaces */}
+                  {/* Espace d'origine : info discriminante dans une vue multi-espaces */}
                   {espace?.name ?? 'Espace supprimé'}
                   {' · '}
                   {new Date(fiche.updatedAt).toLocaleDateString('fr-FR')}

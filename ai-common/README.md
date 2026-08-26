@@ -17,16 +17,17 @@ de dupliquer la configuration par service et de la faire diverger.
     lève `ApiException(ErrorCode.LLM_PROVIDER_UNAVAILABLE, 503)` — **pas de repli silencieux** :
     chaque service décide de son comportement (fallback métier, circuit breaker).
 
-- **`LlmProviderAutoConfiguration`** (auto-configuration Spring Boot) : construit les beans
-  `ChatClient` qualifiés pour chaque provider :
-  - `groqChatClient` (qualifier `groq`) — starter OpenAI pointé sur
-    `https://api.groq.com/openai` (auto-config Spring AI).
-  - `ollamaChatClient` (qualifier `ollama`) — starter Ollama (auto-config Spring AI).
-  - `geminiChatClient` (qualifier `gemini`) — **`OpenAiApi` manuelle** (variable locale, pas
-    de bean `OpenAiApi`) pointée sur l'endpoint officiel compatible OpenAI de Gemini
-    (`https://generativelanguage.googleapis.com/v1beta/openai`) : un bean `OpenAiApi`
-    supprimerait l'auto-configuration Groq (une seule API OpenAI autorisée).
-  - `chatProviderResolver` (bean, `@ConditionalOnMissingBean`).
+- **`LlmProviderAutoConfiguration`** (auto-configuration Spring Boot) : construit le bean
+  `chatProviderResolver` (`@ConditionalOnMissingBean`) autour de **suppliers paresseux** —
+  chaque client est instancié au premier appel, jamais au démarrage :
+  - `groq` — `OpenAiApi` + `OpenAiChatModel` construits localement depuis
+    `spring.ai.openai.*` (base-url Groq compatible OpenAI).
+  - `gemini` — idem, sur l'endpoint officiel compatible OpenAI de Gemini
+    (`https://generativelanguage.googleapis.com/v1beta/openai`), avec
+    `completionsPath=/chat/completions` (Gemini n'a pas de préfixe `/v1`, contrairement à Groq).
+  - `ollama` — `OllamaChatModel` auto-configuré par son starter, injecté via `ObjectProvider`.
+  - Clé absente/vide ⇒ supplier renvoyant `null` ⇒ provider indisponible : **le démarrage
+    n'échoue jamais** faute de clé.
 
 ## Pourquoi un module dédié ?
 
@@ -53,13 +54,28 @@ de dupliquer la configuration par service et de la faire diverger.
 
 ```yaml
 spring:
+  # Auto-configs OpenAI du starter exclues (voir LlmProviderAutoConfiguration) ;
+  # pour les services avec Qdrant, l'exclusion d'OpenAiEmbeddingAutoConfiguration
+  # est aussi requise : le vector store n'accepte qu'un seul EmbeddingModel.
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiChatAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiEmbeddingAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiImageAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiModerationAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioSpeechAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioTranscriptionAutoConfiguration
   ai:
+    retry:
+      # Échec rapide : la résilience LLM relève du circuit breaker llm-* du service,
+      # pas de retries HTTP transparents (qui dépassent le timeout de la gateway).
+      max-attempts: 1
     openai:
       base-url: ${GROQ_BASE_URL:https://api.groq.com/openai}
       api-key: ${GROQ_API_KEY:}
       chat:
         options:
-          model: ${GROQ_MODEL:llama-3.3-70b-versatile}
+          model: ${GROQ_MODEL:openai/gpt-oss-120b}
     gemini:
       base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
       api-key: ${GEMINI_API_KEY:}
@@ -81,7 +97,9 @@ chat:
 
 > ⚠️ Les valeurs `api-key` vides sont acceptées au démarrage (utile pour Ollama) ; un appel à
 > `ChatProviderResolver.current()` sur un provider non configuré lève
-> `LLM_PROVIDER_UNAVAILABLE` (503) à l'exécution.
+> `LLM_PROVIDER_UNAVAILABLE` (503) à l'exécution. Le modèle Groq par défaut est une valeur
+> constatée en août 2026 (`openai/gpt-oss-120b`) — le catalogue Groq évolue, vérifier
+> `GET /openai/v1/models` avec sa clé si `model_not_found`.
 
 ## Fichiers
 

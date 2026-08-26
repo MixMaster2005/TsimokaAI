@@ -5,7 +5,7 @@ interface CitationChipsProps {
   citations: Citation[];
   /**
    * Repli : les messages antérieurs à la feature n'ont que les UUID bruts
-   * (retrievedChunkIds) — on affiche le placeholder d'origine pour eux.
+   * (retrievedChunkIds) — rendus avec le placeholder d'origine.
    */
   fallbackChunkIds: string[];
 }
@@ -13,13 +13,13 @@ interface CitationChipsProps {
 /**
  * Sources citées sous une réponse de l'assistant.
  *
- * Avec citations enrichies : nom du document + extrait au survol (title natif,
- * sobre et sans dépendance supplémentaire). Plusieurs chunks du même document =
- * une chip par chunk, distinguées par leur index dans le document.
+ * Citations enrichies : nom du document + extrait au survol (title natif,
+ * sans dépendance supplémentaire). Plusieurs chunks d'un même document =
+ * une chip par chunk, distinguée par l'index du passage.
  *
- * Sans citation résoluble (fallback circuit breaker, document supprimé, anciens
- * messages) : chip placeholder minimale — la traçabilité brute reste visible via
- * l'UUID en title plutôt que de disparaître.
+ * Sans citation résoluble (fallback circuit breaker, document supprimé,
+ * messages antérieurs à la feature) : chip placeholder minimale ; l'UUID brut
+ * reste visible en title afin de conserver la traçabilité RAG.
  */
 export function CitationChips({ citations, fallbackChunkIds }: CitationChipsProps) {
   if (citations.length === 0 && fallbackChunkIds.length === 0) return null;

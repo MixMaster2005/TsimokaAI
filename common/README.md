@@ -25,7 +25,8 @@ serait dupliqué d'un microservice à l'autre.
   Le scan de composants ne les verrait donc pas. L'enregistrement automatique passe par
   `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
   (mécanisme standard depuis Spring Boot 2.7) :
-  - `CommonAutoConfiguration` → `ObjectMapper` (avec module `JavaTimeModule`) + `UserContextFilter`.
+  - `CommonAutoConfiguration` → `ObjectMapper` (avec module `JavaTimeModule`),
+    `UserContextFilter` et `RedisEventPublisher`.
   - `GlobalExceptionHandler` → importé directement via le même fichier.
 - **Contexte par thread (ThreadLocal)** : `UserContextHolder` porte le contexte sur le
   thread de la requête. Les appels internes (jobs, listeners d'événements) n'ont pas de

@@ -113,6 +113,12 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <configuration>
+                        <!-- REQUIS par Spring MVC : sans -parameters, les noms d'arguments
+                             (@PathVariable, @RequestParam...) ne sont pas conservés dans le
+                             bytecode et la résolution échoue au runtime (500 "Name for
+                             argument not specified"). spring-boot-starter-parent l'active
+                             par défaut, mais ce pom passe par le BOM dependencies. -->
+                        <parameters>true</parameters>
                         <annotationProcessorPaths>
                             <path>
                                 <groupId>org.projectlombok</groupId>

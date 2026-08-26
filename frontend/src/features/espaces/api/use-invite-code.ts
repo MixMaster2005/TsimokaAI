@@ -5,8 +5,8 @@ import { espaceKeys } from './keys';
 
 /**
  * Code d'invitation d'un espace — endpoint réservé au PROPRIÉTAIRE côté back
- * (403 sinon). Le hook est désactivé tant qu'on ne sait pas qu'on est owner :
- * pas d'appel inutile qui finirait en erreur.
+ * (403 sinon) : `enabled` reste false tant que le rôle n'est pas confirmé,
+ * pour ne pas émettre une requête vouée à échouer.
  */
 export function useInviteCode(espaceId: string, isOwner: boolean) {
   return useQuery({

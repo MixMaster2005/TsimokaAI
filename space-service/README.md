@@ -133,9 +133,9 @@ Toutes les routes sont protégées par JWT (vérifié à la gateway) ; l'identit
 | `ingestion.events` | `DOCUMENT_READY` | consommé | Enrichit le persona de l'espace |
 | `user.events` | `USER_DELETED` | consommé | Purge les espaces de l'utilisateur |
 
-⚠️ Pas d'événement `MEMBER_REMOVED` : retirer un membre ne purge rien chez les autres
-services (ses conversations/fiches restent dans l'historique de l'espace — choix assumé,
-à re-discuter si la RGPD entre en jeu).
+⚠️ Pas d'événement `MEMBER_REMOVED` : le retrait d'un membre ne déclenche aucune purge
+chez les autres services — ses conversations et fiches restent dans l'historique de
+l'espace. À faire évoluer si un droit à l'effacement est introduit.
 
 ## Modèle de données
 

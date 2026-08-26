@@ -64,7 +64,7 @@ export function JoinEspaceModal({ trigger, onJoined }: JoinEspaceModalProps) {
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="code">Code d'invitation</Label>
-            {/* autoCapitalize + style mono : le code se recopie à la main, on aide au maximum */}
+            {/* autoCapitalize + police mono : le code est saisi à la main */}
             <Input
               id="code"
               required

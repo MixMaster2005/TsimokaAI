@@ -60,9 +60,9 @@ public class SpaceService {
 
     public SpaceResponse getById(UUID id, UUID requesterId, boolean isAdmin) {
         Space space = findOrThrow(id);
-        // Lecture ouverte aux MEMBRES (pas seulement au propriétaire) depuis la feature
-        // d'invitation : c'est le seul contrôle d'accès centralisé de la plateforme,
-        // les autres services ne revalident pas l'appartenance (cf. README).
+        // Lecture ouverte aux MEMBRES (pas seulement au propriétaire) : space-service
+        // est le seul point de la plateforme qui vérifie l'appartenance à un espace,
+        // les autres services ne revalident pas (cf. README, Règles métier).
         assertCanView(space, requesterId, isAdmin);
         return SpaceResponse.from(space, requesterId);
     }

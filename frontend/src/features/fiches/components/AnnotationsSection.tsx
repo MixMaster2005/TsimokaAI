@@ -8,8 +8,8 @@ import { useQuery } from '@tanstack/react-query';
 
 /**
  * Annotations de la fiche (liste + ajout). Les annotations sont libres
- * (texte + section visée optionnelle), ouvertes à tous les utilisateurs de la
- * fiche — c'est le fil de discussion pédagogique autour du contenu.
+ * (texte + section visée optionnelle) et ouvertes à tous les utilisateurs de
+ * la fiche : elles constituent le fil pédagogique autour du contenu.
  */
 export function AnnotationsSection({ ficheId }: { ficheId: string }) {
   const { data: annotations } = useQuery(annotationsQueryOptions(ficheId));

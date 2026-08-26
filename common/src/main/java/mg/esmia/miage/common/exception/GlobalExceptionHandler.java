@@ -1,6 +1,7 @@
 package mg.esmia.miage.common.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import mg.esmia.miage.common.context.UserContext;
 import mg.esmia.miage.common.response.ApiError;
 import mg.esmia.miage.common.response.ApiResponse;
@@ -17,7 +18,10 @@ import java.util.UUID;
 /**
  * Traduit toute exception en enveloppe { success:false, error, meta } uniforme.
  * Auto-enregistré dans chaque service via META-INF/spring/...AutoConfiguration.imports.
+ *
+ * ⚠️ Le catch-all LOGGE la stacktrace : une 500 silencieuse est indébuggable.
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -45,6 +49,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneric(Exception ex, HttpServletRequest request) {
+        log.error("Erreur interne [{} {}] : {}", request.getMethod(), request.getRequestURI(), ex.getMessage(), ex);
         ApiError error = ApiError.of(ErrorCode.INTERNAL_ERROR, "Erreur interne inattendue");
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(error, requestId(request)));

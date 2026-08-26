@@ -32,7 +32,10 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/postgres-init:/docker-entrypoint-initdb.d:ro
     ports:
-      - "5432:5432"
+      # Port HÔTE décalé à 5433 pour ne pas rentrer en conflit avec un PostgreSQL
+      # déjà installé sur la machine de dev. À l'intérieur du réseau Compose, les
+      # services continuent d'utiliser jdbc:postgresql://postgres:5432/... tel quel.
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres}"]
       interval: 5s
@@ -85,6 +88,9 @@ services:
     mem_limit: 200m
 
   # Optionnel — profil "ollama" uniquement (fallback LLM 100% local/hors-ligne).
+  # Les services y accèdent par le réseau interne (http://ollama:11434) : la
+  # publication hôte est décalée à 11435 pour ne JAMAIS entrer en conflit avec un
+  # éventuel ollama installé sur la machine de dev.
   ollama:
     image: ollama/ollama:latest
     container_name: tsimoka-ollama
@@ -93,7 +99,7 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     ports:
-      - "11434:11434"
+      - "11435:11434"
     mem_limit: 2500m
 
   # --------------------------------------------------------------------------
@@ -156,6 +162,17 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # Persona LLM : mêmes variables IA que chat/fiche (génération + enrichissement)
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6334
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-chunks}
+      ACTIVE_LLM_PROVIDER: ${ACTIVE_LLM_PROVIDER:-ollama}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
     depends_on:
       postgres:
         condition: service_healthy
@@ -227,7 +244,7 @@ services:
       INGESTION_SERVICE_URL: http://ingestion-service:8083
       ACTIVE_LLM_PROVIDER: ${ACTIVE_LLM_PROVIDER:-ollama}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
-      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       OLLAMA_URL: http://ollama:11434
@@ -254,6 +271,15 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # Génération Map-Reduce : lecture Qdrant + LLM (map/reduce), comme chat-service
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6334
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-chunks}
+      ACTIVE_LLM_PROVIDER: ${ACTIVE_LLM_PROVIDER:-ollama}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
     depends_on:

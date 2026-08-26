@@ -12,10 +12,9 @@ export const Route = createFileRoute('/_app/espaces/$spaceId/chat')({
 });
 
 /**
- * Rail d'historique : pour l'instant un simple <select> (voir le point
- * ouvert de la cartographie UI — rail permanent desktop vs tiroir à trancher
- * plus tard). Ce composant reste volontairement simple pour ne pas
- * pré-décider d'une réponse coûteuse à construire avant validation du besoin.
+ * Rail d'historique : un simple <select> en attendant la décision UI
+ * (rail permanent desktop vs tiroir) — composant volontairement simple
+ * pour ne pas pré-décider d'une réponse coûteuse à construire.
  */
 function Chat() {
   const { spaceId } = useParams({ from: '/_app/espaces/$spaceId/chat' });

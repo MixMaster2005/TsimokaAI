@@ -10,10 +10,10 @@ import { sessionQueryOptions } from '@/features/auth/api/use-session';
  * qui vit sous ce layout (étagère, dashboard, espaces…). Pas de vérif
  * dupliquée route par route.
  *
- * ⚠️ Cette route sert la variante STUDENT. La variante ADMIN (enseignant)
- * vit sous `routes/enseignant/` (coquille + nav totalement différentes) et les
- * deux guards sont bilatéraux : un ADMIN qui atterrit ici repart vers
- * `/enseignant`, un non-ADMIN qui atterrit sous /enseignant repart vers /
+ * Cette route sert la variante STUDENT. La variante ADMIN (enseignant) vit
+ * sous `routes/enseignant/` (layout + sidebar dédiés) et les deux guards sont
+ * bilatéraux : un ADMIN qui atterrit ici repart vers /enseignant, un
+ * non-ADMIN qui atterrit sous /enseignant repart vers /
  */
 export const Route = createFileRoute('/_app')({
   beforeLoad: async ({ context: { queryClient } }) => {

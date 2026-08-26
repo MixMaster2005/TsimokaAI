@@ -2,6 +2,24 @@ server:
   port: ${SERVER_PORT:8082}
 
 spring:
+  autoconfigure:
+    # Auto-configs OpenAI du starter exclues :
+    #   - openAiApi exige une clé non vide au boot et créerait un 2e EmbeddingModel
+    #     alors que QdrantVectorStoreAutoConfiguration n'en accepte qu'un ;
+    #   - les clients Groq/Gemini sont construits en lazy par
+    #     LlmProviderAutoConfiguration (clé absente = provider indisponible).
+    # L'embedding de retrieval reste celui d'Ollama, aligné sur ingestion-service.
+    exclude:
+      # TOUTE l'auto-config OpenAI du starter : les clients Groq/Gemini sont construits
+      # en lazy par LlmProviderAutoConfiguration (clé absente = provider indisponible,
+      # jamais un crash au boot), et le starter créerait sinon chat/embedding/audio/
+      # moderation/image en exigeant tous une clé dès le démarrage.
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiChatAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiEmbeddingAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiImageAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiModerationAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioSpeechAutoConfiguration
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiAudioTranscriptionAutoConfiguration
   application:
     name: space-service
 
@@ -32,13 +50,18 @@ spring:
       port: ${REDIS_PORT:6379}
 
   ai:
+    retry:
+      # Échec rapide : la résilience LLM est gérée par le circuit breaker llm-*
+      # (fallback métier), pas par des retries HTTP transparents qui dépassent
+      # le timeout de la gateway.
+      max-attempts: 1
     openai:
       # Groq expose une API compatible OpenAI (bascule "groq" du contrat de configuration).
       base-url: ${GROQ_BASE_URL:https://api.groq.com/openai}
       api-key: ${GROQ_API_KEY:}
       chat:
         options:
-          model: ${GROQ_MODEL:llama-3.3-70b-versatile}
+          model: ${GROQ_MODEL:openai/gpt-oss-120b}
     # Gemini via l'endpoint officiel compatible OpenAI (consommé par le bean local d'ai-common,
     # namespace dédié pour ne pas écraser l'auto-config Groq).
     gemini:

@@ -6,12 +6,11 @@ import { cn } from '@/lib/utils';
 
 /**
  * Tableau de bord ENSEIGNANT — vue de supervision : tous les espaces de la
- * plateforme, d'où on accède aux fiches à valider.
+ * plateforme (GET /api/v1/spaces/all), point d'entrée vers les fiches à valider.
  *
- * ⚠️ Périmètre v1 assumé : les agrégats "chapitres difficiles avec densité
- * d'encre" du contrat de design demandent des endpoints analytiques dédiés
- * qui n'existent pas encore côté analytics-service — cf. README frontend,
- * limitation documentée. On part de ce que le back sait vraiment répondre.
+ * Limite : les agrégats "chapitres difficiles avec densité d'encre" du contrat
+ * de design nécessitent des endpoints analytiques non implémentés côté
+ * analytics-service — voir README frontend, section Limitations connues.
  */
 export const Route = createFileRoute('/enseignant/')({
   loader: ({ context: { queryClient } }) => queryClient.ensureQueryData(espacesAllQueryOptions),

@@ -179,7 +179,13 @@ docker compose up --build
 # (nomic-embed-text). Sans lui, un document resterait en PENDING ou passerait en FAILED.
 docker compose --profile ollama up --build
 
-# 3. (Une seule fois) Construire le conteneur d'extraction docling-worker — REQUIS avant
+# 3. (Une seule fois) Charger le modèle d'embedding dans le conteneur ollama —
+#    REQUIS avant tout upload de document.
+docker exec tsimoka-ollama ollama pull nomic-embed-text
+#    (+ le modèle de chat si ACTIVE_LLM_PROVIDER=ollama)
+# docker exec tsimoka-ollama ollama pull qwen2.5:3b
+
+# 4. (Une seule fois) Construire le conteneur d'extraction docling-worker — REQUIS avant
 #    tout upload de document : il est spawné à la demande par ingestion-service (pas un
 #    service permanent de docker-compose.yml). La clé Gemini est injectée au runtime.
 docker build -t docling-worker:latest ./docling-worker
@@ -194,11 +200,16 @@ Une fois démarré :
 | Swagger par service | http://localhost:`<port>`/swagger-ui.html |
 | Console MinIO | http://localhost:9001 |
 | Dashboard Qdrant | http://localhost:6333/dashboard |
+| API Ollama (profil `ollama`) | http://localhost:11435 |
 
 Le frontend est servi par nginx qui **proxifie `/api` vers la gateway** : le navigateur
 ne parle qu'à http://localhost:3000 (même origine, zéro CORS). En dev hors Docker,
 `npm run dev` dans `frontend/` appelle directement la gateway (`VITE_API_BASE_URL`,
 cf. `frontend/.env.example`).
+
+> Les services conteneurisés accèdent à Ollama par le réseau interne Compose
+> (`http://ollama:11434`) ; la publication hôte est décalée à 11435 pour ne jamais
+> entrer en conflit avec un éventuel Ollama installé sur la machine de dev.
 
 ### Test rapide bout-en-bout
 

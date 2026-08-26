@@ -28,7 +28,7 @@ docker compose up --build frontend
 
 ## Ce qui est réellement câblé (pas juste stub)
 
-Vérifié contre le vrai code du repo backend pendant le scaffolding, pas deviné :
+Contrats vérifiés contre le code réel des services backend :
 
 - **auth** — login/register/session/update-profile/delete-account, sur les vraies routes de `user-service`
 - **espaces** — CRUD complet, `SpineCard`/`EtagereGrid`/`CreateEspaceModal`, plus `get-tag-color.ts` qui résout le fait que `subjectTag` est un `String` libre côté back (pas un enum)
@@ -36,7 +36,7 @@ Vérifié contre le vrai code du repo backend pendant le scaffolding, pas devin�
 - **chat** — conversations, messages, envoi (avec ajout optimiste + effet "craie" client-side), sur les vraies routes de `chat-service`
 - **citations chat** — `MessageResponse.citations` (document source + extrait, persistés à la génération côté back) affichées par `CitationChips` ; repli placeholder sur les anciens messages (UUID bruts seulement)
 - **fiches** — génération, liste, détail, composant signature `FicheCard` (+ variantes chip/sceau), sur `fiche-service` — y compris le vrai format `content_json` (`definition`/`key_points`/`example`)
-- **mes fiches transverse** — page branchée sur `GET /api/v1/fiches/mine` (endpoint ajouté au back pour lever le blocage du scaffolding)
+- **mes fiches transverse** — page branchée sur `GET /api/v1/fiches/mine` (vue tous espaces confondus, tri par date de génération)
 - **actions fiche** — partage (`ShareFicheModal` vers groupe ou membre de l'espace), annotations (liste + ajout), validation enseignante (tampon VALIDÉE / À REVOIR, verdict réservé ADMIN)
 - **documents** — upload multipart, liste avec statut, polling automatique tant qu'un document n'est pas `READY`/`FAILED`
 - **groupes** — liste + création, sur `space-service`
@@ -60,9 +60,8 @@ espace (`GET /api/v1/fiches/espace/{spaceId}`) → détail avec verdict (tampon 
 design). Ces deux endpoints ont été ajoutés côté back : sans eux, aucun enseignant ne peut
 découvrir quoi que ce soit (les espaces sont privés).
 
-**Périmètre v1 assumé** : les agrégats "chapitres difficiles avec densité d'encre" du
-contrat de design demandent des endpoints analytiques qui n'existent pas encore côté
-analytics-service — pas simulés côté front.
+Limite : les agrégats "chapitres difficiles avec densité d'encre" du contrat de design
+nécessitent des endpoints analytiques non implémentés côté analytics-service.
 
 ## Limitations connues (réelles, pas des stubs)
 

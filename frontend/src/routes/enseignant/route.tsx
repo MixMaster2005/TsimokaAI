@@ -4,11 +4,10 @@ import { AppSidebarEnseignant } from '@/components/shared/AppSidebarEnseignant';
 import { sessionQueryOptions } from '@/features/auth/api/use-session';
 
 /**
- * `enseignant` = layout PRÉFIXÉ du rôle ADMIN (enseignant) — PAS pathless (pas de
- * `_`), sinon ses chemins entreraient en conflit avec `_app` (cf. le compromis
- * `/` vs `/accueil`) — distinct de
- * `_app` (étudiant) — cf. le commentaire de routes/_app/route.tsx : deux
- * coquilles séparées plutôt qu'un `if (role)` dans un layout fourre-tout.
+ * `enseignant` = layout PRÉFIXÉ du rôle ADMIN (enseignant), distinct de `_app`
+ * (étudiant). Préfixé volontairement (pas pathless sans `_`) : deux layouts
+ * pathless produiraient des chemins complets identiques et un conflit au
+ * générateur de routes, comme pour le compromis `/` vs `/accueil`.
  *
  * Le guard est BILATÉRAL :
  *   - ici, un non-ADMIN repart vers l'app étudiant (`/`) ;

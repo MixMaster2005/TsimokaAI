@@ -3,11 +3,9 @@ import { createFileRoute, Link, Outlet, useParams } from '@tanstack/react-router
 import { espaceQueryOptions, useEspace } from '@/features/espaces/api/use-espace';
 
 /**
- * ⚠️ Point ouvert de la cartographie UI : un étudiant créateur d'un espace
- * perso voit-il l'onglet Paramètres comme un enseignant sur le sien ?
- * Ici : visible dès que `space.userId === session.user.id` (créateur =
- * propriétaire, peu importe le rôle global) — cohérent avec l'hypothèse
- * retenue à l'époque, mais TODO confirmer explicitement.
+ * Onglet Paramètres visible dès que `space.userId === session.user.id` :
+ * le créateur de l'espace est son propriétaire, indépendamment du rôle global
+ * (STUDENT/ADMIN). TODO : confirmer ce choix avec la cartographie UI.
  */
 export const Route = createFileRoute('/_app/espaces/$spaceId')({
   loader: ({ context: { queryClient }, params }) => queryClient.ensureQueryData(espaceQueryOptions(params.spaceId)),

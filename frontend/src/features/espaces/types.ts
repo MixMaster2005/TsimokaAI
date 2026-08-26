@@ -3,11 +3,9 @@
  *
  * ⚠️ Note d'architecture : SpaceResponse ne contient PAS le nombre de
  * documents ni la date de dernière activité (visibles dans la maquette de
- * l'étagère) — ces infos vivent dans ingestion-service et chat-service.
- * Pour le MVP, deux options : (a) le front fait un fetch séparé par space
- * vers ces services et agrège côté client, (b) un futur BFF/agrégateur
- * expose un endpoint dédié `/spaces/enrichies`. Pas tranché — les champs
- * ci-dessous sont marqués optionnels en attendant.
+ * l'étagère) — ces infos vivent dans ingestion-service et chat-service. Les
+ * champs ci-dessous sont donc optionnels ; les alimenter nécessiterait soit
+ * une agrégation côté client, soit un endpoint dédié `/spaces/enrichies`.
  */
 export interface Space {
   id: string; // UUID

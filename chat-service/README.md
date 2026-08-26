@@ -62,7 +62,7 @@ pipeline custom `RagPipelineAdvisor` (réécriture de requête → retrieval lar
   `groq | gemini | ollama` via `ai-common` (`LlmProviderAutoConfiguration` + `ChatProviderResolver`).
   - **Groq** : API compatible OpenAI → le starter Spring AI **OpenAI** est pointé sur
     `https://api.groq.com/openai` (aucun SDK spécifique requis). Modèle par défaut
-    `llama-3.3-70b-versatile`.
+    `openai/gpt-oss-120b` (catalogue Groq vérifié en août 2026, susceptible d'évoluer).
   - **Ollama** : fallback **100 % local / hors-ligne** (soutenance sans connexion).
     Modèle par défaut `qwen2.5:3b`.
   - **Gemini** : Google expose une **API compatible OpenAI officielle**
@@ -171,7 +171,7 @@ Gemini** (avec clé) reste à faire.
 | Variable | Défaut | Rôle |
 |---|---|---|
 | `ACTIVE_LLM_PROVIDER` | `ollama` | `groq` \| `gemini` \| `ollama` |
-| `GROQ_API_KEY` / `GROQ_MODEL` | — / `llama-3.3-70b-versatile` | Provider Groq (compatible OpenAI) |
+| `GROQ_API_KEY` / `GROQ_MODEL` | — / `openai/gpt-oss-120b` | Provider Groq (compatible OpenAI) |
 | `GEMINI_API_KEY` / `GEMINI_MODEL` | — / `gemini-2.5-flash` | Provider Gemini (endpoint OpenAI-compatible, `GEMINI_BASE_URL` surchargeable) |
 | `OLLAMA_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `qwen2.5:3b` | Fallback local |
 | `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Modèle d'embedding (identique à ingestion-service) |

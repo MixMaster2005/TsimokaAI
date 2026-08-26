@@ -29,10 +29,11 @@ interface ShareFicheModalProps {
 
 /**
  * Partage la fiche à un groupe de travail OU un membre de l'espace
- * (POST /api/v1/fiches/{id}/share — exactement une cible, contrôle back).
- * Pas de composant Select dans components/ui et pas d'annuaire d'utilisateurs
- * global : radios natifs sur les cibles connues localement (groupes et membres
- * de CET espace), c'est le périmètre sain du partage.
+ * (POST /api/v1/fiches/{id}/share — exactement une cible, contrôle BadRequest
+ * côté back si les deux ou aucun). Radios natifs plutôt qu'un composant Select :
+ * components/ui n'en contient pas et l'ajouter hors CLI shadcn irait contre la
+ * convention du projet. Cibles limitées aux groupes et membres de l'espace :
+ * il n'existe pas d'annuaire d'utilisateurs global côté back.
  */
 export function ShareFicheModal({ ficheId, groupes, membres, trigger }: ShareFicheModalProps) {
   const [open, setOpen] = useState(false);

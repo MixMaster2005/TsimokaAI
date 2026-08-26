@@ -4,13 +4,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Component;
 
 /**
  * Publisher générique Redis Pub/Sub. Chaque service publie ses événements
  * (voir EventChannels + records dans le package events) en JSON brut sur le canal concerné.
+ *
+ * Enregistré par {@code CommonAutoConfiguration} (et non via @Component) : les packages
+ * de {@code common} ne sont PAS couverts par le component-scan par défaut des services
+ * (@SpringBootApplication ne scanne que son propre package) — un @Component ici serait
+ * silencieusement ignoré et l'injection échouerait au démarrage.
  */
-@Component
 @RequiredArgsConstructor
 @Slf4j
 public class RedisEventPublisher {
