@@ -26,8 +26,9 @@ logger = logging.getLogger(__name__)
 # Point d'entrée OpenAI-compatible de Gemini (cf. https://ai.google.dev/gemini-api/docs/openai).
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
-# Modèle vision par défaut (à ajuster si un autre nom est utilisé dans le projet).
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+# Modèle vision choisi par l'application. Pas de défaut volontaire : un vieux modèle
+# déprécié en fallback donne des captions vides difficiles à diagnostiquer.
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "").strip()
 
 MAX_RETRIES = int(os.environ.get("GEMINI_MAX_RETRIES", "3"))
 RETRY_BACKOFF_SECONDS = float(os.environ.get("GEMINI_RETRY_BACKOFF", "1.5"))
@@ -85,6 +86,8 @@ class VisionCaptioner:
 
     def _complete(self, prompt: str, image: bytes, content_type: str, max_tokens: int) -> str:
         client = self._ensure_client()
+        if not GEMINI_MODEL:
+            raise RuntimeError("GEMINI_MODEL absent de l'environnement du conteneur")
         image_url = IMAGE_URL_PREFIX.format(content_type=content_type) + base64.b64encode(image).decode("ascii")
         last_error: Optional[Exception] = None
         for attempt in range(1, MAX_RETRIES + 1):

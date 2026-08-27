@@ -43,9 +43,11 @@ public class ImageUploadService {
                 log.warn("Base64 invalide pour l'image {} — ignorée ({})", image.placeholderId(), e.getMessage());
                 continue;
             }
-            String caption = image.caption() == null ? "" : image.caption();
-            String replacement = "![%s](%s)%n> **Description :** %s".formatted(
-                    caption, storageUrl, caption);
+            String caption = image.caption() == null ? "" : image.caption().trim();
+            String altText = caption.isBlank() ? "Figure extraite du document" : caption;
+            String replacement = caption.isBlank()
+                    ? "![%s](%s)".formatted(altText, storageUrl)
+                    : "![%s](%s)%n> **Description :** %s".formatted(altText, storageUrl, caption);
             result = result.replace("{{IMAGE:%s}}".formatted(image.placeholderId()), replacement);
         }
         return result;

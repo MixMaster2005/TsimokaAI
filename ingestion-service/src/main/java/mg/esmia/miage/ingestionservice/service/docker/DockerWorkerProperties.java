@@ -31,4 +31,7 @@ public class DockerWorkerProperties {
 
     /** Clé API Gemini (vision, OpenAI-compatible) injectée au conteneur via l'env GEMINI_API_KEY. */
     private String geminiApiKey = "";
+
+    /** Modèle Gemini vision injecté au conteneur via l'env GEMINI_MODEL. */
+    private String geminiModel = "";
 }

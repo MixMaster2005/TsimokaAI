@@ -59,13 +59,24 @@ public class MarkdownChunkingService {
         if (markdown == null || markdown.isBlank()) {
             return chunks;
         }
-        chunkSection(markdown, 0, chunks);
+        chunkSection(normalize(markdown), 0, chunks);
         return chunks;
     }
 
     /** Estimation grossière du nombre de tokens d'un texte (chars / 4, minimum 1). */
     public int estimateTokenCount(String text) {
         return text == null ? 0 : Math.max(1, text.length() / CHARS_PER_TOKEN);
+    }
+
+    /** Nettoyage minimal des artefacts de conversion avant découpage et embedding. */
+    String normalize(String markdown) {
+        return markdown
+                .replace("\r\n", "\n")
+                .replace('\r', '\n')
+                .replace("\f", "\n\n")
+                .replaceAll("[ \\t]+\\n", "\n")
+                .replaceAll("\\n{3,}", "\n\n")
+                .trim();
     }
 
     /**
@@ -139,10 +150,7 @@ public class MarkdownChunkingService {
         while (start < length) {
             int end = Math.min(start + MAX_CHUNK_CHARS, length);
             if (end < length) {
-                int boundary = text.lastIndexOf(' ', end);
-                if (boundary > start + MAX_CHUNK_CHARS / 2) {
-                    end = boundary;
-                }
+                end = chooseBoundary(text, start, end);
             }
             String chunk = text.substring(start, end).trim();
             if (!chunk.isEmpty()) {
@@ -153,5 +161,33 @@ public class MarkdownChunkingService {
             }
             start = end - OVERLAP_CHARS;
         }
+    }
+
+    private int chooseBoundary(String text, int start, int end) {
+        int lowerBound = start + MAX_CHUNK_CHARS / 2;
+
+        int paragraph = text.lastIndexOf("\n\n", end);
+        if (paragraph > lowerBound) {
+            return paragraph + 2;
+        }
+
+        int sentence = Math.max(
+                Math.max(text.lastIndexOf(". ", end), text.lastIndexOf("? ", end)),
+                text.lastIndexOf("! ", end));
+        if (sentence > lowerBound) {
+            return sentence + 1;
+        }
+
+        int line = text.lastIndexOf('\n', end);
+        if (line > lowerBound) {
+            return line + 1;
+        }
+
+        int space = text.lastIndexOf(' ', end);
+        if (space > lowerBound) {
+            return space;
+        }
+
+        return end;
     }
 }

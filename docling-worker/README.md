@@ -32,7 +32,8 @@ service permanent : `ingestion-service` le **spawné à la demande** via l'API D
    `{{IMAGE:img_001}}` insérés dans le Markdown (à la position des marqueurs MarkItDown,
    sinon en fin de document pour le PDF). `ingestion-service` uploade ensuite les images
    dans **MinIO** et remplace chaque placeholder par `![caption](url)` + une ligne
-   `> **Description :** caption`.
+   `> **Description :** caption` quand Gemini a produit une légende. Si la légende est vide,
+   l'image garde une alt text neutre sans description vide.
 
 ## Endpoints
 
@@ -71,7 +72,7 @@ Réponse type (document textuel avec une figure) :
 | Variable | Défaut | Rôle |
 |---|---|---|
 | `GEMINI_API_KEY` | *(obligatoire pour fig/scan)* | Injectée par ingestion-service via docker-java (OpenAI-compatible) |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Modèle vision utilisé |
+| `GEMINI_MODEL` | *(obligatoire pour fig/scan)* | Modèle vision utilisé |
 | `DOCLING_MIN_CHARS_PER_PAGE` | `40` | Seuil ratio caractères/page déclenchant la transcription |
 | `DOCLING_MAX_EXTRACTED_IMAGES` | `30` | Plafond d'images légendées par document |
 | `DOCLING_MIN_IMAGE_DIMENSION` | `64` | Pixels min (largeur ou hauteur) pour ignorer logos/icônes |
@@ -121,8 +122,8 @@ stat -c '%g' /var/run/docker.sock  # ex: 127
 
 ## Non implémenté / points ouverts
 
-1. **Modèle Gemini** : nom par défaut `gemini-2.5-flash` — à confirmer (facturation,
-   quota). Surchargable via `GEMINI_MODEL`.
+1. **Modèle Gemini** : pas de valeur par défaut volontaire. Choisir explicitement un modèle
+   compatible vision via `GEMINI_MODEL` pour éviter les fallbacks dépréciés silencieux.
 2. **Licence AGPL-3.0 de PyMuPDF** : si contraignante pour le mémoire, remplacer par
    `pdfplumber`/`pypdfium2` dans `image_extractor.py` (rendu pages + extraction images).
 3. **Position des placeholders PDF** : le PDF n'ayant pas de marqueur d'image MarkItDown,

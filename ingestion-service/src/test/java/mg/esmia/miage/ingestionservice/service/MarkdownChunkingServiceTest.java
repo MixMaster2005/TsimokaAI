@@ -41,6 +41,15 @@ class MarkdownChunkingServiceTest {
     }
 
     @Test
+    void artefactsPdfSontNormalisesAvantChunking() {
+        String markdown = "# Titre\r\n\r\nPage 1\fPage 2   \n\n\n\nSuite";
+        List<String> chunks = service.chunk(markdown);
+
+        assertEquals(1, chunks.size());
+        assertEquals("# Titre\n\nPage 1\n\nPage 2\n\nSuite", chunks.get(0));
+    }
+
+    @Test
     void sectionsDeTitresDeviennentDesChunks() {
         String markdown = """
                 # Chapitre 1
@@ -117,6 +126,20 @@ class MarkdownChunkingServiceTest {
             assertTrue(chunk.length() <= MAX_CHUNK_CHARS);
             assertFalse(chunk.isBlank());
         }
+    }
+
+    @Test
+    void decoupeDeSecoursPrefereUneFrontiereDeParagraphe() {
+        String premierParagraphe = repeat("Phrase de contexte pour le premier paragraphe. ", 34)
+                + "Fin du premier paragraphe.";
+        String secondParagraphe = repeat("Suite du contenu pedagogique. ", 35);
+        String markdown = premierParagraphe + "\n\n" + secondParagraphe;
+
+        List<String> chunks = service.chunk(markdown);
+
+        assertTrue(markdown.length() > MAX_CHUNK_CHARS);
+        assertTrue(chunks.size() >= 2);
+        assertTrue(chunks.get(0).endsWith("Fin du premier paragraphe."));
     }
 
     @Test

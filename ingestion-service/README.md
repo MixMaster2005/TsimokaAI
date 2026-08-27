@@ -51,7 +51,8 @@ service dédié orchestré par `IngestionPipelineService` — seul un test de bo
 - **Images → MinIO (spec v2)** : le worker renvoie les images en **base64** avec des placeholders
   `{{IMAGE:img_001}}`. `ImageUploadService` uploade chacune via `MinioService.uploadBytes`
   (préfixe `spaces/{spaceId}/images/`) puis substitue le placeholder par
-  `![caption](url)` + `> **Description :** caption`.
+  `![caption](url)` + `> **Description :** caption` quand Gemini a produit une légende.
+  Si la légende est vide, l'image garde une alt text neutre sans ligne de description vide.
 - **Chunking orienté sens** (`MarkdownChunkingService`) : la frontière première des chunks est
   la **structure des titres** (`#`, `##`, …) — chaque section garde son titre avec son contenu.
   Une section trop grande est re-découpée **récursivement** sur le niveau de titre inférieur ;
@@ -153,8 +154,10 @@ Points de vigilance et limites :
 - **Chunking** (`MarkdownChunkingService`) : taille cible ~500 tokens (≈ 2000 caractères).
   Découpage **par titres d'abord** (une section = un chunk, titre conservé avec son contenu) ;
   une section trop grande est re-découpée récursivement sur le niveau de titre suivant ; sans
-  sous-titre, découpe de secours de taille fixe avec chevauchement (50 tokens), sans couper un
-  mot. `token_count` = heuristique `chars / 4` (pas de tokenizer dédié) — à ajuster
+  sous-titre, découpe de secours de taille fixe avec chevauchement (50 tokens), en préférant
+  paragraphes, phrases, lignes puis espaces pour ne pas couper brutalement le sens. Le Markdown
+  est normalisé avant découpage (`\f`, fins de ligne, espaces et sauts multiples).
+  `token_count` = heuristique `chars / 4` (pas de tokenizer dédié) — à ajuster
   empiriquement. Limite connue : un titre dans un bloc de code provoque une fausse frontière,
   et un document très fragmenté peut produire des chunks très petits (une section = un chunk).
   Couvert par des tests unitaires (`MarkdownChunkingServiceTest`).
@@ -186,6 +189,7 @@ Points de vigilance et limites :
 | `DOCLING_WORKER_STARTUP_TIMEOUT` | `30` | Timeout d'attente du `/health` (secondes) |
 | `DOCLING_WORKER_CONVERT_TIMEOUT` | `300` | Timeout d'un `POST /v1/convert` (secondes — large : légendes/transcriptions Gemini) |
 | `GEMINI_API_KEY` | *(vide)* | Clé API Gemini transmise au conteneur docling-worker (vision) |
+| `GEMINI_MODEL` | *(vide)* | Modèle Gemini vision transmis au conteneur docling-worker |
 | `DOCKER_GID` | `127` | GID du groupe propriétaire du socket Docker sur l'hôte (déterminé par `stat -c '%g' /var/run/docker.sock`) |
 | `INGESTION_CORE_POOL_SIZE` | `2` | Taille du pool de threads pour le pipeline asynchrone |
 | `INGESTION_MAX_POOL_SIZE` | `4` | Taille maximale du pool de threads |

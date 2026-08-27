@@ -73,9 +73,11 @@ public class DockerWorkerClient {
             CreateContainerResponse response = dockerClient.createContainerCmd(properties.getImage())
                     .withName(containerName)
                     .withHostConfig(HostConfig.newHostConfig().withNetworkMode(properties.getNetwork()))
-                    // Spec v2 : le worker délègue la vision à Gemini — la clé est passée
-                    // à l'exécution (jamais embarquée dans l'image).
-                    .withEnv(List.of("GEMINI_API_KEY=" + properties.getGeminiApiKey()))
+                    // Spec v2 : le worker délègue la vision à Gemini — les secrets et le
+                    // modèle sont passés à l'exécution (jamais embarqués dans l'image).
+                    .withEnv(List.of(
+                            "GEMINI_API_KEY=" + properties.getGeminiApiKey(),
+                            "GEMINI_MODEL=" + properties.getGeminiModel()))
                     .exec();
             String containerId = response.getId();
             dockerClient.startContainerCmd(containerId).exec();

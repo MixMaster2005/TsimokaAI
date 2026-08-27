@@ -68,6 +68,7 @@ docling-worker:
   startup-timeout-seconds: ${DOCLING_WORKER_STARTUP_TIMEOUT:30}
   conversion-timeout-seconds: ${DOCLING_WORKER_CONVERT_TIMEOUT:300}
   gemini-api-key: ${GEMINI_API_KEY:}
+  gemini-model: ${GEMINI_MODEL:}
 
 management:
   endpoints:
