@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import mg.esmia.miage.aicommon.ChatProviderResolver;
 import mg.esmia.miage.chatservice.client.IngestionClient;
 import mg.esmia.miage.chatservice.dto.Citation;
+import mg.esmia.miage.chatservice.dto.StructuredContent;
 import mg.esmia.miage.chatservice.entity.Conversation;
 import mg.esmia.miage.chatservice.rag.RagPipelineAdvisor;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
@@ -49,6 +50,7 @@ public class ChatLlmService {
     private final RagPipelineAdvisor ragPipelineAdvisor;
     private final JpaBackedChatMemory jpaBackedChatMemory;
     private final IngestionClient ingestionClient;
+    private final ResponseParser responseParser;
 
     @CircuitBreaker(name = "llm-chat", fallbackMethod = "fallbackAssistantReply")
     public LlmOutcome generate(Conversation conversation, String question, String systemPrompt) {
@@ -66,9 +68,11 @@ public class ChatLlmService {
                     .chatResponse();
             String content = response.getResult().getOutput().getText();
             List<Document> retrieved = extractRetrievedDocuments(response);
+            StructuredContent structured = responseParser.parse(content);
             return new LlmOutcome(content, chunkIdsOf(retrieved),
                     chatProviderResolver.activeProvider(),
-                    buildCitations(retrieved, conversation.getUserId()));
+                    buildCitations(retrieved, conversation.getUserId()),
+                    structured);
         } catch (Exception e) {
             log.error("Échec RAG+LLM (provider={}), bascule sur le fallback du circuit breaker",
                     chatProviderResolver.activeProvider(), e);

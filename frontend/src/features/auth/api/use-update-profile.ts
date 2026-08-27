@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 
-import { apiClient, setAccessToken } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
+import { clearTokens } from '@/lib/auth-tokens';
 import type { User } from '../types';
 
 export function useUpdateProfile() {
@@ -21,7 +22,7 @@ export function useDeleteAccount() {
   return useMutation({
     mutationFn: () => apiClient.delete<void>('/api/v1/users/me'),
     onSuccess: () => {
-      setAccessToken(null);
+      clearTokens();
       navigate({ to: '/' });
     },
   });

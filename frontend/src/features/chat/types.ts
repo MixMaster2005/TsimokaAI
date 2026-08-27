@@ -2,6 +2,16 @@
 
 export type MessageRole = 'USER' | 'ASSISTANT';
 
+export type BlockType = 'MARKDOWN' | 'CODE' | 'MERMAID' | 'MATH_INLINE' | 'MATH_DISPLAY' | 'IMAGE';
+
+export interface ContentBlock {
+  type: BlockType;
+  content: string | null;
+  language: string | null;
+  url: string | null;
+  alt: string | null;
+}
+
 export interface Conversation {
   id: string;
   spaceId: string;
@@ -36,6 +46,8 @@ export interface Message {
   retrievedChunkIds: string[];
   citations?: Citation[];
   modelUsed: string | null;
+  /** Blocs structurés parsés côté backend (null pour les anciens messages) */
+  blocks?: ContentBlock[];
   createdAt: string;
 }
 

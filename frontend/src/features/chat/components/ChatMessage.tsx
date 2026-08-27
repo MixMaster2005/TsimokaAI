@@ -1,5 +1,6 @@
 import { useChalkReveal } from '../lib/use-chalk-reveal';
 import { CitationChips } from './CitationChips';
+import { MessageRenderer } from './MessageRenderer';
 import type { Message } from '../types';
 
 interface ChatMessageProps {
@@ -21,6 +22,17 @@ export function ChatMessage({ message, animate = false }: ChatMessageProps) {
     );
   }
 
+  // Si des blocs structurés sont disponibles, utiliser le renderer riche
+  if (message.blocks && message.blocks.length > 0) {
+    return (
+      <div className="mb-6">
+        <MessageRenderer blocks={message.blocks} />
+        <CitationChips citations={message.citations ?? []} fallbackChunkIds={message.retrievedChunkIds} />
+      </div>
+    );
+  }
+
+  // Fallback : rendu texte brut avec animation craie (messages antérieurs)
   return (
     <div className="mb-6">
       <p className="text-base leading-relaxed text-foreground">{revealed}</p>

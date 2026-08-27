@@ -1,7 +1,8 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 
-import { apiClient, setAccessToken } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
+import { setAccessToken, setRefreshToken } from '@/lib/auth-tokens';
 import type { AuthResponse, LoginPayload } from '../types';
 
 /**
@@ -12,15 +13,16 @@ import type { AuthResponse, LoginPayload } from '../types';
  */
 export function useLogin() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (payload: LoginPayload) =>
       apiClient.post<AuthResponse>('/api/v1/auth/login', payload),
     onSuccess: (data) => {
       setAccessToken(data.accessToken);
-      // TODO : persister refreshToken (httpOnly cookie côté back idéalement,
-      // sinon voir la discussion OAuth précédente sur le choix de stockage)
-      navigate({ to: '/' }); // -> Étagère, layout _app prend le relais
+      setRefreshToken(data.refreshToken);
+      queryClient.setQueryData(['auth', 'session'], data.user);
+      navigate({ to: '/' });
     },
   });
 }

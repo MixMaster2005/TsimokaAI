@@ -1,37 +1,66 @@
 /**
- * Client HTTP unique vers l'api-gateway. Toutes les requêtes de features/*\/api
- * passent par ici — jamais de fetch() brut ailleurs dans le code, pour garder
- * un seul endroit qui gère : l'URL de base, le token, les erreurs, le refresh.
+ * Client HTTP unique vers l'api-gateway. Toutes les requêtes de features/* passent
+ * par ici — jamais de fetch() brut ailleurs dans le code.
  *
  * VITE_API_BASE_URL pointe vers l'api-gateway (ex: http://localhost:8080),
  * jamais directement vers un microservice — la gateway reste le seul point
  * d'entrée, cohérent avec le contrat backend (JWT vérifié uniquement là-bas).
+ *
+ * Intercepteur 401 : tente un refresh silencieux (rotation du refresh token)
+ * puis rejoue la requête une seule fois. Si le refresh échoue, nettoie les
+ * tokens — le guard d'auth (routes/_app/route.tsx) redirige vers /connexion.
  */
+
+import {
+  getAccessToken,
+  getRefreshToken,
+  setAccessToken,
+  setRefreshToken,
+  clearTokens,
+} from './auth-tokens';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 
-// --- Stockage du token en mémoire (pas de localStorage : évite l'exposition
-// du token JWT aux attaques XSS). Se vide au rechargement de page — c'est le
-// refresh token (géré par AuthService côté back) qui permet de récupérer
-// un nouvel access token silencieusement au démarrage. Voir features/auth/api/.
-let accessToken: string | null = null;
+// --- Intercepteur refresh (dédipliqué : une seule requête refresh à la fois) ---
 
-export function setAccessToken(token: string | null) {
-  accessToken = token;
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
+
+  // Déduplication : requêtes concurrentes partagent le même refresh
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!res.ok) return null;
+
+      const envelope = await res.json();
+      if (!envelope.success || !envelope.data) return null;
+
+      const { accessToken: newAccess, refreshToken: newRefresh } = envelope.data;
+      setAccessToken(newAccess);
+      setRefreshToken(newRefresh); // rotation
+      return newAccess;
+    } catch {
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
-export function getAccessToken() {
-  return accessToken;
-}
+// --- Enveloppe API backend (common/response/ApiResponse.java) ---
 
-/**
- * Enveloppe RÉELLE renvoyée par tous les services (vérifiée dans
- * common/response/ApiResponse.java — contrat non négociable côté back) :
- *   succès : { success: true,  data: T,        error: null, meta }
- *   erreur : { success: false, data: null,     error: {...}, meta }
- * Chaque réponse porte un requestId traçable — utile à logger côté front
- * en cas de bug pour le retrouver dans les logs backend.
- */
 interface ApiResponseError {
   code: string;
   message: string;
@@ -65,32 +94,36 @@ export class ApiError extends Error {
   }
 }
 
+// --- Requête avec intercepteur 401 ---
+
 type RequestOptions = Omit<RequestInit, 'body'> & { body?: unknown };
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, headers, ...rest } = options;
   const isFormData = body instanceof FormData;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...rest,
-    headers: {
-      // FormData (upload de fichier) : on laisse le navigateur poser le
-      // Content-Type avec sa boundary — jamais 'application/json' dans ce cas.
-      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...headers,
-    },
-    body: isFormData ? (body as FormData) : body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const doFetch = (token: string | null) =>
+    fetch(`${API_BASE_URL}${path}`, {
+      ...rest,
+      headers: {
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      body: isFormData ? (body as FormData) : body !== undefined ? JSON.stringify(body) : undefined,
+    });
+
+  let response = await doFetch(getAccessToken());
 
   if (response.status === 401) {
-    // TODO : brancher ici la logique de refresh silencieux
-    // (POST /api/v1/auth/refresh via features/auth/api/use-login.ts),
-    // puis rejouer la requête une fois. Si le refresh échoue aussi,
-    // rediriger vers /connexion (voir routes/_app/route.tsx pour le guard).
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      response = await doFetch(newToken);
+    } else {
+      clearTokens();
+    }
   }
 
-  // 204 No Content n'a pas de corps à parser (ex: DELETE réussi)
   if (response.status === 204) return undefined as T;
 
   const envelope = (await response.json()) as ApiResponseEnvelope<T>;
@@ -101,6 +134,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   return envelope.data as T;
 }
+
+// --- Client exporté ---
 
 export const apiClient = {
   get: <T>(path: string, options?: RequestOptions) => request<T>(path, { ...options, method: 'GET' }),

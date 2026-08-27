@@ -16,6 +16,10 @@ interface RouterContext {
  * Rappel du contrat de design : cette route ne doit jamais imposer de
  * surface (Ardoise/Papier) — chaque sous-arbre (_public, _app, l'espace
  * en Ardoise) décide de la sienne. __root reste neutre.
+ *
+ * L'initialisation auth est gérée naturellement par TanStack Query :
+ * sessionQueryOptions se lance au premier ensureQueryData() du guard,
+ * l'interceptor 401 de apiClient tente le refresh silencieux si besoin.
  */
 export const Route = createRootRouteWithContext<RouterContext>()({
   component: RootComponent,

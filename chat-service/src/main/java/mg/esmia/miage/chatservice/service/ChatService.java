@@ -5,15 +5,21 @@ import lombok.extern.slf4j.Slf4j;
 import mg.esmia.miage.chatservice.client.SpaceClient;
 import mg.esmia.miage.chatservice.dto.MessageResponse;
 import mg.esmia.miage.chatservice.dto.SendMessageRequest;
+import mg.esmia.miage.chatservice.dto.StructuredContent;
 import mg.esmia.miage.chatservice.entity.Conversation;
 import mg.esmia.miage.chatservice.entity.Message;
 import mg.esmia.miage.chatservice.repository.MessageRepository;
 import mg.esmia.miage.common.events.ChatEvent;
 import mg.esmia.miage.common.events.EventChannels;
 import mg.esmia.miage.common.messaging.RedisEventPublisher;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
@@ -44,6 +50,9 @@ public class ChatService {
     private final ChatLlmService chatLlmService;
     private final SpaceClient spaceClient;
 
+    @Value("classpath:prompts/chat-system.st")
+    private Resource chatSystemTemplate;
+
     private static final String FALLBACK_PERSONA = """
             Tu es un assistant pédagogique (TsimokaAI) aidant un étudiant à comprendre ses
             cours. Réponds de manière claire, structurée et en français, en t'appuyant sur le
@@ -66,7 +75,11 @@ public class ChatService {
         Message assistantMessage = findOrPersistAssistant(conversation, outcome);
         publishMessageCreated(conversation, assistantMessage);
 
-        return MessageResponse.from(assistantMessage);
+        // Les blocs structurés ne sont pas stockés en BDD (re-parsés à l'affichage si besoin)
+        // mais sont inclus dans la réponse pour le rendu riche côté frontend.
+        List<mg.esmia.miage.chatservice.dto.StructuredContent.ContentBlock> blocks =
+                outcome.structuredContent() != null ? outcome.structuredContent().blocks() : null;
+        return MessageResponse.from(assistantMessage, blocks);
     }
 
     public List<MessageResponse> history(UUID conversationId) {
@@ -76,15 +89,25 @@ public class ChatService {
 
     /**
      * Persona pédagogique depuis space-service ; défaillance non bloquante (persona générique).
-     * Résolu ici (hors du circuit breaker) pour ne pas ouvrir {@code llm-chat} quand seul
-     * space-service est indisponible.
+     * Le template system.chat est préfixé pour garantir le formatage structuré des réponses.
      */
     private String resolvePersona(Conversation conversation) {
+        String template = readTemplate();
         try {
             String persona = spaceClient.getAssistantPersona(conversation.getSpaceId(), conversation.getUserId());
-            return (persona == null || persona.isBlank()) ? FALLBACK_PERSONA : persona;
+            String base = (persona == null || persona.isBlank()) ? FALLBACK_PERSONA : persona;
+            return template + "\n\n" + base;
         } catch (Exception e) {
             log.warn("Persona indisponible (spaceId={}), bascule sur le persona générique", conversation.getSpaceId(), e);
+            return template + "\n\n" + FALLBACK_PERSONA;
+        }
+    }
+
+    private String readTemplate() {
+        try (var in = chatSystemTemplate.getInputStream()) {
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            log.warn("Template chat-system.st illisible, fallback sur le template par défaut", e);
             return FALLBACK_PERSONA;
         }
     }

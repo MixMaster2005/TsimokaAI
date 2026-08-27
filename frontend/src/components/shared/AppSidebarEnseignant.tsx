@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useSession } from '@/features/auth/api/use-session';
-import { setAccessToken } from '@/lib/api-client';
+import { clearTokens } from '@/lib/auth-tokens';
 
 /**
  * Chrome de navigation du Layout App — ENSEIGNANT (rôle ADMIN).
@@ -33,7 +33,7 @@ export function AppSidebarEnseignant() {
   const navigate = useNavigate();
 
   function handleLogout() {
-    setAccessToken(null);
+    clearTokens();
     navigate({ to: '/connexion' });
   }
 

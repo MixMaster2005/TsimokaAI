@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useSession } from '@/features/auth/api/use-session';
 import { useRappels } from '@/features/gamification/api/use-rappels';
-import { setAccessToken } from '@/lib/api-client';
+import { clearTokens } from '@/lib/auth-tokens';
 
 /**
  * Chrome de navigation persistant du Layout App — Étudiant.
@@ -40,7 +40,7 @@ export function AppSidebar() {
   const navigate = useNavigate();
 
   function handleLogout() {
-    setAccessToken(null);
+    clearTokens();
     navigate({ to: '/connexion' });
   }
 
