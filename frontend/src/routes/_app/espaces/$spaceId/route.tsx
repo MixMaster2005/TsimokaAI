@@ -1,28 +1,35 @@
 import { createFileRoute, Link, Outlet, useParams } from '@tanstack/react-router';
 
 import { espaceQueryOptions, useEspace } from '@/features/espaces/api/use-espace';
+import { useSession } from '@/features/auth/api/use-session';
 
 /**
- * Onglet Paramètres visible dès que `space.userId === session.user.id` :
- * le créateur de l'espace est son propriétaire, indépendamment du rôle global
- * (STUDENT/ADMIN). TODO : confirmer ce choix avec la cartographie UI.
+ * Layout D — Espace partagé entre les deux rôles.
+ * L'onglet Paramètres n'est visible que pour le propriétaire (créateur) de
+ * l'espace, indépendamment du rôle global (STUDENT/ADMIN) — cf. cartographie
+ * UI D : "créateur = propriétaire de l'espace".
  */
 export const Route = createFileRoute('/_app/espaces/$spaceId')({
   loader: ({ context: { queryClient }, params }) => queryClient.ensureQueryData(espaceQueryOptions(params.spaceId)),
   component: EspaceLayout,
 });
 
-const TABS = [
+const TABS_BASE = [
   { to: '/espaces/$spaceId/chat', label: 'Chat' },
   { to: '/espaces/$spaceId/fiches', label: 'Fiches' },
   { to: '/espaces/$spaceId/documents', label: 'Documents' },
   { to: '/espaces/$spaceId/membres', label: 'Membres' },
-  { to: '/espaces/$spaceId/parametres', label: 'Paramètres' },
 ] as const;
+
+const TAB_PARAMETRES = { to: '/espaces/$spaceId/parametres', label: 'Paramètres' } as const;
 
 function EspaceLayout() {
   const { spaceId } = useParams({ from: '/_app/espaces/$spaceId' });
   const { data: space } = useEspace(spaceId);
+  const { data: session } = useSession();
+
+  const isOwner = space?.userId === session?.id;
+  const tabs = isOwner ? [...TABS_BASE, TAB_PARAMETRES] : TABS_BASE;
 
   return (
     <div className="flex h-full flex-col">
@@ -35,7 +42,7 @@ function EspaceLayout() {
       </div>
 
       <nav className="mt-4 flex gap-1 border-b border-border px-6">
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <Link
             key={tab.to}
             to={tab.to}

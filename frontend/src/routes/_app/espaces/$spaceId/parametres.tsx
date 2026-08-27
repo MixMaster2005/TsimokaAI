@@ -1,21 +1,29 @@
 import { useState, type FormEvent } from 'react';
-import { createFileRoute, useParams } from '@tanstack/react-router';
+import { createFileRoute, redirect, useParams } from '@tanstack/react-router';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { apiClient } from '@/lib/api-client';
 import { useEspace } from '@/features/espaces/api/use-espace';
 import { useDeleteEspace, useUpdateEspace } from '@/features/espaces/api/use-update-espace';
+import { sessionQueryOptions } from '@/features/auth/api/use-session';
+import type { Space } from '@/features/espaces/types';
 
 /**
- * ⚠️ Ce fichier ne fait PAS le guard "créateur uniquement" pour l'instant —
- * l'onglet Paramètres est listé dans routes/_app/espaces/$spaceId/route.tsx
- * sans condition d'affichage. TODO : dans EspaceLayout, comparer
- * space.userId à session.user.id (useSession) et masquer l'onglet sinon —
- * exactement le point ouvert noté dans route.tsx du layout Espace.
+ * Guard créateur/propriétaire : seuls les utilisateurs dont le userId
+ * correspond au userId du space peuvent accéder à la page. Les autres
+ * sont redirigés vers la page Fiches de l'espace.
  */
 export const Route = createFileRoute('/_app/espaces/$spaceId/parametres')({
+  beforeLoad: async ({ context: { queryClient }, params }) => {
+    const session = await queryClient.ensureQueryData(sessionQueryOptions);
+    const space = await apiClient.get<Space>(`/api/v1/spaces/${params.spaceId}`);
+    if (space.userId !== session.id) {
+      throw redirect({ to: '/espaces/$spaceId/fiches', params: { spaceId: params.spaceId } });
+    }
+  },
   component: ParametresEspace,
 });
 

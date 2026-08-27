@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 
 import { Button } from '@/components/ui/button';
 import { fichesBySpaceQueryOptions, useFiches } from '@/features/fiches/api/use-fiches';
-import { useGenerateFiche } from '@/features/fiches/api/use-generate-fiche';
+import { GenerateFicheModal } from '@/features/fiches/components/GenerateFicheModal';
 import { useEspace } from '@/features/espaces/api/use-espace';
 import { getTagColorClass } from '@/features/espaces/lib/get-tag-color';
 import { cn } from '@/lib/utils';
@@ -17,18 +18,13 @@ function FichesEspace() {
   const { spaceId } = useParams({ from: '/_app/espaces/$spaceId/fiches/' });
   const { data: fiches } = useFiches(spaceId);
   const { data: space } = useEspace(spaceId);
-  const generateFiche = useGenerateFiche();
+  const [modalOpen, setModalOpen] = useState(false);
 
   return (
     <div className="p-6">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-display text-lg font-semibold text-foreground">Fiches</h2>
-        <Button
-          onClick={() => generateFiche.mutate({ spaceId })}
-          disabled={generateFiche.isPending}
-        >
-          {generateFiche.isPending ? 'Génération…' : 'Générer une fiche'}
-        </Button>
+        <Button onClick={() => setModalOpen(true)}>Générer une fiche</Button>
       </div>
 
       {fiches?.length === 0 && (
@@ -55,9 +51,7 @@ function FichesEspace() {
         ))}
       </div>
 
-      {/* GenerateFicheModal (choix du périmètre : corpus entier / documents / thème)
-          reste à écrire — pour l'instant le bouton génère sur tout le corpus de
-          l'espace, cf. GenerateFicheRequest.documentIds optionnel côté back. */}
+      <GenerateFicheModal open={modalOpen} onOpenChange={setModalOpen} spaceId={spaceId} />
     </div>
   );
 }

@@ -16,15 +16,26 @@ import { sessionQueryOptions } from '@/features/auth/api/use-session';
  * non-ADMIN qui atterrit sous /enseignant repart vers /
  */
 export const Route = createFileRoute('/_app')({
-  beforeLoad: async ({ context: { queryClient } }) => {
+  beforeLoad: async ({ context: { queryClient }, location }) => {
     let session;
     try {
       session = await queryClient.ensureQueryData(sessionQueryOptions);
     } catch {
-      // TODO : mémoriser location.href (ex: dans un search param typé via
-      // validateSearch sur /_public/connexion) pour rediriger l'utilisateur
-      // vers sa page d'origine après connexion, plutôt que systématiquement /.
-      throw redirect({ to: '/connexion' });
+      // La landing reste accessible via son URL explicite. La racine est
+      // néanmoins accueillante pour un visiteur qui arrive directement sur
+      // le domaine, sans casser le point d'entrée historique de l'app pour
+      // un étudiant déjà connecté.
+      if (location.pathname === '/') {
+        throw redirect({ to: '/accueil' });
+      }
+
+      throw redirect({
+        to: '/connexion',
+        // `search` est l'objet de paramètres analysé par TanStack Router ;
+        // `href` contient déjà pathname + query string + hash sous forme de
+        // chaîne et peut donc être restauré après la connexion.
+        search: { redirect: location.href },
+      });
     }
     if (session.role === 'ADMIN') {
       throw redirect({ to: '/enseignant' });

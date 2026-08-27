@@ -76,8 +76,10 @@ nécessitent des endpoints analytiques non implémentés côté analytics-servic
 - **GenerateFicheModal** (choix du périmètre de génération) reste à écrire — le bouton
   génère sur tout le corpus de l'espace.
 - **`/` partagé par deux layouts** : `_app` et `_public` sont tous deux pathless, donc en
-  conflit sur `/`. Résolu en laissant `/` à l'étagère (app) et en déplaçant la Landing à
-  `/accueil` — compromis à retrancher avant un vrai lancement public.
+  conflit sur `/`. La Landing reste à `/accueil` ; un visiteur non connecté qui arrive sur
+  `/` y est redirigé, tandis qu'un étudiant déjà connecté retrouve son étagère. À long terme,
+  il sera préférable de donner un préfixe explicite à l'application authentifiée (par exemple
+  `/app`) afin que la Landing puisse devenir la vraie route canonique `/`.
 
 ## Ce qui n'a délibérément pas été fait
 
