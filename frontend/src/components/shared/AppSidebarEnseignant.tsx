@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { GraduationCap, Home, LayoutGrid, Settings } from 'lucide-react';
+import { GraduationCap, Home, Settings } from 'lucide-react';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {

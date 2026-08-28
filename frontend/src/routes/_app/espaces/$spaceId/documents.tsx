@@ -1,12 +1,12 @@
 import { useRef, useState, type DragEvent } from 'react';
-import { createFileRoute, Link, useParams } from '@tanstack/react-router';
-
+import { createFileRoute, useParams } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { documentsBySpaceQueryOptions, useDocuments } from '@/features/documents/api/use-documents';
 import { useUploadDocument } from '@/features/documents/api/use-upload-document';
 import { useRetryDocument } from '@/features/documents/api/use-retry-document';
 import { useDeleteDocument } from '@/features/documents/api/use-delete-document';
+import { getMimeInfo } from '@/features/documents/mime-icons';
 import type { DocumentStatus } from '@/features/documents/types';
 
 const ACCEPTED_FORMATS =
@@ -28,7 +28,7 @@ const STATUS_VARIANT: Record<DocumentStatus, 'secondary' | 'attention' | 'succes
 
 const STATUS_LABEL: Record<DocumentStatus, string> = {
   PENDING: 'En attente',
-  PROCESSING: 'En cours',
+  PROCESSING: 'En cours…',
   READY: 'Prêt',
   FAILED: 'Échoué',
 };
@@ -116,52 +116,59 @@ function Documents() {
       )}
 
       <div className="flex flex-col gap-2">
-        {documents?.map((doc) => (
-          <div
-            key={doc.id}
-            className="flex items-center justify-between rounded-fiche border border-border bg-card px-3 py-2.5"
-          >
-            <div className="min-w-0">
-              <Link
-                to="/_app/espaces/$spaceId/documents/$documentId"
-                params={{ spaceId, documentId: doc.id }}
-                className="truncate text-sm text-foreground hover:underline"
-              >
-                {doc.filename}
-              </Link>
-              <p className="font-mono text-[0.65rem] text-muted-foreground">
-                {doc.chunkCount ? `${doc.chunkCount} segments` : '—'}
-              </p>
+        {documents?.map((doc) => {
+          const mime = getMimeInfo(doc.mimeType, doc.filename);
+          const MimeIcon = mime.icon;
+          return (
+            <div
+              key={doc.id}
+              className="flex items-center justify-between rounded-fiche border border-border bg-card px-3 py-2.5"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <MimeIcon className={`h-4 w-4 flex-none ${mime.color}`} aria-hidden />
+                  <p className="truncate text-sm text-foreground">
+                    {doc.filename}
+                  </p>
+                </div>
+                <div className="mt-0.5 flex items-center gap-3 font-mono text-[0.65rem] text-muted-foreground">
+                  <span>{doc.chunkCount ? `${doc.chunkCount} segments` : '—'}</span>
+                  <span>{new Date(doc.createdAt).toLocaleDateString('fr-FR')}</span>
+                </div>
+                {doc.status === 'FAILED' && doc.failureReason && (
+                  <p className="mt-1 text-xs text-destructive">{doc.failureReason}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {doc.status === 'FAILED' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={retryDocument.isPending}
+                    onClick={() => retryDocument.mutate(doc.id)}
+                  >
+                    Réessayer
+                  </Button>
+                )}
+                {(doc.status === 'READY' || doc.status === 'FAILED') && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={deleteDocument.isPending}
+                    onClick={() => {
+                      if (window.confirm(`Supprimer le document « ${doc.filename} » ?`)) {
+                        deleteDocument.mutate(doc.id);
+                      }
+                    }}
+                  >
+                    Supprimer
+                  </Button>
+                )}
+                <Badge variant={STATUS_VARIANT[doc.status]}>{STATUS_LABEL[doc.status]}</Badge>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              {doc.status === 'FAILED' && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={retryDocument.isPending}
-                  onClick={() => retryDocument.mutate(doc.id)}
-                >
-                  Réessayer
-                </Button>
-              )}
-              {(doc.status === 'READY' || doc.status === 'FAILED') && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={deleteDocument.isPending}
-                  onClick={() => {
-                    if (window.confirm(`Supprimer le document « ${doc.filename} » ?`)) {
-                      deleteDocument.mutate(doc.id);
-                    }
-                  }}
-                >
-                  Supprimer
-                </Button>
-              )}
-              <Badge variant={STATUS_VARIANT[doc.status]}>{STATUS_LABEL[doc.status]}</Badge>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

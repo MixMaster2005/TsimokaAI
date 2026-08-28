@@ -77,6 +77,11 @@ public class IngestionPipelineService {
             document.setStatus(Document.Status.PROCESSING);
             documentRepository.save(document);
 
+            // Notifie les clients SSE que le traitement a commencé
+            eventPublisher.publish(EventChannels.INGESTION_EVENTS,
+                    IngestionEvent.processing(document.getId().toString(), document.getSpaceId().toString(),
+                            document.getUserId().toString()));
+
             // Étape 1-2 : téléchargement MinIO + extraction via docling-worker (conteneur
             // spawné à la demande) + upload des images extraites / substitution des placeholders.
             byte[] fileContent;

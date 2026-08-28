@@ -2,6 +2,7 @@ package mg.esmia.miage.ingestionservice.config;
 
 import lombok.RequiredArgsConstructor;
 import mg.esmia.miage.common.events.EventChannels;
+import mg.esmia.miage.ingestionservice.messaging.DocumentStatusListener;
 import mg.esmia.miage.ingestionservice.messaging.SpaceEventListener;
 import mg.esmia.miage.ingestionservice.messaging.UserEventListener;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +17,7 @@ public class RedisListenerConfig {
 
     private final SpaceEventListener spaceEventListener;
     private final UserEventListener userEventListener;
+    private final DocumentStatusListener documentStatusListener;
 
     @Bean
     public RedisMessageListenerContainer redisMessageListenerContainer(RedisConnectionFactory connectionFactory) {
@@ -23,6 +25,7 @@ public class RedisListenerConfig {
         container.setConnectionFactory(connectionFactory);
         container.addMessageListener(spaceEventListener, new ChannelTopic(EventChannels.SPACE_EVENTS));
         container.addMessageListener(userEventListener, new ChannelTopic(EventChannels.USER_EVENTS));
+        container.addMessageListener(documentStatusListener, new ChannelTopic(EventChannels.INGESTION_EVENTS));
         return container;
     }
 }
