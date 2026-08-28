@@ -9,10 +9,7 @@ import mg.esmia.miage.common.messaging.RedisEventPublisher;
 import mg.esmia.miage.ficheservice.dto.FicheResponse;
 import mg.esmia.miage.ficheservice.dto.GenerateFicheRequest;
 import mg.esmia.miage.ficheservice.entity.Fiche;
-import mg.esmia.miage.ficheservice.repository.AnnotationRepository;
 import mg.esmia.miage.ficheservice.repository.FicheRepository;
-import mg.esmia.miage.ficheservice.repository.PartageFicheRepository;
-import mg.esmia.miage.ficheservice.repository.ValidationFicheRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,9 +22,6 @@ import java.util.UUID;
 public class FicheService {
 
     private final FicheRepository ficheRepository;
-    private final PartageFicheRepository partageFicheRepository;
-    private final AnnotationRepository annotationRepository;
-    private final ValidationFicheRepository validationFicheRepository;
     private final FicheGenerationService generationService;
     private final RedisEventPublisher eventPublisher;
 
@@ -83,9 +77,7 @@ public class FicheService {
     public void delete(UUID id, UUID requesterId, boolean isAdmin) {
         Fiche fiche = findOrThrow(id);
         assertOwnerOrAdmin(fiche, requesterId, isAdmin);
-        partageFicheRepository.deleteByFicheId(id);
-        annotationRepository.deleteByFicheId(id);
-        validationFicheRepository.deleteByFicheId(id);
+        // M8 : ON DELETE CASCADE gère partage_fiche, annotations, validation_fiche
         ficheRepository.delete(fiche);
     }
 
@@ -100,11 +92,7 @@ public class FicheService {
 
     @Transactional
     public void deleteAllForSpace(UUID spaceId) {
-        ficheRepository.findBySpaceId(spaceId).forEach(f -> {
-            partageFicheRepository.deleteByFicheId(f.getId());
-            annotationRepository.deleteByFicheId(f.getId());
-            validationFicheRepository.deleteByFicheId(f.getId());
-        });
+        // M8 : ON DELETE CASCADE gère partage_fiche, annotations, validation_fiche
         ficheRepository.deleteBySpaceId(spaceId);
     }
 

@@ -1,6 +1,7 @@
 package mg.esmia.miage.ficheservice.service;
 
 import lombok.RequiredArgsConstructor;
+import mg.esmia.miage.ficheservice.dto.AnnotationResponse;
 import mg.esmia.miage.ficheservice.dto.CreateAnnotationRequest;
 import mg.esmia.miage.ficheservice.entity.Annotation;
 import mg.esmia.miage.ficheservice.repository.AnnotationRepository;
@@ -17,17 +18,19 @@ public class AnnotationService {
     private final AnnotationRepository annotationRepository;
 
     @Transactional
-    public Annotation add(UUID ficheId, UUID auteurId, CreateAnnotationRequest request) {
+    public AnnotationResponse add(UUID ficheId, UUID auteurId, CreateAnnotationRequest request) {
         Annotation annotation = Annotation.builder()
                 .ficheId(ficheId)
                 .auteurId(auteurId)
                 .contenu(request.contenu())
                 .sectionRef(request.sectionRef())
                 .build();
-        return annotationRepository.save(annotation);
+        return AnnotationResponse.from(annotationRepository.save(annotation));
     }
 
-    public List<Annotation> listByFiche(UUID ficheId) {
-        return annotationRepository.findByFicheIdOrderByCreatedAtAsc(ficheId);
+    public List<AnnotationResponse> listByFiche(UUID ficheId) {
+        return annotationRepository.findByFicheIdOrderByCreatedAtAsc(ficheId).stream()
+                .map(AnnotationResponse::from)
+                .toList();
     }
 }

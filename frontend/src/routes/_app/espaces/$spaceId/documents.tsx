@@ -61,7 +61,7 @@ function Documents() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {(doc.status === 'PENDING' || doc.status === 'FAILED') && (
+              {doc.status === 'FAILED' && (
                 <Button
                   variant="ghost"
                   size="sm"

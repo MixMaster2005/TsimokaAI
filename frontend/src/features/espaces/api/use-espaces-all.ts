@@ -5,7 +5,7 @@ import { espaceKeys } from './keys';
 import type { Space } from '../types';
 
 /**
- * Vue de supervision ENSEIGNANT (ADMIN) : tous les espaces de la plateforme.
+ * Vue de supervision ENSEIGNANT : tous les espaces de la plateforme.
  * Endpoint GET /api/v1/spaces/all — 403 pour un étudiant, hook donc réservé
  * au layout `enseignant`.
  */

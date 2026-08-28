@@ -14,7 +14,7 @@ import { useSession } from '@/features/auth/api/use-session';
 import { clearTokens } from '@/lib/auth-tokens';
 
 /**
- * Chrome de navigation du Layout App — ENSEIGNANT (rôle ADMIN).
+ * Chrome de navigation du Layout App — ENSEIGNANT.
  *
  * Composant séparé d'AppSidebar plutôt qu'un `if (role)` : les deux rôles n'ont
  * aucun item de navigation en commun et le contrat de design décrit un usage
@@ -71,7 +71,7 @@ export function AppSidebarEnseignant() {
           <DropdownMenuContent align="start" side="top">
             <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {/* Le rôle ADMIN n'a pas de fiche profil étudiant à éditer ici :
+            {/* Le rôle ENSEIGNANT n'a pas de fiche profil étudiant à éditer ici :
                 pas de Paramètres pour l'instant, seulement la déconnexion. */}
             <DropdownMenuItem onClick={handleLogout}>Déconnexion</DropdownMenuItem>
           </DropdownMenuContent>

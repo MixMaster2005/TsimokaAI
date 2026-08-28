@@ -3,13 +3,14 @@ import { useNavigate } from '@tanstack/react-router';
 
 import { apiClient } from '@/lib/api-client';
 import { clearTokens } from '@/lib/auth-tokens';
-import type { User } from '../types';
+import type { UpdateProfilePayload, User } from '../types';
 
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: { displayName: string }) => apiClient.patch<User>('/api/v1/users/me', payload),
+    mutationFn: (payload: UpdateProfilePayload) =>
+      apiClient.patch<User>('/api/v1/users/me', payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['auth', 'session'] });
     },

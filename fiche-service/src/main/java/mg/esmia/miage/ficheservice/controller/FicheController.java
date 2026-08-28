@@ -8,8 +8,8 @@ import mg.esmia.miage.common.exception.ForbiddenException;
 import mg.esmia.miage.common.response.ApiResponse;
 import mg.esmia.miage.ficheservice.dto.FicheResponse;
 import mg.esmia.miage.ficheservice.dto.GenerateFicheRequest;
+import mg.esmia.miage.ficheservice.dto.PartageFicheResponse;
 import mg.esmia.miage.ficheservice.dto.ShareFicheRequest;
-import mg.esmia.miage.ficheservice.entity.PartageFiche;
 import mg.esmia.miage.ficheservice.service.FicheService;
 import mg.esmia.miage.ficheservice.service.ShareService;
 import org.springframework.http.HttpStatus;
@@ -75,13 +75,13 @@ public class FicheController {
 
     @PostMapping("/{id}/share")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<PartageFiche> share(@PathVariable UUID id, @RequestBody ShareFicheRequest request) {
+    public ApiResponse<PartageFicheResponse> share(@PathVariable UUID id, @Valid @RequestBody ShareFicheRequest request) {
         UserContext ctx = authenticated();
         return ApiResponse.success(shareService.share(id, UUID.fromString(ctx.userId()), request), ctx.requestId());
     }
 
     @GetMapping("/{id}/share")
-    public ApiResponse<List<PartageFiche>> listShares(@PathVariable UUID id) {
+    public ApiResponse<List<PartageFicheResponse>> listShares(@PathVariable UUID id) {
         UserContext ctx = authenticated();
         return ApiResponse.success(shareService.listShares(id), ctx.requestId());
     }

@@ -75,10 +75,15 @@ public class SpaceService {
         Map<UUID, SpaceResponse> result = new LinkedHashMap<>();
         spaceRepository.findByUserId(userId)
                 .forEach(s -> result.put(s.getId(), SpaceResponse.from(s, userId)));
-        membreSpaceRepository.findByUserId(userId).stream()
-                .map(m -> spaceRepository.findById(m.getSpaceId()))
-                .flatMap(o -> o.stream())
-                .forEach(s -> result.computeIfAbsent(s.getId(), id -> SpaceResponse.from(s, userId)));
+        // M3 : batch query au lieu de N× findById
+        List<UUID> memberSpaceIds = membreSpaceRepository.findByUserId(userId).stream()
+                .map(MembreSpace::getSpaceId)
+                .filter(id -> !result.containsKey(id))
+                .toList();
+        if (!memberSpaceIds.isEmpty()) {
+            spaceRepository.findByIdIn(memberSpaceIds)
+                    .forEach(s -> result.put(s.getId(), SpaceResponse.from(s, userId)));
+        }
         return new ArrayList<>(result.values());
     }
 

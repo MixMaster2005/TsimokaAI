@@ -41,11 +41,13 @@ public class AuthService {
         if (userRepository.existsByEmail(request.email())) {
             throw new ConflictException("Un compte existe déjà avec cet email");
         }
+        // H1 : le rôle est toujours STUDENT à l'inscription.
+        // Le choix Étudiant/Enseignant se fait via l'onboarding (PATCH /me).
         User user = User.builder()
                 .email(request.email())
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .displayName(request.displayName())
-                .role(request.role() == null ? User.Role.STUDENT : request.role())
+                .role(User.Role.STUDENT)
                 .build();
         user = userRepository.save(user);
         return buildAuthResponse(user);

@@ -10,6 +10,7 @@ import java.util.UUID;
 public interface ProgressionEtudiantRepository extends JpaRepository<ProgressionEtudiant, UUID> {
     Optional<ProgressionEtudiant> findByUserIdAndSpaceId(UUID userId, UUID spaceId);
     List<ProgressionEtudiant> findBySpaceId(UUID spaceId);
+    long countBySpaceId(UUID spaceId);
     void deleteBySpaceId(UUID spaceId);
     void deleteByUserId(UUID userId);
 }

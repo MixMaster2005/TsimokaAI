@@ -4,14 +4,14 @@ import { AppSidebarEnseignant } from '@/components/shared/AppSidebarEnseignant';
 import { sessionQueryOptions } from '@/features/auth/api/use-session';
 
 /**
- * `enseignant` = layout PRÉFIXÉ du rôle ADMIN (enseignant), distinct de `_app`
+ * `enseignant` = layout PRÉFIXÉ du rôle ENSEIGNANT, distinct de `_app`
  * (étudiant). Préfixé volontairement (pas pathless sans `_`) : deux layouts
  * pathless produiraient des chemins complets identiques et un conflit au
  * générateur de routes, comme pour le compromis `/` vs `/accueil`.
  *
  * Le guard est BILATÉRAL :
- *   - ici, un non-ADMIN repart vers l'app étudiant (`/`) ;
- *   - dans `_app`, un ADMIN est redirigé vers `/enseignant`.
+ *   - ici, un non-ENSEIGNANT repart vers l'app étudiant (`/`) ;
+ *   - dans `_app`, un ENSEIGNANT est redirigé vers `/enseignant`.
  */
 export const Route = createFileRoute('/enseignant')({
   beforeLoad: async ({ context: { queryClient } }) => {
@@ -21,7 +21,7 @@ export const Route = createFileRoute('/enseignant')({
     } catch {
       throw redirect({ to: '/connexion' });
     }
-    if (session.role !== 'ADMIN') {
+    if (session.role !== 'ENSEIGNANT') {
       throw redirect({ to: '/' });
     }
   },

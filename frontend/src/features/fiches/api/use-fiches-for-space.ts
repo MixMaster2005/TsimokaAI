@@ -5,7 +5,7 @@ import { ficheKeys } from './keys';
 import type { Fiche } from '../types';
 
 /**
- * Vue ENSEIGNANT (ADMIN) : toutes les fiches d'un espace, quel qu'en soit
+ * Vue ENSEIGNANT : toutes les fiches d'un espace, quel qu'en soit
  * l'auteur — GET /api/v1/fiches/espace/{spaceId} (403 pour un étudiant).
  * C'est la file de travail de validation.
  */

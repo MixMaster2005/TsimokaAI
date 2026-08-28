@@ -114,31 +114,31 @@ public class ChatService {
     }
 
     /**
-     * Le message ASSISTANT est normalement déjà persisté par {@code MessageChatMemoryAdvisor.after()}
+     * M5 : Le message ASSISTANT est normalement déjà persisté par {@code MessageChatMemoryAdvisor.after()}
      * (via {@link JpaBackedChatMemory}, contenu identique) : on l'enrichit alors avec
      * retrievedChunkIds + modelUsed. S'il n'existe pas (fallback circuit breaker, l'advisor n'a
      * pas tourné), on le persiste ici-même.
      */
     private Message findOrPersistAssistant(Conversation conversation, LlmOutcome outcome) {
-        List<Message> history = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getId());
-        for (int i = history.size() - 1; i >= 0; i--) {
-            Message message = history.get(i);
-            if (message.getRole() == Message.Role.ASSISTANT && message.getContent().equals(outcome.content())) {
-                message.setRetrievedChunkIds(outcome.chunkIds());
-                message.setModelUsed(outcome.modelUsed());
-                message.setCitations(outcome.citations());
-                return messageRepository.save(message);
-            }
-        }
-        Message assistantMessage = Message.builder()
-                .conversationId(conversation.getId())
-                .role(Message.Role.ASSISTANT)
-                .content(outcome.content())
-                .retrievedChunkIds(outcome.chunkIds())
-                .modelUsed(outcome.modelUsed())
-                .citations(outcome.citations())
-                .build();
-        return messageRepository.save(assistantMessage);
+        // M5 : requête ciblée au lieu de charger tout l'historique
+        return messageRepository.findLastAssistantByContent(conversation.getId(), outcome.content())
+                .map(existing -> {
+                    existing.setRetrievedChunkIds(outcome.chunkIds());
+                    existing.setModelUsed(outcome.modelUsed());
+                    existing.setCitations(outcome.citations());
+                    return messageRepository.save(existing);
+                })
+                .orElseGet(() -> {
+                    Message assistantMessage = Message.builder()
+                            .conversationId(conversation.getId())
+                            .role(Message.Role.ASSISTANT)
+                            .content(outcome.content())
+                            .retrievedChunkIds(outcome.chunkIds())
+                            .modelUsed(outcome.modelUsed())
+                            .citations(outcome.citations())
+                            .build();
+                    return messageRepository.save(assistantMessage);
+                });
     }
 
     private void publishMessageCreated(Conversation conversation, Message message) {

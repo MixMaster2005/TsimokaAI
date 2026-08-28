@@ -40,7 +40,7 @@ public class GroupeController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<MembreGroupeResponse> addMembre(@PathVariable UUID groupeId, @Valid @RequestBody AddMembreRequest request) {
         UserContext ctx = authenticated();
-        return ApiResponse.success(groupeService.addMembre(groupeId, request), ctx.requestId());
+        return ApiResponse.success(groupeService.addMembre(groupeId, UUID.fromString(ctx.userId()), request), ctx.requestId());
     }
 
     @GetMapping("/api/v1/groupes/{groupeId}/membres")
@@ -52,7 +52,7 @@ public class GroupeController {
     @DeleteMapping("/api/v1/groupes/{groupeId}")
     public ApiResponse<Void> delete(@PathVariable UUID groupeId) {
         UserContext ctx = authenticated();
-        groupeService.delete(groupeId);
+        groupeService.delete(groupeId, UUID.fromString(ctx.userId()));
         return ApiResponse.success(null, ctx.requestId());
     }
 

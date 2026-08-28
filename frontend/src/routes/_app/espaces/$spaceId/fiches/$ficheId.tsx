@@ -34,8 +34,8 @@ function FicheDetail() {
       <div>
         <FicheCard fiche={fiche} subjectTag={space?.subjectTag} />
         {/* Partage : réservé au propriétaire de la fiche côté back (403 sinon).
-            L'enseignant (ADMIN) n'a pas à partager les fiches de ses étudiants. */}
-        {session?.role !== 'ADMIN' && (
+            L'enseignant n'a pas à partager les fiches de ses étudiants. */}
+        {session?.role !== 'ENSEIGNANT' && (
           <div className="mt-3">
             <ShareFicheModal
               ficheId={ficheId}

@@ -12,7 +12,7 @@ public record UserContext(String userId, String role, String requestId) {
     public static final String HEADER_REQUEST_ID = "X-Request-Id";
 
     public boolean isAdmin() {
-        return "ADMIN".equalsIgnoreCase(role) || "ENSEIGNANT".equalsIgnoreCase(role);
+        return "ENSEIGNANT".equalsIgnoreCase(role);
     }
 
     public boolean owns(String resourceOwnerId) {

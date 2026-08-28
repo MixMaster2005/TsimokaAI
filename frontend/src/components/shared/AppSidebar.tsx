@@ -22,7 +22,7 @@ import { clearTokens } from '@/lib/auth-tokens';
  * est actif, contraste normal avec les pages Papier sinon, comme Notion/Linear).
  *
  * ⚠️ Existe en deux variantes : celle-ci pour STUDENT. Une AppSidebarEnseignant
- * séparée est à écrire pour ADMIN (nav différente — cf. cartographie UI C.2),
+ * séparée est à écrire pour ENSEIGNANT (nav différente — cf. cartographie UI C.2),
  * pas un simple `if (role)` dans ce fichier : les deux rôles n'ont presque
  * aucun item de nav en commun, autant garder deux composants lisibles.
  */

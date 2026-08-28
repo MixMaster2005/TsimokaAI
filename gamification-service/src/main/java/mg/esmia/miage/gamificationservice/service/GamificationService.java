@@ -39,8 +39,8 @@ public class GamificationService {
 
         awardBadgeIfAbsent(userId, BadgeCode.PREMIERE_FICHE);
 
-        long totalFiches = suiviRepository.findByUserIdAndSpaceId(userId, spaceId).stream()
-                .mapToInt(SuiviHebdomadaire::getNbFichesGenerees).sum();
+        // M7 : somme agrégée au lieu de charger toutes les lignes suivi
+        long totalFiches = suiviRepository.sumNbFichesGenereesByUserIdAndSpaceId(userId, spaceId);
         if (totalFiches >= 5) {
             awardBadgeIfAbsent(userId, BadgeCode.CINQ_FICHES);
         }

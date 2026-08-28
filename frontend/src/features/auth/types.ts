@@ -4,7 +4,7 @@
  * bougent côté back, ce fichier est le seul endroit à mettre à jour côté front).
  */
 
-export type UserRole = 'STUDENT' | 'ADMIN';
+export type UserRole = 'STUDENT' | 'ENSEIGNANT';
 
 export interface User {
   id: string; // UUID
@@ -30,5 +30,9 @@ export interface RegisterPayload {
   email: string;
   password: string;
   displayName: string;
-  role?: UserRole; // cf. le point ouvert dans la cartographie UI sur le mécanisme d'attribution du rôle
+}
+
+export interface UpdateProfilePayload {
+  displayName?: string;
+  role?: UserRole;
 }

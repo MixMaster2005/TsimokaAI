@@ -2,12 +2,14 @@ package mg.esmia.miage.ficheservice.service;
 
 import lombok.RequiredArgsConstructor;
 import mg.esmia.miage.common.exception.BadRequestException;
+import mg.esmia.miage.ficheservice.dto.PartageFicheResponse;
 import mg.esmia.miage.ficheservice.dto.ShareFicheRequest;
 import mg.esmia.miage.ficheservice.entity.PartageFiche;
 import mg.esmia.miage.ficheservice.repository.PartageFicheRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -18,7 +20,7 @@ public class ShareService {
     private final FicheService ficheService;
 
     @Transactional
-    public PartageFiche share(UUID ficheId, UUID partagePar, ShareFicheRequest request) {
+    public PartageFicheResponse share(UUID ficheId, UUID partagePar, ShareFicheRequest request) {
         var fiche = ficheService.findOrThrow(ficheId);
         ficheService.assertOwnerOrAdmin(fiche, partagePar, false);
 
@@ -31,10 +33,12 @@ public class ShareService {
                 .destinataireId(request.destinataireId())
                 .partagePar(partagePar)
                 .build();
-        return partageFicheRepository.save(partage);
+        return PartageFicheResponse.from(partageFicheRepository.save(partage));
     }
 
-    public java.util.List<PartageFiche> listShares(UUID ficheId) {
-        return partageFicheRepository.findByFicheId(ficheId);
+    public List<PartageFicheResponse> listShares(UUID ficheId) {
+        return partageFicheRepository.findByFicheId(ficheId).stream()
+                .map(PartageFicheResponse::from)
+                .toList();
     }
 }

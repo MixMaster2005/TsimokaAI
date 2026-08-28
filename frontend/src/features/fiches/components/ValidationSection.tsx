@@ -11,12 +11,12 @@ import type { ValidationStatut } from '../types';
  *
  * Le tampon suit le contrat de design : VALIDÉE / À REVOIR en Plex Mono
  * majuscules, légèrement pivoté, en --succes / --attention (jamais rouge/vert
- * alarmiste). Les boutons de verdict ne s'affichent que pour le rôle ADMIN :
+ * alarmiste). Les boutons de verdict ne s'affichent que pour le rôle ENSEIGNANT :
  * l'endpoint renvoie 403 pour tout autre rôle.
  */
 export function ValidationSection({ ficheId }: { ficheId: string }) {
   const { data: session } = useSession();
-  const isTeacher = session?.role === 'ADMIN';
+  const isTeacher = session?.role === 'ENSEIGNANT';
   const { data: validation } = useQuery(validationQueryOptions(ficheId));
   const validateFiche = useValidateFiche(ficheId);
   const [commentaire, setCommentaire] = useState('');

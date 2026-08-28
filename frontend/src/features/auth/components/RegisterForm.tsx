@@ -8,10 +8,10 @@ import { useRegister } from '../api/use-register';
 
 /**
  * ⚠️ Point ouvert (cf. cartographie UI, Layout Public) : ce formulaire
- * n'expose PAS de choix de rôle STUDENT/ADMIN — l'inscription crée
+ * n'expose PAS de choix de rôle — l'inscription crée
  * toujours un STUDENT par défaut (cohérent avec RegisterRequest côté back
- * qui rend `role` optionnel). Si vous tranchez pour un choix explicite à
- * l'inscription, ajoutez un <select> ici et passez `role` dans le payload.
+ * qui ne contient pas de champ role). Le choix Étudiant/Enseignant se fait
+ * lors de l'onboarding (PATCH /me avec role).
  */
 export function RegisterForm() {
   const [email, setEmail] = useState('');

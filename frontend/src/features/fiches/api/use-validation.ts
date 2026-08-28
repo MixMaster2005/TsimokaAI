@@ -19,7 +19,7 @@ export const validationQueryOptions = (ficheId: string) =>
   });
 
 /**
- * Valide ou rejette la fiche — PUT réservé aux enseignants (ADMIN) côté back
+ * Valide ou rejette la fiche — PUT réservé aux enseignants côté back
  * (403 sinon). La validation est unique par fiche : un nouveau verdict écrase
  * l'ancien (statut + commentaire + date).
  */

@@ -112,7 +112,8 @@ public class AnalyticsService {
         List<ChapitreDifficileResponse> chapitres = chapitreDifficileRepository
                 .findBySpaceIdOrderByScoreDifficulteDesc(spaceId).stream()
                 .limit(10).map(ChapitreDifficileResponse::from).toList();
-        int nbEtudiantsActifs = progressionRepository.findBySpaceId(spaceId).size();
+        // M6 : COUNT query au lieu de charger toutes les entités en mémoire
+        int nbEtudiantsActifs = (int) progressionRepository.countBySpaceId(spaceId);
 
         return new TeacherDashboardResponse(spaceId, notions, chapitres, nbEtudiantsActifs);
     }

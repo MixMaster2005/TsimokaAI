@@ -6,7 +6,7 @@ import { useSession } from '@/features/auth/api/use-session';
 /**
  * Layout D — Espace partagé entre les deux rôles.
  * L'onglet Paramètres n'est visible que pour le propriétaire (créateur) de
- * l'espace, indépendamment du rôle global (STUDENT/ADMIN) — cf. cartographie
+ * l'espace, indépendamment du rôle global (STUDENT/ENSEIGNANT) — cf. cartographie
  * UI D : "créateur = propriétaire de l'espace".
  */
 export const Route = createFileRoute('/_app/espaces/$spaceId')({

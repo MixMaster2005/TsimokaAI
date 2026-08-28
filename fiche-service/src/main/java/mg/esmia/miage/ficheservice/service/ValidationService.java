@@ -5,6 +5,7 @@ import mg.esmia.miage.common.events.EventChannels;
 import mg.esmia.miage.common.events.FicheEvent;
 import mg.esmia.miage.common.messaging.RedisEventPublisher;
 import mg.esmia.miage.ficheservice.dto.ValidateFicheRequest;
+import mg.esmia.miage.ficheservice.dto.ValidationResponse;
 import mg.esmia.miage.ficheservice.entity.ValidationFiche;
 import mg.esmia.miage.ficheservice.repository.ValidationFicheRepository;
 import org.springframework.stereotype.Service;
@@ -21,7 +22,7 @@ public class ValidationService {
     private final RedisEventPublisher eventPublisher;
 
     @Transactional
-    public ValidationFiche validate(UUID ficheId, UUID enseignantId, ValidateFicheRequest request) {
+    public ValidationResponse validate(UUID ficheId, UUID enseignantId, ValidateFicheRequest request) {
         ValidationFiche validation = validationFicheRepository.findByFicheId(ficheId)
                 .orElseGet(() -> ValidationFiche.builder().ficheId(ficheId).build());
 
@@ -35,11 +36,12 @@ public class ValidationService {
         eventPublisher.publish(EventChannels.FICHE_EVENTS,
                 FicheEvent.validated(ficheId.toString(), enseignantId.toString(), request.statut().name()));
 
-        return validation;
+        return ValidationResponse.from(validation);
     }
 
-    public ValidationFiche getByFiche(UUID ficheId) {
-        return validationFicheRepository.findByFicheId(ficheId)
+    public ValidationResponse getByFiche(UUID ficheId) {
+        ValidationFiche validation = validationFicheRepository.findByFicheId(ficheId)
                 .orElse(ValidationFiche.builder().ficheId(ficheId).statut(ValidationFiche.Statut.EN_ATTENTE).build());
+        return ValidationResponse.from(validation);
     }
 }

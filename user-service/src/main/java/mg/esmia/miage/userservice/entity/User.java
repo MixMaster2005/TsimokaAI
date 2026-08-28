@@ -48,7 +48,8 @@ public class User {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
+    /** STUDENT ou ENSEIGNANT (enseignant). Pas de rôle ADMIN séparé. */
     public enum Role {
-        STUDENT, ADMIN
+        STUDENT, ENSEIGNANT
     }
 }
