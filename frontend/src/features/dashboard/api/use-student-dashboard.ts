@@ -1,17 +1,18 @@
 import { queryOptions, useQueries, useQuery } from '@tanstack/react-query';
 
 import { apiClient } from '@/lib/api-client';
+import { dashboardKeys } from './keys';
 import type { Space } from '@/features/espaces/types';
 import type { StudentDashboard } from '../types';
 
 export const studentDashboardQueryOptions = (spaceId: string) =>
   queryOptions({
-    queryKey: ['dashboard', 'student', spaceId] as const,
+    queryKey: dashboardKeys.student(spaceId),
     queryFn: () => apiClient.get<StudentDashboard>(`/api/v1/dashboard/student?spaceId=${spaceId}`),
   });
 
 export function useStudentDashboard(spaceId: string) {
-  return useQuery(studentDashboardQueryOptions(spaceId));
+  return useQuery({ ...studentDashboardQueryOptions(spaceId), enabled: !!spaceId });
 }
 
 /**

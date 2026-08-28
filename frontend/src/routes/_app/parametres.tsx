@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useSession } from '@/features/auth/api/use-session';
-import { useDeleteAccount, useUpdateProfile } from '@/features/auth/api/use-update-profile';
+import { useUpdateProfile } from '@/features/auth/api/use-update-profile';
+import { useDeleteAccount } from '@/features/auth/api/use-delete-account';
 
 export const Route = createFileRoute('/_app/parametres')({
   component: Parametres,

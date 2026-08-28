@@ -1,9 +1,8 @@
-import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useQuery } from '@tanstack/react-query';
 
 import { apiClient } from '@/lib/api-client';
-import type { CreateRappelPayload, Rappel } from '../types';
-
-const rappelKeys = { mine: ['gamification', 'rappels'] as const };
+import { rappelKeys } from './keys';
+import type { Rappel } from '../types';
 
 export const rappelsQueryOptions = queryOptions({
   queryKey: rappelKeys.mine,
@@ -13,20 +12,4 @@ export const rappelsQueryOptions = queryOptions({
 /** Alimente la cloche de AppSidebar — transverse, tous espaces confondus. */
 export function useRappels() {
   return useQuery(rappelsQueryOptions);
-}
-
-export function useCreateRappel() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: CreateRappelPayload) => apiClient.post<Rappel>('/api/v1/rappels', payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: rappelKeys.mine }),
-  });
-}
-
-export function useDeleteRappel() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => apiClient.delete<void>(`/api/v1/rappels/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: rappelKeys.mine }),
-  });
 }

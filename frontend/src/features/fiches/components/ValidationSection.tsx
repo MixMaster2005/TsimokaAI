@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { useSession } from '@/features/auth/api/use-session';
-import { validationQueryOptions, useValidateFiche } from '../api/use-validation';
+import { useValidateFiche } from '../api/use-validate-fiche';
+import { validationQueryOptions } from '../api/validation-query-options';
 import type { ValidationStatut } from '../types';
 
 /**

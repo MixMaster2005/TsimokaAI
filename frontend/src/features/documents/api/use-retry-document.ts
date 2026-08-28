@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { apiClient } from '@/lib/api-client';
-import { documentsKeys } from './use-documents';
+import { documentsKeys } from './keys';
 import type { AppDocument } from '../types';
 
 export function useRetryDocument(spaceId: string) {

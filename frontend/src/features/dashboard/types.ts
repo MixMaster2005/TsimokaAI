@@ -25,3 +25,21 @@ export interface StudentDashboard {
   derniereActivite: string | null;
   recommandations: Recommandation[];
 }
+
+export interface NotionStat {
+  notion: string;
+  nbConsultations: number;
+  nbQuestions: number;
+}
+
+export interface ChapitreDifficile {
+  chapitre: string;
+  scoreDifficulte: number;
+}
+
+export interface TeacherDashboard {
+  spaceId: string;
+  notionsLesPlusConsultees: NotionStat[];
+  chapitresDifficiles: ChapitreDifficile[];
+  nbEtudiantsActifs: number;
+}

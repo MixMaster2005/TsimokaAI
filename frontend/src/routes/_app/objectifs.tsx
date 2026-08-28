@@ -5,11 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge as StatutBadge } from '@/components/ui/badge';
 import { useEspaces } from '@/features/espaces/api/use-espaces';
-import {
-  useCreateObjectif,
-  useObjectifs,
-  useUpdateObjectifStatut,
-} from '@/features/objectifs/api/use-objectifs';
+import { useObjectifs } from '@/features/objectifs/api/use-objectifs';
+import { useCreateObjectif } from '@/features/objectifs/api/use-create-objectif';
+import { useUpdateObjectifStatut } from '@/features/objectifs/api/use-update-objectif-statut';
 import { useBadges } from '@/features/gamification/api/use-badges';
 import { useRappels } from '@/features/gamification/api/use-rappels';
 import type { StatutObjectif } from '@/features/objectifs/types';

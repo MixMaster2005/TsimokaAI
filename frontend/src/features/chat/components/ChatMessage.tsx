@@ -1,4 +1,4 @@
-import { useChalkReveal } from '../lib/use-chalk-reveal';
+import { useChalkReveal } from './use-chalk-reveal';
 import { CitationChips } from './CitationChips';
 import { MessageRenderer } from './MessageRenderer';
 import type { Message } from '../types';

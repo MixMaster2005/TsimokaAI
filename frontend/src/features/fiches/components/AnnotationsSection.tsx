@@ -2,7 +2,8 @@ import { useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useAddAnnotation, annotationsQueryOptions } from '../api/use-annotations';
+import { useAddAnnotation } from '../api/use-add-annotation';
+import { annotationsQueryOptions } from '../api/annotations-query-options';
 import type { Annotation } from '../types';
 import { useQuery } from '@tanstack/react-query';
 

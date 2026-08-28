@@ -1,11 +1,14 @@
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 
-import { useEspace } from '@/features/espaces/api/use-espace';
+import { useEspace, espaceQueryOptions } from '@/features/espaces/api/use-espace';
 import { fichesForSpaceQueryOptions, useFichesForSpace } from '@/features/fiches/api/use-fiches-for-space';
 
 export const Route = createFileRoute('/enseignant/espaces/$spaceId/')({
   loader: ({ context: { queryClient }, params }) =>
-    queryClient.ensureQueryData(fichesForSpaceQueryOptions(params.spaceId)),
+    Promise.all([
+      queryClient.ensureQueryData(fichesForSpaceQueryOptions(params.spaceId)),
+      queryClient.ensureQueryData(espaceQueryOptions(params.spaceId)),
+    ]),
   component: FichesEspaceEnseignant,
 });
 

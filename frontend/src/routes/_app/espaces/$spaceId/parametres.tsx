@@ -5,11 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { apiClient } from '@/lib/api-client';
-import { useEspace } from '@/features/espaces/api/use-espace';
-import { useDeleteEspace, useUpdateEspace } from '@/features/espaces/api/use-update-espace';
+import { useEspace, espaceQueryOptions } from '@/features/espaces/api/use-espace';
+import { useUpdateEspace } from '@/features/espaces/api/use-update-espace';
+import { useDeleteEspace } from '@/features/espaces/api/use-delete-espace';
 import { sessionQueryOptions } from '@/features/auth/api/use-session';
-import type { Space } from '@/features/espaces/types';
 
 /**
  * Guard créateur/propriétaire : seuls les utilisateurs dont le userId
@@ -18,8 +17,10 @@ import type { Space } from '@/features/espaces/types';
  */
 export const Route = createFileRoute('/_app/espaces/$spaceId/parametres')({
   beforeLoad: async ({ context: { queryClient }, params }) => {
-    const session = await queryClient.ensureQueryData(sessionQueryOptions);
-    const space = await apiClient.get<Space>(`/api/v1/spaces/${params.spaceId}`);
+    const [session, space] = await Promise.all([
+      queryClient.ensureQueryData(sessionQueryOptions),
+      queryClient.ensureQueryData(espaceQueryOptions(params.spaceId)),
+    ]);
     if (space.userId !== session.id) {
       throw redirect({ to: '/espaces/$spaceId/fiches', params: { spaceId: params.spaceId } });
     }

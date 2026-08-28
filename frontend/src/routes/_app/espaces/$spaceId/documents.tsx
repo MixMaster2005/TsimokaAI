@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { documentsBySpaceQueryOptions, useDocuments } from '@/features/documents/api/use-documents';
 import { useUploadDocument } from '@/features/documents/api/use-upload-document';
 import { useRetryDocument } from '@/features/documents/api/use-retry-document';
+import { useDeleteDocument } from '@/features/documents/api/use-delete-document';
 import type { DocumentStatus } from '@/features/documents/types';
 
 export const Route = createFileRoute('/_app/espaces/$spaceId/documents')({
@@ -26,6 +27,7 @@ function Documents() {
   const { data: documents } = useDocuments(spaceId);
   const uploadDocument = useUploadDocument(spaceId);
   const retryDocument = useRetryDocument(spaceId);
+  const deleteDocument = useDeleteDocument(spaceId);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
@@ -69,6 +71,20 @@ function Documents() {
                   onClick={() => retryDocument.mutate(doc.id)}
                 >
                   Réessayer
+                </Button>
+              )}
+              {(doc.status === 'READY' || doc.status === 'FAILED') && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={deleteDocument.isPending}
+                  onClick={() => {
+                    if (window.confirm(`Supprimer le document « ${doc.filename} » ?`)) {
+                      deleteDocument.mutate(doc.id);
+                    }
+                  }}
+                >
+                  Supprimer
                 </Button>
               )}
               <Badge variant={STATUS_VARIANT[doc.status]}>{doc.status}</Badge>

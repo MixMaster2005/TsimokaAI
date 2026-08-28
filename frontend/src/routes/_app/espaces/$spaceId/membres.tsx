@@ -4,21 +4,21 @@ import { createFileRoute, useParams } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import {
-  useInviteCode,
-  useRegenerateInviteCode,
-  useRemoveMembre,
-} from '@/features/espaces/api/use-invite-code';
+import { useInviteCode } from '@/features/espaces/api/use-invite-code';
+import { useRegenerateInviteCode } from '@/features/espaces/api/use-regenerate-invite-code';
+import { useRemoveMembre } from '@/features/espaces/api/use-remove-membre';
 import { useEspace } from '@/features/espaces/api/use-espace';
 import { membresQueryOptions, useMembres } from '@/features/espaces/api/use-membres';
-import { groupesBySpaceQueryOptions, useCreateGroupe, useGroupes } from '@/features/groupes/api/use-groupes';
+import { groupesBySpaceQueryOptions } from '@/features/groupes/api/keys';
+import { useCreateGroupe } from '@/features/groupes/api/use-create-groupe';
+import { useGroupes } from '@/features/groupes/api/use-groupes';
 
 export const Route = createFileRoute('/_app/espaces/$spaceId/membres')({
-  loader: ({ context: { queryClient }, params }) => {
-    // Les groupes et les membres partagent cette page : on précharge les deux.
-    queryClient.ensureQueryData(groupesBySpaceQueryOptions(params.spaceId));
-    return queryClient.ensureQueryData(membresQueryOptions(params.spaceId));
-  },
+  loader: ({ context: { queryClient }, params }) =>
+    Promise.all([
+      queryClient.ensureQueryData(groupesBySpaceQueryOptions(params.spaceId)),
+      queryClient.ensureQueryData(membresQueryOptions(params.spaceId)),
+    ]),
   component: Membres,
 });
 

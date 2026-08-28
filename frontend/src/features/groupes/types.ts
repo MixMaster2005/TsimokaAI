@@ -27,3 +27,8 @@ export interface CreateGroupePayload {
   nom: string;
   description?: string;
 }
+
+export interface AddMembrePayload {
+  userId: string;
+  roleGroupe?: RoleGroupe;
+}

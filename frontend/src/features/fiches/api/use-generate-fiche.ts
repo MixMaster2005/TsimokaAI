@@ -17,6 +17,7 @@ export function useGenerateFiche() {
     mutationFn: (payload: GenerateFichePayload) => apiClient.post<Fiche>('/api/v1/fiches/generate', payload),
     onSuccess: (fiche) => {
       queryClient.invalidateQueries({ queryKey: ficheKeys.bySpace(fiche.spaceId) });
+      queryClient.invalidateQueries({ queryKey: ficheKeys.mine() });
     },
   });
 }

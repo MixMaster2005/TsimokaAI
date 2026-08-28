@@ -1,13 +1,17 @@
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 
-import { useEspace } from '@/features/espaces/api/use-espace';
+import { useEspace, espaceQueryOptions } from '@/features/espaces/api/use-espace';
 import { AnnotationsSection } from '@/features/fiches/components/AnnotationsSection';
 import { FicheCard } from '@/features/fiches/components/FicheCard';
 import { ValidationSection } from '@/features/fiches/components/ValidationSection';
 import { ficheQueryOptions, useFiche } from '@/features/fiches/api/use-fiche';
 
 export const Route = createFileRoute('/enseignant/espaces/$spaceId/fiches/$ficheId')({
-  loader: ({ context: { queryClient }, params }) => queryClient.ensureQueryData(ficheQueryOptions(params.ficheId)),
+  loader: ({ context: { queryClient }, params }) =>
+    Promise.all([
+      queryClient.ensureQueryData(ficheQueryOptions(params.ficheId)),
+      queryClient.ensureQueryData(espaceQueryOptions(params.spaceId)),
+    ]),
   component: FicheDetailEnseignant,
 });
 

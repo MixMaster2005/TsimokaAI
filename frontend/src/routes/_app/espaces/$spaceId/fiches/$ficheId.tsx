@@ -3,7 +3,7 @@ import { createFileRoute, useParams } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { useSession } from '@/features/auth/api/use-session';
 import { useMembres } from '@/features/espaces/api/use-membres';
-import { useEspace } from '@/features/espaces/api/use-espace';
+import { useEspace, espaceQueryOptions } from '@/features/espaces/api/use-espace';
 import { useGroupes } from '@/features/groupes/api/use-groupes';
 import { AnnotationsSection } from '@/features/fiches/components/AnnotationsSection';
 import { ShareFicheModal } from '@/features/fiches/components/ShareFicheModal';
@@ -12,7 +12,11 @@ import { FicheCard } from '@/features/fiches/components/FicheCard';
 import { ficheQueryOptions, useFiche } from '@/features/fiches/api/use-fiche';
 
 export const Route = createFileRoute('/_app/espaces/$spaceId/fiches/$ficheId')({
-  loader: ({ context: { queryClient }, params }) => queryClient.ensureQueryData(ficheQueryOptions(params.ficheId)),
+  loader: ({ context: { queryClient }, params }) =>
+    Promise.all([
+      queryClient.ensureQueryData(ficheQueryOptions(params.ficheId)),
+      queryClient.ensureQueryData(espaceQueryOptions(params.spaceId)),
+    ]),
   component: FicheDetail,
 });
 
