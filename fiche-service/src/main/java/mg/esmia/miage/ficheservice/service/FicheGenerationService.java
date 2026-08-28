@@ -102,7 +102,7 @@ public class FicheGenerationService {
         String content = chunks.stream()
                 .map(Document::getText)
                 .map(t -> t == null ? "" : t)
-                .map(t -> t.length() > MAX_CHUNK_CHARS ? t.substring(0, MAX_CHUNK_CHARS) : t)
+                .map(t -> smartTruncate(t, MAX_CHUNK_CHARS))
                 .collect(Collectors.joining("\n\n"));
         String mapPrompt = readPrompt(ficheMapPrompt)
                 .replace("{{DOCUMENT_ID}}", documentId == null ? "corpus de l'espace" : documentId.toString())
@@ -136,6 +136,30 @@ public class FicheGenerationService {
             log.warn("Retrieval des chunks indisponible (space={}, doc={}) : {}", spaceId, documentId, e.getMessage());
             return List.of();
         }
+    }
+
+    /** Troncature intelligente : cherche la dernière frontière de phrase avant la limite
+     *  pour ne pas couper au milieu d'une phrase (F2). */
+    private String smartTruncate(String text, int maxLength) {
+        if (text.length() <= maxLength) {
+            return text;
+        }
+        int limit = maxLength;
+        // Chercher la dernière frontière de phrase dans la zone autorisée
+        int lastSentence = Math.max(
+                Math.max(text.lastIndexOf(". ", limit), text.lastIndexOf("? ", limit)),
+                text.lastIndexOf("! ", limit));
+        if (lastSentence > maxLength / 2) {
+            limit = lastSentence + 1;
+        } else {
+            // Pas de frontière de phrase trouvée, chercher un paragraphe
+            int lastParagraph = text.lastIndexOf("\n\n", limit);
+            if (lastParagraph > maxLength / 2) {
+                limit = lastParagraph + 2;
+            }
+            // Sinon on coupe à la limite brute
+        }
+        return text.substring(0, limit);
     }
 
     private String serialize(FicheContent content) {

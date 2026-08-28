@@ -29,7 +29,12 @@ import java.util.regex.Pattern;
 @Slf4j
 public class LlmDocumentReranker implements DocumentReranker {
 
-    private static final Pattern TOKEN = Pattern.compile("\\[C(\\d+)]");
+    /** Regex insensible à la casse et tolérante aux espaces : [C0], [c0], [C 0]... */
+    private static final Pattern TOKEN = Pattern.compile("(?i)\\[C\\s*(\\d+)]");
+
+    /** Nombre max de candidats envoyés au LLM reranker (réduit de 40 à 15 pour limiter
+     *  le coût et la dilution d'attention — R2b). */
+    private static final int MAX_CANDIDATES_FOR_RERANK = 15;
 
     private final ChatProviderResolver chatProviderResolver;
 
@@ -41,8 +46,10 @@ public class LlmDocumentReranker implements DocumentReranker {
         if (candidates.size() <= topN) {
             return candidates;
         }
+        // Limiter les candidats envoyés au LLM pour réduire le coût (R2b)
+        List<Document> toRerank = candidates.subList(0, Math.min(MAX_CANDIDATES_FOR_RERANK, candidates.size()));
         try {
-            String prompt = buildPrompt(query, candidates);
+            String prompt = buildPrompt(query, toRerank);
             String answer = chatProviderResolver.current().prompt()
                     .system("Tu es un moteur de reranking. Classe les fragments de cours ci-dessous par "
                             + "pertinence à la question posée. Réponds UNIQUEMENT par la liste des tokens "
@@ -53,12 +60,12 @@ public class LlmDocumentReranker implements DocumentReranker {
             List<Integer> order = parseOrder(answer);
             if (order.size() < topN) {
                 log.warn("Rerank LLM ambigu ({} positions retournées pour {} candidats), repli sur topK brut",
-                        order.size(), candidates.size());
-                return candidates.subList(0, Math.min(topN, candidates.size()));
+                        order.size(), toRerank.size());
+                return toRerank.subList(0, Math.min(topN, toRerank.size()));
             }
             Map<Integer, Document> byIndex = new LinkedHashMap<>();
-            for (int i = 0; i < candidates.size(); i++) {
-                byIndex.put(i, candidates.get(i));
+            for (int i = 0; i < toRerank.size(); i++) {
+                byIndex.put(i, toRerank.get(i));
             }
             List<Document> ranked = new ArrayList<>();
             for (Integer idx : order) {
@@ -72,8 +79,8 @@ public class LlmDocumentReranker implements DocumentReranker {
             }
             return ranked;
         } catch (Exception e) {
-            log.warn("Rerank LLM échoué ({} candidats), repli sur topK brut : {}", candidates.size(), e.getMessage());
-            return candidates.subList(0, Math.min(topN, candidates.size()));
+            log.warn("Rerank LLM échoué ({} candidats), repli sur topK brut : {}", toRerank.size(), e.getMessage());
+            return toRerank.subList(0, Math.min(topN, toRerank.size()));
         }
     }
 

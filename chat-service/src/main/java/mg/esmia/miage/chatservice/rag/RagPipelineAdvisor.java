@@ -69,7 +69,7 @@ public class RagPipelineAdvisor implements CallAdvisor {
     @Value("${chat.retrieval.top-k:40}")
     private int retrievalTopK;
 
-    @Value("${chat.retrieval.similarity-threshold:0.5}")
+    @Value("${chat.retrieval.similarity-threshold:0.6}")
     private double retrievalSimilarityThreshold;
 
     @Value("${chat.max-retrieved-chunks:5}")
@@ -155,9 +155,10 @@ public class RagPipelineAdvisor implements CallAdvisor {
         if (docs == null || docs.isEmpty()) {
             return EMPTY_CONTEXT_MESSAGE.strip();
         }
-        String content = docs.stream()
-                .map(Document::getText)
-                .collect(Collectors.joining("\n\n"));
-        return SYSTEM_AUGMENT_TEMPLATE.formatted(content).strip();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < docs.size(); i++) {
+            sb.append("[").append(i + 1).append("] ").append(docs.get(i).getText()).append("\n\n");
+        }
+        return SYSTEM_AUGMENT_TEMPLATE.formatted(sb.toString().strip()).strip();
     }
 }

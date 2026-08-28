@@ -16,6 +16,8 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -46,10 +48,17 @@ public class PersonaService {
     private static final String GENERIC_PERSONA_TEMPLATE = """
             Tu es un assistant pédagogique spécialisé en %s. Adopte un registre disciplinaire \
             rigoureux, structure tes réponses avec des définitions précises et des exemples \
-            concrets. (Persona générique — la génération LLM est indisponible.)
+            concrets.
             """;
 
     private static final int MAX_CHUNK_CHARS = 800;
+
+    /** Nombre maximum d'enrichissements du persona par espace (S2). Au-delà, le persona est
+     *  considéré comme mature et n'est plus modifié. */
+    private static final int MAX_ENRICHMENTS_PER_SPACE = 3;
+
+    /** Compteur d'enrichissements par espace (en mémoire — pas persisté, réinitialisé au redémarrage). */
+    private final ConcurrentHashMap<String, AtomicInteger> enrichmentCounters = new ConcurrentHashMap<>();
 
     private final ChatProviderResolver chatProviderResolver;
     private final VectorStore vectorStore;
@@ -60,7 +69,7 @@ public class PersonaService {
     @Value("classpath:prompts/persona-enrichment.st")
     private Resource personaEnrichmentPrompt;
 
-    @Value("${persona.sample-size:8}")
+    @Value("${persona.sample-size:15}")
     private int sampleSize;
 
     @CircuitBreaker(name = "llm-persona", fallbackMethod = "fallbackGenerate")
@@ -87,6 +96,15 @@ public class PersonaService {
 
     @CircuitBreaker(name = "llm-persona", fallbackMethod = "fallbackEnrich")
     public String enrichPersonaAfterIngestion(String currentPersona, UUID spaceId, String documentId, int chunkCount) {
+        // S2 : limiter le nombre d'enrichissements par espace
+        String key = spaceId.toString();
+        AtomicInteger counter = enrichmentCounters.computeIfAbsent(key, k -> new AtomicInteger(0));
+        if (counter.get() >= MAX_ENRICHMENTS_PER_SPACE) {
+            log.info("Persona de l'espace {} déjà enrichi {} fois, pas d'enrichissement supplémentaire",
+                    spaceId, MAX_ENRICHMENTS_PER_SPACE);
+            return currentPersona;
+        }
+
         List<Document> sample = sampleChunks(spaceId, documentId, chunkCount);
         if (sample.isEmpty()) {
             log.warn("Aucun chunk retrievé pour le document {} de l'espace {}, persona inchangé", documentId, spaceId);
@@ -101,10 +119,13 @@ public class PersonaService {
                 .replace("{{CHUNKS}}", chunks);
         String enriched = chatProviderResolver.current().prompt()
                 .system("Tu enrichis l'instruction système d'un assistant pédagogique. "
-                        + "Réponds uniquement avec la nouvelle instruction système complète, en français.")
+                        + "Réponds uniquement avec la nouvelle instruction système complète.")
                 .user(prompt)
                 .call()
                 .content();
+        if (enriched != null && !enriched.isBlank()) {
+            counter.incrementAndGet();
+        }
         return (enriched == null || enriched.isBlank()) ? currentPersona : enriched.strip();
     }
 

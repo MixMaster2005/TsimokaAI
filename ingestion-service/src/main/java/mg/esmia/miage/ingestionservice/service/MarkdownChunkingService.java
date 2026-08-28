@@ -34,15 +34,21 @@ public class MarkdownChunkingService {
     /** Chevauchement entre chunks consécutifs (tokens) — utilisé uniquement par la découpe
      *  de secours des sections surdimensionnées (un titre ne se chevauche jamais). */
     private static final int CHUNK_OVERLAP_TOKENS = 50;
-    /** Heuristique simpliste tokens ≈ caractères / 4 (pas de tokenizer dédié). */
-    private static final int CHARS_PER_TOKEN = 4;
+    /** Heuristique simpliste tokens ≈ caractères / 3 (pas de tokenizer dédié).
+     *  3 chars/token est plus réaliste pour le français (vs. 4 pour l'anglais). */
+    private static final int CHARS_PER_TOKEN = 3;
 
     private static final int MAX_CHUNK_CHARS = CHUNK_SIZE_TOKENS * CHARS_PER_TOKEN;
     private static final int OVERLAP_CHARS = CHUNK_OVERLAP_TOKENS * CHARS_PER_TOKEN;
+    /** Taille minimale d'un chunk (chars). Un chunk plus petit est fusionné avec le précédent. */
+    private static final int MIN_CHUNK_CHARS = 100;
     private static final int MAX_HEADING_LEVEL = 6;
 
     /** Ligne de titre Markdown : 1 à 6 {@code #} suivis d'un espace/tabulation. */
     private static final Pattern HEADING = Pattern.compile("(?m)^(#{1,6})[ \\t].*$");
+
+    /** Bloc fenced code : protège les titres à l'intérieur des blocs de code du scan. */
+    private static final Pattern FENCED_CODE = Pattern.compile("(?s)```.*?```");
 
     /** Section du Markdown issue d'un découpage : texte + drapeau « commence par un titre
      *  au niveau {@code childLevel} » (vs. préambule appartenant au titre parent). */
@@ -59,8 +65,47 @@ public class MarkdownChunkingService {
         if (markdown == null || markdown.isBlank()) {
             return chunks;
         }
-        chunkSection(normalize(markdown), 0, chunks);
-        return chunks;
+        chunkSection(stripCodeBlocks(normalize(markdown)), 0, chunks);
+        return mergeTinyChunks(chunks);
+    }
+
+    /**
+     * Remplace le contenu des blocs fenced code par des espaces de même longueur
+     * pour éviter les faux titres (C3). Les blocs de code sont rétablis dans le
+     * chunk final : seul le scan de titres est affecté, pas le contenu émis.
+     */
+    String stripCodeBlocks(String markdown) {
+        Matcher m = FENCED_CODE.matcher(markdown);
+        StringBuffer sb = new StringBuffer();
+        while (m.find()) {
+            String replaced = " ".repeat(m.group(0).length());
+            m.appendReplacement(sb, replaced);
+        }
+        m.appendTail(sb);
+        return sb.toString();
+    }
+
+    /**
+     * Fusionne les chunks trop petits avec le chunk précédent pour éviter les
+     * embeddings vides ou trop peu informatifs (C4).
+     */
+    private List<String> mergeTinyChunks(List<String> chunks) {
+        if (chunks.size() <= 1) {
+            return chunks;
+        }
+        List<String> merged = new ArrayList<>();
+        StringBuilder pending = new StringBuilder(chunks.get(0));
+        for (int i = 1; i < chunks.size(); i++) {
+            String current = chunks.get(i);
+            if (pending.length() < MIN_CHUNK_CHARS) {
+                pending.append("\n\n").append(current);
+            } else {
+                merged.add(pending.toString());
+                pending = new StringBuilder(current);
+            }
+        }
+        merged.add(pending.toString());
+        return merged;
     }
 
     /** Estimation grossière du nombre de tokens d'un texte (chars / 4, minimum 1). */

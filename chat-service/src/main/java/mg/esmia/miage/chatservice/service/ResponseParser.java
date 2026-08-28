@@ -41,10 +41,10 @@ public class ResponseParser {
 
     // --- Patterns ---
 
-    // Fenced code blocks : ```lang\n...``` ou ```\n...```
-    // Le langage peut être vide ou absent.
+    // Fenced code blocks : ```lang\n...``` ou ```lang...``` (P1: \n optionnel après ouverture)
+    // Le langage peut être vide ou absent. Backreference \1 pour matcher le même nombre de backticks.
     private static final Pattern FENCED_CODE = Pattern.compile(
-            "```(\\w*)\\s*\\n(.*?)```",
+            "(?m)(`{3,})(\\w*)[ \\t]*\\n?(.*?)\\1",
             Pattern.DOTALL
     );
 
@@ -55,9 +55,10 @@ public class ResponseParser {
     );
 
     // LaTeX inline : $...$ (pas de saut de ligne, pas de $$)
-    // Lookbehind/lookahead pour éviter de matcher les $$ ou les $ dans du code
+    // Lookbehind/lookahead pour éviter les $$ et les $ dans du code
+    // P3:(?!\d) exclut $10, $20 etc. (prix/montants) pour éviter les faux positifs
     private static final Pattern MATH_INLINE = Pattern.compile(
-            "(?<!\\$)\\$(?!\\$)([^$\\n]+?)\\$(?!\\$)"
+            "(?<!\\$)\\$(?!\\$)(?!\\d)([^$\\n]+?)\\$(?!\\$)"
     );
 
     // Images : ![alt](url)
@@ -80,8 +81,8 @@ public class ResponseParser {
 
         // 1. Détecter les fenced code blocks en priorité (contiennent tout le reste)
         extractSpans(rawContent, FENCED_CODE, spans, match -> {
-            String lang = match.group(1);
-            String code = match.group(2).strip();
+            String lang = match.group(2);
+            String code = match.group(3).strip();
             if ("mermaid".equalsIgnoreCase(lang)) {
                 return ContentBlock.mermaid(code);
             }
@@ -134,13 +135,17 @@ public class ResponseParser {
 
     /**
      * Construit la liste de blocs finaux en insérant du markdown brut
-     * entre les spans spéciaux.
+     * entre les spans spéciaux. P6: ignore les spans chevauchants (start < cursor).
      */
     private List<ContentBlock> buildBlocks(String text, List<Span> spans) {
         List<ContentBlock> blocks = new ArrayList<>();
         int cursor = 0;
 
         for (Span span : spans) {
+            // P6 : ignorer les spans déjà couverts par un bloc précédent
+            if (span.start < cursor) {
+                continue;
+            }
             // Ajouter le markdown brut avant ce span
             if (span.start > cursor) {
                 String between = text.substring(cursor, span.start).strip();
