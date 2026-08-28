@@ -49,6 +49,7 @@ public class ChatService {
     private final RedisEventPublisher eventPublisher;
     private final ChatLlmService chatLlmService;
     private final SpaceClient spaceClient;
+    private final ResponseParser responseParser;
 
     @Value("classpath:prompts/chat-system.st")
     private Resource chatSystemTemplate;
@@ -78,13 +79,13 @@ public class ChatService {
         // Les blocs structurés ne sont pas stockés en BDD (re-parsés à l'affichage si besoin)
         // mais sont inclus dans la réponse pour le rendu riche côté frontend.
         List<mg.esmia.miage.chatservice.dto.StructuredContent.ContentBlock> blocks =
-                outcome.structuredContent() != null ? outcome.structuredContent().blocks() : null;
+                blocksFor(assistantMessage, outcome.structuredContent());
         return MessageResponse.from(assistantMessage, blocks);
     }
 
     public List<MessageResponse> history(UUID conversationId) {
         return messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId).stream()
-                .map(MessageResponse::from).toList();
+                .map(message -> MessageResponse.from(message, blocksFor(message, null))).toList();
     }
 
     /**
@@ -144,5 +145,12 @@ public class ChatService {
         eventPublisher.publish(EventChannels.CHAT_EVENTS, ChatEvent.messageCreated(
                 message.getId().toString(), conversation.getId().toString(), conversation.getSpaceId().toString(),
                 conversation.getUserId().toString(), message.getRole().name(), message.getContent()));
+    }
+
+    private List<StructuredContent.ContentBlock> blocksFor(Message message, StructuredContent preParsed) {
+        if (message.getRole() != Message.Role.ASSISTANT) {
+            return null;
+        }
+        return preParsed != null ? preParsed.blocks() : responseParser.parse(message.getContent()).blocks();
     }
 }
