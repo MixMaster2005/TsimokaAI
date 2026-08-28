@@ -19,6 +19,7 @@ export interface StudentDashboard {
   spaceId: string;
   tauxReussite: number; // 0.0 - 1.0
   notionsMaitrisees: string[];
+  notionsEnCours?: string[];
   notionsFaibles: string[];
   nbQuestionsPosees: number;
   nbFichesGenerees: number;

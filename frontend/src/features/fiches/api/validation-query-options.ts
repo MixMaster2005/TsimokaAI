@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query';
+import { queryOptions, useQuery } from '@tanstack/react-query';
 
 import { apiClient } from '@/lib/api-client';
 import { ficheKeys } from './keys';
@@ -17,3 +17,7 @@ export const validationQueryOptions = (ficheId: string) =>
       }
     },
   });
+
+export function useValidation(ficheId: string) {
+  return useQuery(validationQueryOptions(ficheId));
+}

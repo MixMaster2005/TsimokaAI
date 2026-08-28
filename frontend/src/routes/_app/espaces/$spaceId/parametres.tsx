@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useEspace, espaceQueryOptions } from '@/features/espaces/api/use-espace';
+import { useInviteCode } from '@/features/espaces/api/use-invite-code';
+import { useRegenerateInviteCode } from '@/features/espaces/api/use-regenerate-invite-code';
 import { useUpdateEspace } from '@/features/espaces/api/use-update-espace';
 import { useDeleteEspace } from '@/features/espaces/api/use-delete-espace';
 import { sessionQueryOptions } from '@/features/auth/api/use-session';
@@ -31,16 +33,26 @@ export const Route = createFileRoute('/_app/espaces/$spaceId/parametres')({
 function ParametresEspace() {
   const { spaceId } = useParams({ from: '/_app/espaces/$spaceId/parametres' });
   const { data: space } = useEspace(spaceId);
+  const { data: inviteCode } = useInviteCode(spaceId, true);
+  const regenerateInviteCode = useRegenerateInviteCode(spaceId);
   const updateEspace = useUpdateEspace(spaceId);
   const deleteEspace = useDeleteEspace(spaceId);
   const [name, setName] = useState(space?.name ?? '');
   const [description, setDescription] = useState(space?.description ?? '');
   const [subjectTag, setSubjectTag] = useState(space?.subjectTag ?? '');
+  const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     updateEspace.mutate({ name, description, subjectTag });
+  }
+
+  async function handleCopyCode() {
+    if (!inviteCode) return;
+    await navigator.clipboard.writeText(inviteCode.inviteCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   if (!space) return null;
@@ -73,6 +85,36 @@ function ParametresEspace() {
       </form>
 
       <Separator className="my-6" />
+
+      {inviteCode && (
+        <>
+          <div className="rounded-fiche border border-dashed border-papier-border bg-papier-carte p-4">
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-encre-muted">
+              Code d'invitation de l'espace
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="font-mono text-lg tracking-[0.3em] text-encre">{inviteCode.inviteCode}</span>
+              <Button variant="outline" size="sm" onClick={handleCopyCode}>
+                {copied ? 'Copié ✓' : 'Copier'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={regenerateInviteCode.isPending}
+                title="Le code actuel cessera de fonctionner"
+                onClick={() => regenerateInviteCode.mutate()}
+              >
+                {regenerateInviteCode.isPending ? 'Régénération…' : 'Régénérer'}
+              </Button>
+            </div>
+            <p className="mt-2 text-xs text-encre-muted">
+              Partage ce code pour permettre aux étudiants de rejoindre cet espace de cours.
+            </p>
+          </div>
+
+          <Separator className="my-6" />
+        </>
+      )}
 
       <div>
         <p className="mb-2 text-xs text-muted-foreground">

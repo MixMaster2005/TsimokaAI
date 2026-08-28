@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { GraduationCap, LayoutGrid } from 'lucide-react';
+import { GraduationCap, Home, LayoutGrid, Settings } from 'lucide-react';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -25,7 +25,8 @@ import { clearTokens } from '@/lib/auth-tokens';
  * navigation persistant n'est ni "contenu Papier" ni "chat".
  */
 const NAV_ITEMS = [
-  { to: '/enseignant', label: 'Tableau de bord', icon: LayoutGrid },
+  { to: '/enseignant', label: 'Mes espaces', icon: Home },
+  { to: '/enseignant/parametres', label: 'Paramètres', icon: Settings },
 ] as const;
 
 export function AppSidebarEnseignant() {
@@ -71,8 +72,9 @@ export function AppSidebarEnseignant() {
           <DropdownMenuContent align="start" side="top">
             <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {/* Le rôle ENSEIGNANT n'a pas de fiche profil étudiant à éditer ici :
-                pas de Paramètres pour l'instant, seulement la déconnexion. */}
+            <DropdownMenuItem asChild>
+              <Link to="/enseignant/parametres">Paramètres</Link>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={handleLogout}>Déconnexion</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -3,6 +3,7 @@ import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 
 import { Button } from '@/components/ui/button';
 import { fichesBySpaceQueryOptions, useFiches } from '@/features/fiches/api/use-fiches';
+import { useValidation } from '@/features/fiches/api/validation-query-options';
 import { GenerateFicheModal } from '@/features/fiches/components/GenerateFicheModal';
 import { useEspace } from '@/features/espaces/api/use-espace';
 import { getTagColorClass } from '@/features/espaces/lib/get-tag-color';
@@ -13,6 +14,27 @@ export const Route = createFileRoute('/_app/espaces/$spaceId/fiches/')({
     queryClient.ensureQueryData(fichesBySpaceQueryOptions(params.spaceId)),
   component: FichesEspace,
 });
+
+function FicheValidationBadge({ ficheId }: { ficheId: string }) {
+  const { data: validation } = useValidation(ficheId);
+  if (!validation) return null;
+
+  if (validation.statut === 'VALIDEE') {
+    return (
+      <span className="inline-flex items-center rounded-sm border border-succes/40 px-1.5 py-0.5 font-mono text-[0.62rem] font-semibold uppercase tracking-wider text-succes">
+        Validée
+      </span>
+    );
+  }
+  if (validation.statut === 'REJETEE') {
+    return (
+      <span className="inline-flex items-center rounded-sm border border-attention/50 px-1.5 py-0.5 font-mono text-[0.62rem] font-semibold uppercase tracking-wider text-attention">
+        À revoir
+      </span>
+    );
+  }
+  return null;
+}
 
 function FichesEspace() {
   const { spaceId } = useParams({ from: '/_app/espaces/$spaceId/fiches/' });
@@ -41,7 +63,10 @@ function FichesEspace() {
           >
             <span className={cn('w-1.5 self-stretch rounded-full', getTagColorClass(space?.subjectTag))} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground">{fiche.title}</p>
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-medium text-foreground">{fiche.title}</p>
+                <FicheValidationBadge ficheId={fiche.id} />
+              </div>
               <p className="font-mono text-[0.68rem] text-muted-foreground">
                 {new Date(fiche.updatedAt).toLocaleDateString('fr-FR')}
                 {fiche.obsolete && <span className="ml-2 text-attention">obsolète</span>}

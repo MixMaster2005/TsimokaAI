@@ -6,6 +6,7 @@ import {
   useAllTauxReussite,
   useStudentDashboard,
 } from '@/features/dashboard/api/use-student-dashboard';
+import { useSessionHistory } from '@/features/dashboard/api/use-session-history';
 
 export const Route = createFileRoute('/_app/tableau-de-bord')({
   component: TableauDeBord,
@@ -17,6 +18,7 @@ function TableauDeBord() {
   const activeSpaceId = spaceId ?? espaces?.[0]?.id ?? null;
 
   const { data: dashboard } = useStudentDashboard(activeSpaceId ?? '');
+  const { data: sessionHistory } = useSessionHistory(activeSpaceId);
   const tauxParMatiere = useAllTauxReussite(espaces);
 
   return (
@@ -44,11 +46,21 @@ function TableauDeBord() {
       {dashboard && (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <div className="rounded-fiche border border-papier-border bg-papier-carte p-5">
-            <h3 className="mb-3 font-display text-sm font-semibold text-encre">Progression</h3>
-            <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-encre-muted">Maîtrisées</p>
-            <p className="mb-3 text-sm text-encre">{dashboard.notionsMaitrisees.join(', ') || '—'}</p>
-            <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-attention">Fragiles</p>
-            <p className="text-sm text-encre opacity-60">{dashboard.notionsFaibles.join(', ') || '—'}</p>
+            <h3 className="mb-3 font-display text-sm font-semibold text-encre">Progression des notions</h3>
+            <div className="flex flex-col gap-3">
+              <div>
+                <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-succes">Maîtrisées</p>
+                <p className="text-sm text-encre">{dashboard.notionsMaitrisees.join(', ') || '—'}</p>
+              </div>
+              <div>
+                <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-tag-sciences">En cours</p>
+                <p className="text-sm text-encre">{(dashboard.notionsEnCours ?? []).join(', ') || '—'}</p>
+              </div>
+              <div>
+                <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-attention">Fragiles / À revoir</p>
+                <p className="text-sm text-encre opacity-75">{dashboard.notionsFaibles.join(', ') || '—'}</p>
+              </div>
+            </div>
           </div>
 
           <div className="rounded-fiche border border-papier-border bg-papier-carte p-5">
@@ -71,23 +83,55 @@ function TableauDeBord() {
           <div className="rounded-fiche border border-papier-border bg-papier-carte p-5 lg:col-span-2">
             <h3 className="mb-3 font-display text-sm font-semibold text-encre">Taux de réussite par matière</h3>
             <div className="flex flex-col gap-2">
-              {tauxParMatiere.map((q) =>
-                q.data ? (
+              {tauxParMatiere.map((q) => {
+                if (!q.data) return null;
+                const percent = Math.round(q.data.tauxReussite * 100);
+                const isWeak = percent < 50;
+                return (
                   <div key={q.data.space.id} className="flex items-center gap-3 text-sm">
                     <span className="w-32 flex-none truncate text-encre">{q.data.space.name}</span>
                     <div className="h-1.5 flex-1 rounded-full bg-papier-bg">
                       <div
-                        className="h-full rounded-full bg-encre"
-                        style={{ width: `${Math.round(q.data.tauxReussite * 100)}%` }}
+                        className={`h-full rounded-full ${isWeak ? 'bg-attention' : 'bg-encre'}`}
+                        style={{ width: `${percent}%` }}
                       />
                     </div>
-                    <span className="w-10 flex-none text-right font-mono text-xs text-encre-muted">
-                      {Math.round(q.data.tauxReussite * 100)}%
+                    <span
+                      className={`w-10 flex-none text-right font-mono text-xs ${
+                        isWeak ? 'font-semibold text-attention' : 'text-encre-muted'
+                      }`}
+                    >
+                      {percent}%
                     </span>
                   </div>
-                ) : null,
-              )}
+                );
+              })}
             </div>
+          </div>
+
+          <div className="rounded-fiche border border-papier-border bg-papier-carte p-5 lg:col-span-2">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-display text-sm font-semibold text-encre">Historique des sessions de révision</h3>
+              <span className="rounded bg-secondary px-2 py-0.5 font-mono text-[0.62rem] text-encre-muted">
+                Bientôt disponible
+              </span>
+            </div>
+            {sessionHistory && sessionHistory.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {sessionHistory.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between text-sm">
+                    <span>{s.titre}</span>
+                    <span className="font-mono text-xs text-encre-muted">
+                      {s.dureeMinutes} min · {new Date(s.dateSession).toLocaleDateString('fr-FR')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-encre-muted">
+                Le journal détaillé des sessions d'entraînement sera synchronisé automatiquement dans une prochaine mise à jour.
+              </p>
+            )}
           </div>
         </div>
       )}

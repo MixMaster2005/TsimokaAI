@@ -41,6 +41,9 @@ function PublicLayout() {
       <main className="flex flex-1 flex-col items-center px-6 py-10">
         <Outlet />
       </main>
+      <footer className="border-t border-papier-border px-6 py-6 text-center text-xs text-encre-muted">
+        <p>🌱 TsimokaAI &copy; {new Date().getFullYear()} — Tous droits r&eacute;serv&eacute;s</p>
+      </footer>
     </div>
   );
 }

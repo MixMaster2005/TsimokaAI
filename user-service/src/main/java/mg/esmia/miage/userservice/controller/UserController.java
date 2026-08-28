@@ -6,6 +6,7 @@ import mg.esmia.miage.common.context.UserContext;
 import mg.esmia.miage.common.context.UserContextHolder;
 import mg.esmia.miage.common.exception.ForbiddenException;
 import mg.esmia.miage.common.response.ApiResponse;
+import mg.esmia.miage.userservice.dto.ChangePasswordRequest;
 import mg.esmia.miage.userservice.dto.UpdateProfileRequest;
 import mg.esmia.miage.userservice.dto.UserResponse;
 import mg.esmia.miage.userservice.service.AuthService;
@@ -35,6 +36,13 @@ public class UserController {
     public ApiResponse<UserResponse> updateMe(@Valid @RequestBody UpdateProfileRequest request) {
         UserContext ctx = requireAuthenticated();
         return ApiResponse.success(userService.updateProfile(UUID.fromString(ctx.userId()), request), ctx.requestId());
+    }
+
+    @PutMapping("/me/password")
+    public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        UserContext ctx = requireAuthenticated();
+        userService.changePassword(UUID.fromString(ctx.userId()), request);
+        return ApiResponse.success(null, ctx.requestId());
     }
 
     @DeleteMapping("/me")

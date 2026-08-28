@@ -1,7 +1,9 @@
 import { createFileRoute, Link, Outlet, useParams } from '@tanstack/react-router';
 
 import { espaceQueryOptions, useEspace } from '@/features/espaces/api/use-espace';
+import { getTagColorClass } from '@/features/espaces/lib/get-tag-color';
 import { useSession } from '@/features/auth/api/use-session';
+import { cn } from '@/lib/utils';
 
 /**
  * Layout D — Espace partagé entre les deux rôles.
@@ -37,7 +39,19 @@ function EspaceLayout() {
         <Link to="/" className="font-mono text-xs text-muted-foreground hover:text-foreground">
           ← Mes espaces
         </Link>
-        <h1 className="mt-2 font-display text-xl font-semibold text-foreground">{space?.name}</h1>
+        <div className="mt-2 flex items-center gap-2.5">
+          <h1 className="font-display text-xl font-semibold text-foreground">{space?.name}</h1>
+          {space?.subjectTag && (
+            <span
+              className={cn(
+                'inline-flex items-center rounded-sm px-2 py-0.5 font-mono text-[0.65rem] font-medium uppercase tracking-wide text-white',
+                getTagColorClass(space.subjectTag),
+              )}
+            >
+              {space.subjectTag}
+            </span>
+          )}
+        </div>
         {space?.description && <p className="mt-1 text-sm text-muted-foreground">{space.description}</p>}
       </div>
 

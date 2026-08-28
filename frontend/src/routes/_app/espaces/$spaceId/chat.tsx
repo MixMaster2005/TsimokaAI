@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { conversationsQueryOptions, useConversations } from '@/features/chat/api/use-conversations';
 import { useCreateConversation } from '@/features/chat/api/use-create-conversation';
 import { ChatThread } from '@/features/chat/components/ChatThread';
+import { useEspace } from '@/features/espaces/api/use-espace';
+import { getTagColorClass } from '@/features/espaces/lib/get-tag-color';
 import { cn } from '@/lib/utils';
 
 export const Route = createFileRoute('/_app/espaces/$spaceId/chat')({
@@ -26,6 +28,7 @@ export const Route = createFileRoute('/_app/espaces/$spaceId/chat')({
 function Chat() {
   const { spaceId } = useParams({ from: '/_app/espaces/$spaceId/chat' });
   const { data: conversations } = useConversations(spaceId);
+  const { data: space } = useEspace(spaceId);
   const createConversation = useCreateConversation();
   const [activeConversationId, setActiveConversationId] = useState<string | null>(
     conversations?.[0]?.id ?? null,
@@ -97,7 +100,29 @@ function Chat() {
       </aside>
 
       {/* Zone chat — surface Ardoise */}
-      <div className="surface-ardoise min-h-0 min-w-0 flex-1 bg-background text-foreground">
+      <div className="surface-ardoise flex min-h-0 min-w-0 flex-1 flex-col bg-background text-foreground">
+        {/* Barre espace + persona reminder */}
+        <div className="flex items-center justify-between border-b border-border bg-card/30 px-6 py-2 text-xs">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-medium text-foreground">{space?.name ?? 'Espace'}</span>
+            {space?.subjectTag && (
+              <span
+                className={cn(
+                  'rounded px-1.5 py-0.2 font-mono text-[0.62rem] font-medium uppercase text-white',
+                  getTagColorClass(space.subjectTag),
+                )}
+              >
+                {space.subjectTag}
+              </span>
+            )}
+          </div>
+          {space?.assistantPersona && (
+            <p className="hidden max-w-md truncate text-[0.72rem] text-muted-foreground sm:block" title={space.assistantPersona}>
+              🧠 {space.assistantPersona}
+            </p>
+          )}
+        </div>
+
         {/* Sélecteur mobile (affiché uniquement < md) */}
         <div className="border-b border-border px-4 py-2 md:hidden">
           <select
@@ -113,7 +138,9 @@ function Chat() {
           </select>
         </div>
 
-        <ChatThread conversationId={activeId} spaceId={spaceId} />
+        <div className="min-h-0 flex-1">
+          <ChatThread conversationId={activeId} spaceId={spaceId} />
+        </div>
       </div>
     </div>
   );

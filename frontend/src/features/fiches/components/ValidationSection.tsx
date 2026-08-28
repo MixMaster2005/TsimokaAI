@@ -88,7 +88,7 @@ export function ValidationSection({ ficheId }: { ficheId: string }) {
           ) : (
             <div className="flex flex-col gap-2 rounded-fiche border border-papier-border bg-papier-carte p-3">
               <textarea
-                placeholder="Commentaire (optionnel)"
+                placeholder="Commentaire (obligatoire si À revoir)"
                 value={commentaire}
                 onChange={(e) => setCommentaire(e.target.value)}
                 rows={2}
@@ -101,7 +101,8 @@ export function ValidationSection({ ficheId }: { ficheId: string }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={validateFiche.isPending}
+                  disabled={validateFiche.isPending || !commentaire.trim()}
+                  title={!commentaire.trim() ? 'Un commentaire est obligatoire pour demander une révision' : undefined}
                   onClick={() => soumettre('REJETEE')}
                 >
                   À revoir

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { Bell, LayoutGrid, Sparkles, Files, Home } from 'lucide-react';
+import { Bell, LayoutGrid, Sparkles, Files, Home, UserPlus } from 'lucide-react';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useSession } from '@/features/auth/api/use-session';
 import { useRappels } from '@/features/gamification/api/use-rappels';
+import { JoinEspaceModal } from '@/features/espaces/components/JoinEspaceModal';
 import { clearTokens } from '@/lib/auth-tokens';
 
 /**
@@ -71,6 +72,20 @@ export function AppSidebar() {
         {NAV_SECONDAIRE.map((item) => (
           <NavLink key={item.to} {...item} />
         ))}
+
+        <div className="pt-2">
+          <JoinEspaceModal
+            trigger={
+              <button
+                type="button"
+                className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                <UserPlus className="size-4" />
+                Rejoindre un espace
+              </button>
+            }
+          />
+        </div>
       </nav>
 
       <div className="mt-auto flex items-center gap-2 border-t border-border p-3">

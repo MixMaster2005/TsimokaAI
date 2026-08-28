@@ -3,10 +3,12 @@ package mg.esmia.miage.userservice.service;
 import lombok.RequiredArgsConstructor;
 import mg.esmia.miage.common.exception.BadRequestException;
 import mg.esmia.miage.common.exception.ResourceNotFoundException;
+import mg.esmia.miage.userservice.dto.ChangePasswordRequest;
 import mg.esmia.miage.userservice.dto.UpdateProfileRequest;
 import mg.esmia.miage.userservice.dto.UserResponse;
 import mg.esmia.miage.userservice.entity.User;
 import mg.esmia.miage.userservice.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,7 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public UserResponse getById(UUID id) {
         return UserResponse.from(findOrThrow(id));
@@ -42,6 +45,16 @@ public class UserService {
             user.setRole(request.role());
         }
         return UserResponse.from(userRepository.save(user));
+    }
+
+    @Transactional
+    public void changePassword(UUID userId, ChangePasswordRequest request) {
+        User user = findOrThrow(userId);
+        if (!passwordEncoder.matches(request.ancienMotDePasse(), user.getPasswordHash())) {
+            throw new BadRequestException("L'ancien mot de passe est incorrect");
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.nouveauMotDePasse()));
+        userRepository.save(user);
     }
 
     private User findOrThrow(UUID id) {
