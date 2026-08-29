@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import mg.esmia.miage.common.events.EventChannels;
 import mg.esmia.miage.common.events.IngestionEvent;
 import mg.esmia.miage.common.messaging.RedisEventPublisher;
+import mg.esmia.miage.ingestionservice.dto.StructuredChunk;
+import mg.esmia.miage.ingestionservice.dto.ast.CanonicalDocument;
 import mg.esmia.miage.ingestionservice.entity.Chunk;
 import mg.esmia.miage.ingestionservice.entity.Document;
 import mg.esmia.miage.ingestionservice.repository.ChunkRepository;
@@ -22,32 +24,28 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Orchestrateur du pipeline d'ingestion : extraction -> chunking -> embedding -> indexation
- * vectorielle. Chaque étape est déléguée à un service dédié (injection par constructeur) :
- * <ul>
- *   <li>MinIO (téléchargement/suppression du binaire) — {@link MinioService} ;</li>
- *   <li>extraction via docling-worker (conteneur spawné à la demande) — {@link DockerWorkerClient} ;</li>
- *   <li>upload des figures + substitution des placeholders — {@link ImageUploadService} ;</li>
- *   <li>découpage orienté sens (titres {@code #}/{@code ##}, récursif si trop grand) — {@link MarkdownChunkingService} ;</li>
- *   <li>embeddings (un vecteur par chunk, en lot) — {@code EmbeddingModel} Spring AI / Ollama ;</li>
- *   <li>collection + upsert + purge Qdrant — {@link QdrantVectorService}.</li>
- * </ul>
+ * Orchestrateur du pipeline d'ingestion : extraction → chunking → embedding → indexation
+ * vectorielle.
  *
- * <p>Etapes (cf. CDC §4.2) :
+ * <p>Étapes :
  * <ol>
  *   <li>Télécharger le fichier depuis MinIO.</li>
- *   <li>Extraire le texte via docling-worker (conteneur Python spawné à la demande) ; les
- *       images extraites sont uplodées dans MinIO et les placeholders substitués (spec v2).</li>
- *   <li>Découper le Markdown en chunks orientés sens (~500 tokens / chunk) — titres d'abord,
- *       découpe de secours seulement si une section est trop grande.</li>
- *   <li>Générer les embeddings (EmbeddingModel Spring AI / Ollama) pour chaque chunk.</li>
- *   <li>Upsert des points dans la collection Qdrant unique "chunks" (multi-tenant, Option A) :
- *       chaque point porte document_id, space_id, chunk_index, content en payload — le
- *       cloisonnement par espace se fait par filtre au moment du retrieval.</li>
- *   <li>Persister les entités Chunk (vectorId = id du point Qdrant).</li>
- *   <li>Mettre à jour Document (status=READY, chunkCount) et publier DOCUMENT_READY.
- *       En cas d'échec à n'importe quelle étape : status=FAILED + publier DOCUMENT_FAILED.</li>
+ *   <li>Extraire via docling-worker (conteneur Python spawné à la demande) → AST +
+ *       Markdown + images.</li>
+ *   <li>Upload des images dans MinIO + substitution des placeholders dans le Markdown.</li>
+ *   <li>Découper en chunks structurés :
+ *       <ul>
+ *         <li>PDF (AST disponible) → {@link StructureAwareChunker} ;</li>
+ *         <li>Non-PDF (pas d'AST) → {@link MarkdownFallbackChunker} (fallback Markdown).</li>
+ *       </ul>
+ *   </li>
+ *   <li>Générer les embeddings pour chaque chunk.</li>
+ *   <li>Upsert dans Qdrant (multi-tenant, métadonnées enrichies).</li>
+ *   <li>Persister les entités Chunk en base.</li>
+ *   <li>Mettre à jour le statut du document.</li>
  * </ol>
+ *
+ * <p>Le Markdown est conservé pour le debug/preview mais ne participe plus au chunking.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -61,7 +59,8 @@ public class IngestionPipelineService {
     private final DockerWorkerClient dockerWorkerClient;
     private final EmbeddingModel embeddingModel;
     private final ImageUploadService imageUploadService;
-    private final MarkdownChunkingService chunkingService;
+    private final StructureAwareChunker astChunker;
+    private final MarkdownFallbackChunker markdownFallbackChunker;
     private final QdrantVectorService qdrantVectorService;
 
     @Async("ingestionExecutor")
@@ -82,65 +81,56 @@ public class IngestionPipelineService {
                     IngestionEvent.processing(document.getId().toString(), document.getSpaceId().toString(),
                             document.getUserId().toString()));
 
-            // Étape 1-2 : téléchargement MinIO + extraction via docling-worker (conteneur
-            // spawné à la demande) + upload des images extraites / substitution des placeholders.
+            // Étape 1-2 : téléchargement MinIO + extraction via docling-worker
             byte[] fileContent;
             try (InputStream is = minioService.download(document.getStorageUrl())) {
                 fileContent = is.readAllBytes();
             }
             DoclingConversionResult conversion = dockerWorkerClient.convert(fileContent, document.getFilename());
 
-            // Log de l'AST si présente (Phase 1 — non exploité pour le chunking)
-            if (conversion.document() != null) {
-                int pageCount = conversion.document().pages() != null
-                    ? conversion.document().pages().size() : 0;
-                int elementCount = 0;
-                if (conversion.document().pages() != null) {
-                    for (var page : conversion.document().pages()) {
-                        if (page.elements() != null) {
-                            elementCount += page.elements().size();
-                        }
-                    }
-                }
-                log.debug("AST reçue : {} pages, {} éléments", pageCount, elementCount);
+            // Étape 3 : chunking — AST si disponible (PDF), sinon fallback Markdown
+            CanonicalDocument ast = conversion.document();
+            List<StructuredChunk> structuredChunks;
+            if (ast != null && ast.pages() != null && !ast.pages().isEmpty()) {
+                structuredChunks = astChunker.chunk(ast);
+            } else {
+                structuredChunks = markdownFallbackChunker.chunk(conversion.markdown());
             }
-
-            String markdown = imageUploadService.substituteImages(
-                    conversion.markdown(), conversion.images(), document.getSpaceId());
-
-            log.info("Document {} converti : méthode {}, {} pages, {} caractères de Markdown, {} images, warnings={}",
-                    documentId, conversion.method(), conversion.pagesProcessed(), markdown.length(),
-                    conversion.images().size(), conversion.warnings());
-
-            // Étape 3 : chunking orienté sens (titres # / ##, récursif si section trop grande).
-            List<String> chunks = chunkingService.chunk(markdown);
-            if (chunks.isEmpty()) {
+            if (structuredChunks.isEmpty()) {
                 throw new IllegalStateException("Aucun contenu textuel extrait du document");
             }
 
-            // Étape 4 : embeddings (Spring AI / Ollama) — un vecteur par chunk.
-            List<float[]> vectors = embeddingModel.embed(chunks);
-            if (vectors.size() != chunks.size()) {
+            // Markdown pour debug/preview (pas pour le chunking)
+            String markdown = imageUploadService.substituteImages(
+                    conversion.markdown(), conversion.images(), document.getSpaceId());
+            log.info("Document {} converti : méthode {}, {} pages, {} chunks, {} caractères Markdown",
+                    documentId, conversion.method(), conversion.pagesProcessed(),
+                    structuredChunks.size(), markdown.length());
+
+            // Étape 4 : embeddings (Spring AI / Ollama) — un vecteur par chunk
+            List<String> chunkTexts = structuredChunks.stream()
+                    .map(StructuredChunk::text).toList();
+            List<float[]> vectors = embeddingModel.embed(chunkTexts);
+            if (vectors.size() != structuredChunks.size()) {
                 throw new IllegalStateException(
                         "Nombre d'embeddings incohérent (%d embeddings pour %d chunks)".formatted(
-                                vectors.size(), chunks.size()));
+                                vectors.size(), structuredChunks.size()));
             }
 
-            // Étape 5-6 : upsert dans la collection unique (multi-tenant, space_id en payload)
-            // + persistance Chunk.
+            // Étape 5-6 : upsert Qdrant (métadonnées enrichies) + persistance Chunk
             qdrantVectorService.ensureCollection(vectors.get(0).length);
             List<UUID> vectorIds = qdrantVectorService.upsertChunks(
-                    document.getId(), document.getSpaceId(), chunks, vectors);
-            saveChunks(document.getId(), chunks, vectorIds);
+                    document.getId(), document.getSpaceId(), structuredChunks, vectors);
+            saveChunks(document.getId(), structuredChunks, vectorIds);
 
-            // Étape 7 : statut READY avec le vrai nombre de chunks + DOCUMENT_READY.
+            // Étape 7 : statut READY + DOCUMENT_READY
             document.setStatus(Document.Status.READY);
-            document.setChunkCount(chunks.size());
+            document.setChunkCount(structuredChunks.size());
             documentRepository.save(document);
 
             eventPublisher.publish(EventChannels.INGESTION_EVENTS,
                     IngestionEvent.ready(document.getId().toString(), document.getSpaceId().toString(),
-                            document.getUserId().toString(), chunks.size()));
+                            document.getUserId().toString(), structuredChunks.size()));
 
         } catch (Exception e) {
             log.error("Échec du traitement du document {}", documentId, e);
@@ -162,15 +152,15 @@ public class IngestionPipelineService {
         documentRepository.delete(document);
     }
 
-    /** Persiste une entité {@link Chunk} par morceau (token_count estimé, vectorId = point Qdrant). */
-    private void saveChunks(UUID documentId, List<String> chunks, List<UUID> vectorIds) {
+    /** Persiste une entité {@link Chunk} par morceau (vectorId = point Qdrant). */
+    private void saveChunks(UUID documentId, List<StructuredChunk> chunks, List<UUID> vectorIds) {
         List<Chunk> entities = new ArrayList<>();
         for (int i = 0; i < chunks.size(); i++) {
             entities.add(Chunk.builder()
                     .documentId(documentId)
-                    .chunkIndex(i)
-                    .content(chunks.get(i))
-                    .tokenCount(chunkingService.estimateTokenCount(chunks.get(i)))
+                    .chunkIndex(chunks.get(i).chunkIndex())
+                    .content(chunks.get(i).text())
+                    .tokenCount(0) // temporaire — calculé ailleurs en V2
                     .vectorId(vectorIds.get(i).toString())
                     .build());
         }

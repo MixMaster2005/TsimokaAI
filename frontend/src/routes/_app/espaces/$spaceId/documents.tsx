@@ -10,7 +10,7 @@ import { getMimeInfo } from '@/features/documents/mime-icons';
 import type { DocumentStatus } from '@/features/documents/types';
 
 const ACCEPTED_FORMATS =
-  '.pdf,.doc,.docx,.txt,.md,.pptx,.xlsx,.xls,.csv,.html,.htm,.epub';
+  '.pdf,.docx,.txt,.md,.pptx,.xlsx,.xls,.csv,.html,.htm,.epub';
 const ACCEPTED_FORMATS_LABEL = 'PDF, Word, PowerPoint, Excel, CSV, Markdown, HTML, EPUB';
 
 export const Route = createFileRoute('/_app/espaces/$spaceId/documents')({

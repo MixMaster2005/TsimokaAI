@@ -17,7 +17,6 @@ const MIME_MAP: Record<string, MimeIconInfo> = {
   // PDF
   'application/pdf': { icon: FileText, color: 'text-red-500', label: 'PDF' },
   // Word
-  'application/msword': { icon: FileText, color: 'text-blue-600', label: 'Word' },
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': {
     icon: FileText,
     color: 'text-blue-600',
@@ -63,7 +62,6 @@ const MIME_MAP: Record<string, MimeIconInfo> = {
 
 const EXTENSION_MAP: Record<string, MimeIconInfo> = {
   pdf: MIME_MAP['application/pdf'],
-  doc: MIME_MAP['application/msword'],
   docx: MIME_MAP['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
   xls: MIME_MAP['application/vnd.ms-excel'],
   xlsx: MIME_MAP['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],

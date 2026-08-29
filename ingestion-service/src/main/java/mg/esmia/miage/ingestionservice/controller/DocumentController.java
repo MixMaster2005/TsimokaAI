@@ -12,6 +12,7 @@ import mg.esmia.miage.common.messaging.RedisEventPublisher;
 import mg.esmia.miage.common.response.ApiResponse;
 import mg.esmia.miage.ingestionservice.config.SseEmittersRegistry;
 import mg.esmia.miage.ingestionservice.dto.DocumentResponse;
+import mg.esmia.miage.ingestionservice.model.SupportedDocumentType;
 import mg.esmia.miage.ingestionservice.service.DocumentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -20,7 +21,6 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -35,14 +35,6 @@ public class DocumentController {
 
     /** Taille maximale d'un fichier uploadé : 20 Mo. */
     private static final long MAX_FILE_SIZE = 20 * 1024 * 1024;
-
-    /** Types MIME autorisés pour l'ingestion. */
-    private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
-            "application/pdf",
-            "text/plain",
-            "text/markdown",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    );
 
     /**
      * Point d'entrée SSE : le client ouvre une connexion GET et reçoit en temps réel
@@ -112,9 +104,10 @@ public class DocumentController {
             throw new BadRequestException("Le fichier dépasse la taille maximale de 20 Mo");
         }
         String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType)) {
+        String extension = SupportedDocumentType.canonicalExtension(file.getOriginalFilename());
+        if (SupportedDocumentType.fromMimeType(contentType) == null && extension == null) {
             throw new BadRequestException("Type de fichier non supporté : " + contentType
-                    + ". Formats acceptés : PDF, TXT, Markdown, DOCX");
+                    + ". " + SupportedDocumentType.supportedFormatsMessage());
         }
     }
 
