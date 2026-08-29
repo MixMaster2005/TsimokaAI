@@ -1,16 +1,17 @@
-"""Étage 1 — conversion (MarkItDown) + enrichissement vision (Gemini).
+"""Étage 1 — conversion document + enrichissement vision (Gemini).
 
-Spécification v2 — l'OCR local (placeholder) est remplacé par l'API Gemini :
-  1. Conversion MarkItDown (PDF/DOCX/PPTX/XLSX/XLS/CSV/HTML/EPUB/TXT/MD -> Markdown
-     structuré), CPU-only.
-  2. Si le ratio ``caractères extraits / pages`` est sous le seuil (document scanné) :
-     rendu des pages en image (PyMuPDF) + transcription Gemini page par page
-     (``method = "markitdown_with_page_transcription"``).
-  3. Sinon (document textuel) : extraction des images embarquées + légende Gemini pour
-     chacune, remplacement des marqueurs MarkItDown (``![](...)``) par des placeholders
-     ``{{IMAGE:img_001}}``. Les images sont renvoyées en base64 dans la réponse ; c'est
-     ``ingestion-service`` (Java) qui les uploade dans MinIO et substitue les placeholders
-     par ``![caption](url)``.
+Architecture v3 — routage PDF / non-PDF :
+
+  - **PDF** : pipeline PyMuPDF natif
+    1. Extraction brute via ``layout_extractor`` (PyMuPDF blocks/images/drawings).
+    2. Classification page par page (``page_classifier`` : native/hybrid/scanned).
+    3. Analyse structurelle → AST canonique (``structure_analyzer``).
+    4. Extraction images embarquées + légende Gemini (``image_extractor`` + ``vision_captioner``).
+    5. Rendu Markdown à partir de l'AST (``markdown_renderer``).
+
+  - **Non-PDF** (DOCX/PPTX/XLSX/HTML/CSV/…) : MarkItDown classique
+    1. Conversion MarkItDown → Markdown structuré, CPU-only.
+    2. Extraction des images embarquées + légende Gemini.
 
 L'échec de Gemini n'est jamais bloquant : captions/transcriptions dégradées + warning.
 """
@@ -25,6 +26,7 @@ from pypdf import PdfReader
 
 from app import image_extractor
 from app.image_extractor import ExtractedImage
+from app.models import CanonicalDocument
 from app.vision_captioner import VisionCaptioner
 
 logger = logging.getLogger(__name__)
@@ -48,26 +50,96 @@ def count_pages(content: bytes, filename: str) -> int:
         return 1
 
 
-class MarkItDownConverter:
-    """Étage 1 : conversion MarkItDown + transcription/légendes via Gemini (vision)."""
+class DocumentConverter:
+    """Convertisseur de documents : routage PDF (pipeline PyMuPDF) / non-PDF (MarkItDown)."""
 
     def __init__(self) -> None:
         self._md = MarkItDown()
         self._vision = VisionCaptioner()
+        # Pipeline PDF
+        from app.structure_analyzer import StructureAnalyzer
+        self._analyzer = StructureAnalyzer()
 
     def convert(self, content: bytes, filename: str) -> dict:
         warnings: list = []
+        extension = os.path.splitext(filename)[1].lower()
+
+        if extension == ".pdf":
+            return self._convert_pdf(content, filename, warnings)
+        else:
+            return self._convert_with_markitdown(content, filename, warnings)
+
+    # ------------------------------------------------------------------
+    # PDF pipeline (PyMuPDF → AST → Markdown)
+    # ------------------------------------------------------------------
+
+    def _convert_pdf(self, content: bytes, filename: str, warnings: list) -> dict:
+        from app import layout_extractor
+        from app import markdown_renderer
+        from app import page_classifier
+
+        # 1. Extraction brute via PyMuPDF
+        raw_pages = layout_extractor.extract_raw_document(content)
+
+        # 2. Classification page par page
+        classifications = page_classifier.classify_document(raw_pages)
+
+        # 3. Analyse structurelle → AST
+        document = self._analyzer.analyze(raw_pages, classifications)
+
+        # 4. Extraction images embarquées + légende Gemini
+        images = self._extract_and_caption_images(document, content, filename, warnings)
+
+        # 5. Rendu Markdown à partir de l'AST
+        markdown = markdown_renderer.render(document)
+
+        return {
+            "document": document.model_dump(),
+            "markdown": markdown,
+            "method": "pymupdf_layout",
+            "pages_processed": len(raw_pages),
+            "images": images,
+            "warnings": warnings,
+        }
+
+    def _extract_and_caption_images(
+        self,
+        document: CanonicalDocument,
+        content: bytes,
+        filename: str,
+        warnings: list,
+    ) -> list[dict]:
+        """Extraction images via image_extractor + légende Gemini."""
+        extracted = image_extractor.extract_images(content, filename)
+        images = []
+        for index, image in enumerate(extracted, start=1):
+            if index > image_extractor.MAX_EXTRACTED_IMAGES:
+                warnings.append(
+                    f"Plafond atteint : seules les {image_extractor.MAX_EXTRACTED_IMAGES} "
+                    "premières images sont légendées"
+                )
+                break
+            placeholder_id = f"img_{index:03d}"
+            caption = ""
+            try:
+                caption = self._vision.caption_figure(image.content, image.content_type)
+            except Exception as e:  # noqa: BLE001 - Gemini indisponible : légende vide + warning
+                warnings.append(f"Légende Gemini impossible pour {image.location} : {e}")
+            images.append({
+                "placeholder_id": placeholder_id,
+                "content_type": image.content_type,
+                "data_base64": base64.b64encode(image.content).decode("ascii"),
+                "caption": caption,
+            })
+        return images
+
+    # ------------------------------------------------------------------
+    # Non-PDF pipeline (MarkItDown)
+    # ------------------------------------------------------------------
+
+    def _convert_with_markitdown(self, content: bytes, filename: str, warnings: list) -> dict:
         pages = count_pages(content, filename)
-
         markdown = self._convert_markitdown(content, filename, warnings)
-
-        # La détection de document scanné (ratio chars/page) n'a de sens que pour un PDF :
-        # les autres formats ont "1 page" (count_pages) et un petit document légitime
-        # (ex. un .md court) ne doit pas être envoyé en transcription (réservée au PDF).
-        is_pdf = os.path.splitext(filename)[1].lower() == ".pdf"
-        if is_pdf and self._is_scanned(markdown, pages):
-            return self._transcribe_pages(content, filename, pages, warnings)
-
         return self._caption_figures(markdown, content, filename, pages, warnings)
 
     def _convert_markitdown(self, content: bytes, filename: str, warnings: list) -> str:
@@ -170,6 +242,11 @@ class MarkItDownConverter:
         }
 
 
+# ------------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------------
+
+
 def _inject_placeholders(markdown: str, placeholders: list[tuple[str, str]]) -> str:
     """Remplace les marqueurs ``![](...)`` de MarkItDown par les placeholders, dans l'ordre ;
     les placeholders sans marqueur (cas PDF) sont collés à la fin du document."""
@@ -194,3 +271,7 @@ def _inject_placeholders(markdown: str, placeholders: list[tuple[str, str]]) -> 
     if leftover:
         result = result.rstrip() + "\n\n" + "\n\n".join(text for _, text in leftover)
     return result
+
+
+# Rétrocompatibilité : les anciens importaient MarkItDownConverter
+MarkItDownConverter = DocumentConverter

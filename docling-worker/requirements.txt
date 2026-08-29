@@ -5,6 +5,7 @@
 fastapi
 uvicorn[standard]
 python-multipart
+pydantic>=2.0,<3.0
 markitdown[pdf,docx,pptx,xlsx]
 pypdf
 # Format Excel hérité (.xls) : le convertisseur XlsConverter de MarkItDown dépend de xlrd

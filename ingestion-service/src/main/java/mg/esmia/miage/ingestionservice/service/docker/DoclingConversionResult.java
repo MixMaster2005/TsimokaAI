@@ -1,6 +1,7 @@
 package mg.esmia.miage.ingestionservice.service.docker;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.List;
 
@@ -10,9 +11,14 @@ import java.util.List;
  * <p>⚠️ {@code pages_processed} (snake_case côté Python) doit être mappé via
  * {@link JsonProperty @JsonProperty("pages_processed")} sur le champ camelCase
  * {@code pagesProcessed} du record — sinon Jackson le désérialiserait silencieusement à 0.
- * Idem pour les champs snake_case de {@link DoclingImage}.
+ * Idem pour les champs snake_case de {@link DoclingImage}.</p>
+ *
+ * <p>Le champ {@code document} contient l'AST canonique (représentation structurée du document).
+ * Il est typé comme {@link JsonNode} car l'AST est encore en évolution ; on le typera
+ * proprement une fois le contrat stabilisé.</p>
  */
 public record DoclingConversionResult(
+        JsonNode document,
         String markdown,
         String method,
         @JsonProperty("pages_processed") int pagesProcessed,
