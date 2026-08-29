@@ -45,6 +45,7 @@ class RawBlock(BaseModel):
     fonts: list[str] = Field(default_factory=list)           # polices uniques
     bold_ratio: float = 0.0         # proportion de texte en gras
     span_count: int = 0             # nombre total de spans
+    is_noise: bool = False          # True si le bloc est un header/footer ou numéro de page
 
 
 class RawImage(BaseModel):

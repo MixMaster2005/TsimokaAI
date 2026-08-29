@@ -28,12 +28,12 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-HEADING_THRESHOLD = 2.5
+HEADING_THRESHOLD = 3.5
 
 _TABLE_WEIGHTS = {
-    "alignment": 0.25,
-    "repetition": 0.25,
-    "borders": 0.30,
+    "alignment": 0.35,
+    "repetition": 0.30,
+    "borders": 0.15,
     "density": 0.20,
 }
 
@@ -42,6 +42,7 @@ _LIST_BULLET_RE = re.compile(
     r"|^\-\s|^\*\s|^\+\s"
 )
 _NUMBERED_LIST_RE = re.compile(r"^\d+[\.\)]\s")
+_MULTILINE_CHARS = re.compile(r"[\n\u2028\u2029]")
 _MONOSPACE_FONTS = frozenset({
     "courier", "consolas", "monaco", "lucidaconsole", "dejavusansmono",
     "liberationmono", "nimbusmono", "droid Sans Mono", "sourcecodepro",
@@ -75,23 +76,22 @@ class StructureAnalyzer:
                 pages_ast.append(_scanned_page_ast(page.page_num))
                 continue
 
-            text_blocks = [b for b in page.blocks if b.block_type == 0]
+            text_blocks = [b for b in page.blocks if b.block_type == 0 and not b.is_noise]
 
             # Detect headings
-            heading_elements = self._heading_detector.detect(
+            heading_elements, heading_block_ids = self._heading_detector.detect(
                 text_blocks, page.page_num, all_sizes, page.height,
             )
-            heading_ids = {e.id for e in heading_elements}
 
-            # Detect tables
-            table_elements = self._table_detector.detect(
-                text_blocks, page.drawings, page.page_num, page.width,
+            # Detect tables (exclude blocks already consumed by heading detector)
+            remaining_after_headings = [b for b in text_blocks if b.id not in heading_block_ids]
+            table_elements, table_block_ids = self._table_detector.detect(
+                remaining_after_headings, page.drawings, page.page_num, page.width, page.height,
             )
-            table_ids = {e.id for e in table_elements}
 
             # Classify the rest
             remaining = _classify_remaining_blocks(
-                text_blocks, heading_ids, table_ids, page.page_num,
+                text_blocks, heading_block_ids, table_block_ids, page.page_num,
             )
 
             # Merge all elements, sorted by position then type priority
@@ -120,9 +120,9 @@ class HeadingDetector:
         page_num: int,
         all_document_sizes: list[float],
         page_height: float,
-    ) -> list[DocumentElement]:
+    ) -> tuple[list[DocumentElement], set[str]]:
         if not blocks:
-            return []
+            return [], set()
 
         sorted_sizes = _unique_sorted_desc(all_document_sizes)
         prev_block: RawBlock | None = None
@@ -139,13 +139,39 @@ class HeadingDetector:
                 + _position_score(block, page_height)
             )
             if score >= HEADING_THRESHOLD:
+                text = block.text.strip()
+                # Nettoyer les sauts de ligne dans les headings
+                text = _MULTILINE_CHARS.sub(" ", text)
+                text = re.sub(r"\s+", " ", text).strip()
+                word_count = len(text.split())
+                if word_count <= 1 and _numbering_score(block) == 0:
+                    prev_block = block
+                    continue
+                if re.match(r'^\d{1,3}$', text) and block.bbox[1] > page_height * 0.8:
+                    prev_block = block
+                    continue
+                if len(text) < 5 and block.bold_ratio < 0.5 and _numbering_score(block) == 0:
+                    prev_block = block
+                    continue
+                # Filtre : items de liste numérotés non gras (ex: "1. Remplir le formulaire...")
+                if _numbering_score(block) > 0 and block.bold_ratio < 0.5 and word_count > 5:
+                    prev_block = block
+                    continue
                 candidates.append((block, score))
             prev_block = block
 
         if not candidates:
-            return []
+            return [], set()
 
-        # Phase B: assign heading levels by font size ranking
+        # Phase B: exclude table column headers (short blocks in aligned groups)
+        candidates = _filter_table_headers(candidates, blocks)
+        if not candidates:
+            return [], set()
+
+        # Phase C: deduplicate — keep best-scoring block per normalized text
+        candidates = _deduplicate_heading_candidates(candidates)
+
+        # Phase D: assign heading levels by font size ranking
         candidate_sizes = sorted(
             {_primary_font_size(b) for b, _ in candidates},
             reverse=True,
@@ -155,23 +181,110 @@ class HeadingDetector:
             size_to_level[sz] = min(idx + 1, 6)
 
         elements: list[DocumentElement] = []
+        consumed_block_ids: set[str] = set()
         for idx, (block, score) in enumerate(candidates):
             level = size_to_level[_primary_font_size(block)]
+            clean_text = _MULTILINE_CHARS.sub(" ", block.text.strip())
+            clean_text = re.sub(r"\s+", " ", clean_text).strip()
             elements.append(DocumentElement(
                 id=f"p{page_num}-h{idx:03d}",
                 type=ElementType.HEADING,
                 level=level,
-                text=block.text.strip(),
+                text=clean_text,
                 bbox=list(block.bbox),
                 page=page_num,
                 parent_id=None,
                 confidence=min(score / (HEADING_THRESHOLD * 2), 1.0),
             ))
+            consumed_block_ids.add(block.id)
 
-        # Phase C: set parent_id (last heading with strictly lower level)
+        # Phase E: set parent_id (last heading with strictly lower level)
         _assign_heading_parents(elements)
 
-        return elements
+        return elements, consumed_block_ids
+
+
+def _filter_table_headers(
+    candidates: list[tuple[RawBlock, float]],
+    all_blocks: list[RawBlock],
+) -> list[tuple[RawBlock, float]]:
+    """Exclude heading candidates that are likely table column headers.
+
+    Heuristic: if a candidate is short (< 40 chars), non-numbered, and has
+    3+ sibling blocks at similar y-coordinate and x0 alignment, it's
+    probably a table header row, not a document heading.
+    """
+    if len(all_blocks) < 4:
+        return candidates
+
+    # Build spatial index: group blocks by y-proximity
+    sorted_blocks = sorted(all_blocks, key=lambda b: (b.bbox[1], b.bbox[0]))
+    y_groups: list[list[RawBlock]] = []
+    current_group = [sorted_blocks[0]]
+    for block in sorted_blocks[1:]:
+        prev = current_group[-1]
+        y_gap = abs(block.bbox[1] - prev.bbox[1])
+        if y_gap <= 8.0:
+            current_group.append(block)
+        else:
+            if len(current_group) >= 3:
+                y_groups.append(current_group)
+            current_group = [block]
+    if len(current_group) >= 3:
+        y_groups.append(current_group)
+
+    # For each y-group, compute x0 clusters
+    table_block_ids: set[str] = set()
+    for group in y_groups:
+        if len(group) < 3:
+            continue
+        x0s = sorted(b.bbox[0] for b in group)
+        clusters = _cluster_values(x0s, tolerance=10.0)
+        if len(clusters) >= 2:
+            # Multiple columns → likely a table row
+            for block in group:
+                table_block_ids.add(block.id)
+
+    # Filter: remove candidates whose block is in a table region
+    filtered = []
+    for block, score in candidates:
+        if block.id in table_block_ids:
+            text = block.text.strip()
+            text = _MULTILINE_CHARS.sub(" ", text)
+            # Keep only if it's numbered (e.g. "1. Introduction") or long
+            if _numbering_score(block) > 0 or len(text) > 40:
+                filtered.append((block, score))
+        else:
+            filtered.append((block, score))
+
+    return filtered
+
+
+def _deduplicate_heading_candidates(
+    candidates: list[tuple[RawBlock, float]],
+) -> list[tuple[RawBlock, float]]:
+    """Remove duplicate heading candidates: same normalized text on same page.
+
+    Keeps the block with the highest score.
+    """
+    if not candidates:
+        return []
+
+    # Group by normalized text
+    by_text: dict[str, list[tuple[RawBlock, float]]] = {}
+    for block, score in candidates:
+        text = block.text.strip()
+        text = _MULTILINE_CHARS.sub(" ", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        by_text.setdefault(text, []).append((block, score))
+
+    deduped: list[tuple[RawBlock, float]] = []
+    for text, group in by_text.items():
+        # Keep the highest-scoring block
+        best = max(group, key=lambda x: x[1])
+        deduped.append(best)
+
+    return deduped
 
 
 # ---------------------------------------------------------------------------
@@ -188,27 +301,38 @@ class TableDetector:
         drawings: list[RawDrawing],
         page_num: int,
         page_width: float,
-    ) -> list[DocumentElement]:
+        page_height: float,
+    ) -> tuple[list[DocumentElement], set[str]]:
         text_blocks = [b for b in blocks if b.block_type == 0]
         if not text_blocks:
-            return []
+            return [], set()
 
-        groups = _group_candidate_blocks(text_blocks, page_height=800)
+        groups = _group_candidate_blocks(text_blocks, page_height=page_height, y_gap_threshold=25.0)
 
         elements: list[DocumentElement] = []
         seen_ids: set[str] = set()
+        consumed_block_ids: set[str] = set()
 
         for group in groups:
+            if len(group) < 3:
+                continue
+            # Require at least 2 distinct column positions (x0 clusters)
+            x0s = sorted(b.bbox[0] for b in group)
+            n_cols = len(_cluster_values(x0s, tolerance=15.0))
+            if n_cols < 2:
+                continue
             score = _table_score(group, drawings)
-            if score > 0.6:
+            if score > 0.55:
                 elem = _build_table_element(group, score, page_num, len(elements))
                 if elem.id not in seen_ids:
                     elements.append(elem)
                     seen_ids.add(elem.id)
-            elif score > 0.35:
+                    for block in group:
+                        consumed_block_ids.add(block.id)
+            elif score > 0.25:
                 # Ambiguous — treat as paragraph for now with low confidence
                 for block in group:
-                    if block.id not in seen_ids:
+                    if block.id not in consumed_block_ids:
                         elements.append(DocumentElement(
                             id=f"p{page_num}-tbl{len(elements):03d}",
                             type=ElementType.PARAGRAPH,
@@ -217,9 +341,9 @@ class TableDetector:
                             page=page_num,
                             confidence=score,
                         ))
-                        seen_ids.add(block.id)
+                        consumed_block_ids.add(block.id)
 
-        return elements
+        return elements, consumed_block_ids
 
 
 # ---------------------------------------------------------------------------
@@ -415,7 +539,13 @@ def _group_candidate_blocks(
     page_height: float,
     y_gap_threshold: float = 15.0,
 ) -> list[list[RawBlock]]:
-    """Group text blocks that are vertically close and have overlapping x-ranges."""
+    """Group text blocks that are vertically close and have overlapping x-ranges.
+
+    Two grouping passes:
+      1. Sequential pass by y0 proximity.
+      2. Merge pass: fuse groups whose bounding boxes overlap vertically
+         and share x-range overlap (handles multi-line table cells).
+    """
     if not blocks:
         return []
 
@@ -428,7 +558,10 @@ def _group_candidate_blocks(
         y_gap = block.bbox[1] - prev.bbox[3]
         x_overlap = _x_overlap(prev, block)
 
-        if y_gap <= y_gap_threshold and x_overlap > 0:
+        # Also allow grouping if blocks are on the same y-line (row-based tables)
+        same_line = abs(block.bbox[1] - prev.bbox[1]) < 5.0
+
+        if (y_gap <= y_gap_threshold and x_overlap > 0) or same_line:
             current_group.append(block)
         else:
             if len(current_group) >= 2:
@@ -437,6 +570,36 @@ def _group_candidate_blocks(
 
     if len(current_group) >= 2:
         groups.append(current_group)
+
+    # Merge pass: combine groups whose bounding boxes are close vertically
+    # and share x-range overlap (handles multi-line table cells with small gaps)
+    if len(groups) >= 2:
+        merged = True
+        while merged:
+            merged = False
+            new_groups: list[list[RawBlock]] = []
+            used: set[int] = set()
+            for i in range(len(groups)):
+                if i in used:
+                    continue
+                g1 = groups[i]
+                for j in range(i + 1, len(groups)):
+                    if j in used:
+                        continue
+                    g2 = groups[j]
+                    bbox1 = _group_bbox(g1)
+                    bbox2 = _group_bbox(g2)
+                    # Allow small gap (5pt) between groups for vertical proximity
+                    y_gap = max(0, max(bbox1[1], bbox2[1]) - min(bbox1[3], bbox2[3]))
+                    y_close = y_gap <= 5.0
+                    x_overlap_g = min(bbox1[2], bbox2[2]) - max(bbox1[0], bbox2[0])
+                    if y_close and x_overlap_g > 0:
+                        g1 = g1 + g2
+                        used.add(j)
+                        merged = True
+                new_groups.append(g1)
+                used.add(i)
+            groups = new_groups
 
     return groups
 
@@ -463,15 +626,23 @@ def _table_score(group: list[RawBlock], drawings: list[RawDrawing]) -> float:
 
 
 def _column_alignment_score(group: list[RawBlock]) -> float:
-    """Do blocks have similar x0 values?"""
+    """Do blocks have similar x0 values across multiple columns?
+
+    A true table has 2+ distinct column positions (x0 clusters).
+    A paragraph has all blocks at the same x0 → low score.
+    """
     x0s = sorted(b.bbox[0] for b in group)
     if len(x0s) < 2:
         return 0.0
-    clusters = _cluster_values(x0s, tolerance=5.0)
+    clusters = _cluster_values(x0s, tolerance=10.0)
     if len(clusters) <= 1:
+        # All blocks at same x0 → paragraph-like, not a table
+        return 0.0
+    # 2-3 columns is ideal for a table
+    if len(clusters) <= 3:
         return 1.0
-    # More distinct columns = lower alignment score
-    return max(0.0, 1.0 - (len(clusters) - 1) * 0.15)
+    # More distinct columns = slightly lower score
+    return max(0.0, 1.0 - (len(clusters) - 3) * 0.15)
 
 
 def _column_repetition_score(group: list[RawBlock]) -> float:

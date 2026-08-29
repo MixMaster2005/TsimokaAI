@@ -46,8 +46,11 @@ def classify_page(raw_page: RawPageModel) -> PageClassification:
 
     text_density = total_text / page_area
 
-    image_area = sum(img.width * img.height for img in raw_page.images)
-    image_ratio = image_area / page_area
+    image_area = sum(
+        min(img.width, raw_page.width) * min(img.height, raw_page.height)
+        for img in raw_page.images
+    )
+    image_ratio = min(image_area / page_area, 1.0)
 
     logger.debug(
         "Page %s: text_density=%.4f, image_ratio=%.2f, blocks=%d",
@@ -57,10 +60,10 @@ def classify_page(raw_page: RawPageModel) -> PageClassification:
         block_count,
     )
 
-    if text_density < _SCANNED_TEXT_DENSITY and image_ratio > _SCANNED_IMAGE_RATIO:
-        page_type = PageType.SCANNED
-    elif text_density > _HYBRID_TEXT_DENSITY or block_count >= 3:
+    if block_count >= 3 or text_density > _HYBRID_TEXT_DENSITY:
         page_type = PageType.NATIVE
+    elif text_density < _SCANNED_TEXT_DENSITY and image_ratio > _SCANNED_IMAGE_RATIO:
+        page_type = PageType.SCANNED
     else:
         page_type = PageType.HYBRID
 

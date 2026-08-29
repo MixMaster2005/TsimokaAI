@@ -1,0 +1,164 @@
+{
+  "pages": [
+    {
+      "page": 1,
+      "elements": [
+        {
+          "id": "p1-h000",
+          "type": "heading",
+          "level": 1,
+          "text": "Chapitre 1",
+          "bbox": [72.0, 60.0, 250.0, 78.0],
+          "page": 1,
+          "parent_id": null,
+          "confidence": 0.875,
+          "table_data": null
+        },
+        {
+          "id": "p1-e000",
+          "type": "paragraph",
+          "level": null,
+          "text": "Contenu du paragraphe.",
+          "bbox": [72.0, 100.0, 420.0, 118.0],
+          "page": 1,
+          "parent_id": "p1-h000",
+          "confidence": 1.0,
+          "table_data": null
+        },
+        {
+          "id": "p1-e001",
+          "type": "paragraph",
+          "level": null,
+          "text": "Deuxieme paragraphe du chapitre 1.",
+          "bbox": [72.0, 130.0, 400.0, 148.0],
+          "page": 1,
+          "parent_id": "p1-h000",
+          "confidence": 1.0,
+          "table_data": null
+        },
+        {
+          "id": "p1-h001",
+          "type": "heading",
+          "level": 2,
+          "text": "Section 1.1",
+          "bbox": [72.0, 170.0, 200.0, 188.0],
+          "page": 1,
+          "parent_id": "p1-h000",
+          "confidence": 0.9,
+          "table_data": null
+        },
+        {
+          "id": "p1-e002",
+          "type": "paragraph",
+          "level": null,
+          "text": "Contenu de la section 1.1.",
+          "bbox": [72.0, 200.0, 380.0, 218.0],
+          "page": 1,
+          "parent_id": "p1-h001",
+          "confidence": 1.0,
+          "table_data": null
+        },
+        {
+          "id": "p1-tbl000",
+          "type": "table",
+          "level": null,
+          "text": "Nom\nVille\nAlice\nParis\nBob\nLondres",
+          "bbox": [60.0, 240.0, 400.0, 310.0],
+          "page": 1,
+          "parent_id": null,
+          "confidence": 0.72,
+          "table_data": {
+            "headers": ["Nom", "Ville"],
+            "rows": [
+              ["Alice", "Paris"],
+              ["Bob", "Londres"]
+            ]
+          }
+        },
+        {
+          "id": "p1-e003",
+          "type": "list",
+          "level": null,
+          "text": "- element A\n- element B\n- element C",
+          "bbox": [72.0, 330.0, 250.0, 380.0],
+          "page": 1,
+          "parent_id": "p1-h001",
+          "confidence": 0.85,
+          "table_data": null
+        },
+        {
+          "id": "p1-e004",
+          "type": "figure",
+          "level": null,
+          "text": "Figure 1",
+          "bbox": [100.0, 400.0, 300.0, 500.0],
+          "page": 1,
+          "parent_id": null,
+          "confidence": 1.0,
+          "table_data": null
+        },
+        {
+          "id": "p1-cap000",
+          "type": "caption",
+          "level": null,
+          "text": "Schema d'architecture du systeme",
+          "bbox": [100.0, 505.0, 300.0, 520.0],
+          "page": 1,
+          "parent_id": "p1-e004",
+          "confidence": 1.0,
+          "table_data": null
+        },
+        {
+          "id": "p1-e005",
+          "type": "code",
+          "level": null,
+          "text": "def hello():\n    print('world')",
+          "bbox": [72.0, 540.0, 300.0, 590.0],
+          "page": 1,
+          "parent_id": null,
+          "confidence": 0.95,
+          "table_data": null
+        },
+        {
+          "id": "p1-e006",
+          "type": "quote",
+          "level": null,
+          "text": "Citation importante du document.",
+          "bbox": [100.0, 610.0, 350.0, 630.0],
+          "page": 1,
+          "parent_id": "p1-h000",
+          "confidence": 0.8,
+          "table_data": null
+        }
+      ]
+    },
+    {
+      "page": 2,
+      "elements": [
+        {
+          "id": "p2-h000",
+          "type": "heading",
+          "level": 1,
+          "text": "Chapitre 2",
+          "bbox": [72.0, 60.0, 250.0, 78.0],
+          "page": 2,
+          "parent_id": null,
+          "confidence": 0.88,
+          "table_data": null
+        },
+        {
+          "id": "p2-e000",
+          "type": "paragraph",
+          "level": null,
+          "text": "Contenu du chapitre 2, sur la page 2.",
+          "bbox": [72.0, 100.0, 420.0, 118.0],
+          "page": 2,
+          "parent_id": "p2-h000",
+          "confidence": 1.0,
+          "table_data": null
+        }
+      ]
+    }
+  ],
+  "images": []
+}

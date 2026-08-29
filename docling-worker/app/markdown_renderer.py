@@ -84,12 +84,22 @@ def _render_table(element: DocumentElement) -> str:
     if not headers:
         return f"{element.text}\n\n" if element.text else ""
 
-    header_line = "| " + " | ".join(headers) + " |"
-    separator = "| " + " | ".join(["---"] * len(headers)) + " |"
+    def _escape_cell(text: str) -> str:
+        """Échapper les pipes et nettoyer le contenu d'une cellule."""
+        t = text.replace("|", "\\|").replace("\n", " ").strip()
+        return re.sub(r"\s+", " ", t)
+
+    # Normaliser le nombre de colonnes
+    n_cols = len(headers)
+    clean_headers = [_escape_cell(h) for h in headers]
     data_lines = []
     for row in rows:
-        padded = row + [""] * (len(headers) - len(row))
-        data_lines.append("| " + " | ".join(padded[: len(headers)]) + " |")
+        padded = row + [""] * (n_cols - len(row))
+        clean_row = [_escape_cell(c) for c in padded[:n_cols]]
+        data_lines.append("| " + " | ".join(clean_row) + " |")
+
+    header_line = "| " + " | ".join(clean_headers) + " |"
+    separator = "| " + " | ".join(["---"] * n_cols) + " |"
     return "\n".join([header_line, separator] + data_lines) + "\n\n"
 
 

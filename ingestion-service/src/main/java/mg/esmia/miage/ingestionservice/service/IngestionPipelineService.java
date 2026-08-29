@@ -91,14 +91,14 @@ public class IngestionPipelineService {
             DoclingConversionResult conversion = dockerWorkerClient.convert(fileContent, document.getFilename());
 
             // Log de l'AST si présente (Phase 1 — non exploité pour le chunking)
-            if (conversion.document() != null && !conversion.document().isNull()) {
-                int pageCount = conversion.document().has("pages")
-                    ? conversion.document().get("pages").size() : 0;
+            if (conversion.document() != null) {
+                int pageCount = conversion.document().pages() != null
+                    ? conversion.document().pages().size() : 0;
                 int elementCount = 0;
-                if (conversion.document().has("pages")) {
-                    for (var page : conversion.document().get("pages")) {
-                        if (page.has("elements")) {
-                            elementCount += page.get("elements").size();
+                if (conversion.document().pages() != null) {
+                    for (var page : conversion.document().pages()) {
+                        if (page.elements() != null) {
+                            elementCount += page.elements().size();
                         }
                     }
                 }

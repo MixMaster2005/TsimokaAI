@@ -5,6 +5,7 @@ les images embarquées et les paths vectoriels (dessins).  C'est la première
 étape du pipeline : aucune décision sémantique n'est prise ici.
 """
 import logging
+import re
 
 import fitz
 
@@ -48,6 +49,7 @@ def extract_raw_document(content: bytes) -> list[RawPageModel]:
         pages: list[RawPageModel] = []
         for page_index, page in enumerate(doc):
             pages.append(_extract_page(page, doc, page_index))
+        _mark_noise_blocks(pages)
         return pages
     finally:
         doc.close()
@@ -56,6 +58,127 @@ def extract_raw_document(content: bytes) -> list[RawPageModel]:
 # ---------------------------------------------------------------------------
 # Extraction par page
 # ---------------------------------------------------------------------------
+
+def _bbox_overlap_ratio(a: list[float], b: list[float]) -> float:
+    """Compute IoU (Intersection over Union) of two bboxes."""
+    x0 = max(a[0], b[0])
+    y0 = max(a[1], b[1])
+    x1 = min(a[2], b[2])
+    y1 = min(a[3], b[3])
+
+    if x1 <= x0 or y1 <= y0:
+        return 0.0
+
+    intersection = (x1 - x0) * (y1 - y0)
+    area_a = (a[2] - a[0]) * (a[3] - a[1])
+    area_b = (b[2] - b[0]) * (b[3] - b[1])
+    union = area_a + area_b - intersection
+
+    return intersection / union if union > 0 else 0.0
+
+
+def _blocks_are_duplicate(a: RawBlock, b: RawBlock) -> bool:
+    """Two blocks are duplicates if they have the same text and overlapping bbox."""
+    if a.text.strip() != b.text.strip():
+        return False
+    if not a.text.strip():
+        return False
+    return _bbox_overlap_ratio(a.bbox, b.bbox) > 0.5
+
+
+def _deduplicate_blocks(blocks: list[RawBlock]) -> list[RawBlock]:
+    """Remove duplicate text blocks (same text, overlapping bbox)."""
+    if not blocks:
+        return blocks
+
+    seen: list[RawBlock] = []
+    for block in blocks:
+        is_duplicate = False
+        for existing in seen:
+            if _blocks_are_duplicate(block, existing):
+                is_duplicate = True
+                break
+        if not is_duplicate:
+            seen.append(block)
+
+    for idx, block in enumerate(seen):
+        block.id = f"b{idx:02d}"
+
+    return seen
+
+
+# ---------------------------------------------------------------------------
+# Détection de bruit (headers/footers, numéros de page)
+# ---------------------------------------------------------------------------
+
+_PAGE_NUMBER_RE = re.compile(r"^\d{1,4}$")
+_PAGE_OF_RE = re.compile(r"^[Pp]age\s+\d+\s+of\s+\d+$")
+
+
+def _mark_noise_blocks(pages: list[RawPageModel]) -> None:
+    """Marque les blocs bruit (headers/footers répétés, numéros de page).
+
+    Modifie les blocs en place en ajoutant ``is_noise=True``.
+    """
+    if len(pages) < 2:
+        return
+
+    # --- 1. Headers/footers répétés sur 80%+ des pages ---
+    _mark_running_headers(pages, threshold=0.8)
+
+    # --- 2. Numéros de page ---
+    for page in pages:
+        height = page.height
+        for block in page.blocks:
+            if block.block_type != 0:
+                continue
+            text = block.text.strip()
+            # Numéro de page en bas de page
+            if block.bbox[1] > height - 50:
+                if _PAGE_NUMBER_RE.match(text) or _PAGE_OF_RE.match(text):
+                    block.is_noise = True
+            # "Page of X" n'importe où
+            if _PAGE_OF_RE.match(text):
+                block.is_noise = True
+
+
+def _mark_running_headers(pages: list[RawPageModel], threshold: float = 0.8) -> None:
+    """Détecte les textes qui se répètent sur >= threshold% des pages."""
+    n_pages = len(pages)
+    min_count = max(2, int(n_pages * threshold))
+
+    # Collecter les textes par position (y < 50 = header, y > height-50 = footer)
+    top_texts: dict[str, list[tuple[int, str]]] = {}  # text -> [(page_num, block_id)]
+    bottom_texts: dict[str, list[tuple[int, str]]] = {}
+
+    for page in pages:
+        height = page.height
+        for block in page.blocks:
+            if block.block_type != 0:
+                continue
+            text = block.text.strip()
+            if not text or len(text) < 5:
+                continue
+            # Normaliser le texte (supprimer sauts de ligne pour comparaison)
+            normalized = re.sub(r"\s+", " ", text)[:80]
+            if block.bbox[1] < 50:
+                top_texts.setdefault(normalized, []).append((page.page_num, block.id))
+            elif block.bbox[1] > height - 50:
+                bottom_texts.setdefault(normalized, []).append((page.page_num, block.id))
+
+    # Marquer les textes suffisamment répétés
+    noise_ids: set[str] = set()
+    for text, occurrences in {**top_texts, **bottom_texts}.items():
+        if len(occurrences) >= min_count:
+            for _, block_id in occurrences:
+                noise_ids.add(block_id)
+
+    # Appliquer
+    for page in pages:
+        for block in page.blocks:
+            if block.id in noise_ids:
+                block.is_noise = True
+
 
 def _extract_page(page, doc, page_index: int) -> RawPageModel:
     """Extrait le contenu brut d'une seule page PDF."""
@@ -93,6 +216,8 @@ def _extract_page(page, doc, page_index: int) -> RawPageModel:
         drawings = _extract_drawings(page)
     except Exception:
         logger.warning("Échec extraction dessins page %d", page_index + 1)
+
+    blocks = _deduplicate_blocks(blocks)
 
     return RawPageModel(
         page_num=page_index + 1,
