@@ -105,7 +105,8 @@ def _render_table(element: DocumentElement) -> str:
 
 def _render_figure(element: DocumentElement) -> str:
     caption = element.text if element.text else "Figure extraite du document"
-    return f"![{caption}]({{IMAGE:img_001}})\n\n"
+    image_id = element.image_id or "img_001"
+    return f"![{caption}]({{IMAGE:{image_id}}})\n\n"
 
 
 def _render_caption(element: DocumentElement) -> str:

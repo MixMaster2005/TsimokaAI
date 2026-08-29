@@ -258,6 +258,9 @@ public class StructureAwareChunker {
             pageStart = Math.min(pageStart, element.page());
             pageEnd = Math.max(pageEnd, element.page());
             elementTypes.add(element.type());
+            if (element.type() == ElementType.FIGURE && element.imageId() != null) {
+                imageIds.add(element.imageId());
+            }
         }
 
         boolean isEmpty() {

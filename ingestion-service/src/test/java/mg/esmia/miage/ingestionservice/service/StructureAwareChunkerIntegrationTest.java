@@ -126,13 +126,20 @@ class StructureAwareChunkerIntegrationTest {
     }
 
     @Test
-    void imageIdsEmptyInV1() throws Exception {
+    void imageIdsPopulatedForFigureElements() throws Exception {
         CanonicalDocument ast = loadSampleAst();
         List<StructuredChunk> chunks = chunker.chunk(ast);
 
+        // Le fixture contient un FIGURE avec image_id="img_001"
+        boolean foundChunkWithImage = false;
         for (StructuredChunk chunk : chunks) {
-            assertTrue(chunk.imageIds().isEmpty(),
-                    "V1: imageIds doit être vide");
+            if (!chunk.imageIds().isEmpty()) {
+                foundChunkWithImage = true;
+                assertTrue(chunk.imageIds().contains("img_001"),
+                        "Le chunk avec FIGURE doit contenir image_id img_001");
+            }
         }
+        assertTrue(foundChunkWithImage,
+                "Au moins un chunk doit contenir des imageIds (FIGURE du fixture)");
     }
 }

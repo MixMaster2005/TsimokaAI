@@ -13,11 +13,13 @@ from app.models import (
     CanonicalDocument,
     DocumentElement,
     ElementType,
+    ImageRef,
     PageAST,
     PageClassification,
     PageType,
     RawBlock,
     RawDrawing,
+    RawImage,
     RawPageModel,
     TableData,
 )
@@ -70,6 +72,8 @@ class StructureAnalyzer:
         all_sizes = _collect_all_sizes(raw_pages)
 
         pages_ast: list[PageAST] = []
+        all_image_refs: list[ImageRef] = []
+        global_img_idx = 0
 
         for page, classification in zip(raw_pages, classifications):
             if classification.page_type == PageType.SCANNED:
@@ -94,8 +98,14 @@ class StructureAnalyzer:
                 text_blocks, heading_block_ids, table_block_ids, page.page_num,
             )
 
+            # Create FIGURE elements for embedded images
+            figure_elements, img_refs, global_img_idx = _create_figure_elements(
+                page, page.page_num, global_img_idx,
+            )
+            all_image_refs.extend(img_refs)
+
             # Merge all elements, sorted by position then type priority
-            all_elements = heading_elements + table_elements + remaining
+            all_elements = heading_elements + table_elements + remaining + figure_elements
             all_elements.sort(key=lambda e: (e.page, e.bbox[1], e.bbox[0]))
 
             # Build hierarchy
@@ -103,7 +113,7 @@ class StructureAnalyzer:
 
             pages_ast.append(PageAST(page=page.page_num, elements=all_elements))
 
-        return CanonicalDocument(pages=pages_ast, images=[])
+        return CanonicalDocument(pages=pages_ast, images=all_image_refs)
 
 
 # ---------------------------------------------------------------------------
@@ -817,6 +827,41 @@ def _classify_remaining_blocks(
         idx += 1
 
     return elements
+
+
+def _create_figure_elements(
+    page: RawPageModel,
+    page_num: int,
+    global_img_idx: int,
+) -> tuple[list[DocumentElement], list[ImageRef], int]:
+    """Crée un FIGURE element + ImageRef par image embarquée de la page.
+
+    Returns:
+        (figure_elements, image_refs, next_global_img_idx)
+    """
+    elements: list[DocumentElement] = []
+    refs: list[ImageRef] = []
+
+    for local_idx, image in enumerate(page.images):
+        placeholder_id = f"img_{global_img_idx + 1:03d}"
+        elements.append(DocumentElement(
+            id=f"p{page_num}-f{local_idx:03d}",
+            type=ElementType.FIGURE,
+            text="",
+            bbox=list(image.bbox),
+            page=page_num,
+            confidence=1.0,
+            image_id=placeholder_id,
+        ))
+        refs.append(ImageRef(
+            placeholder_id=placeholder_id,
+            content_type=image.content_type,
+            bbox=list(image.bbox),
+            page=page_num,
+        ))
+        global_img_idx += 1
+
+    return elements, refs, global_img_idx
 
 
 def _infer_element_type(block: RawBlock) -> ElementType:

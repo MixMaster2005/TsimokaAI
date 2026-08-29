@@ -130,6 +130,7 @@ class DocumentElement(BaseModel):
     parent_id: str | None = None     # null pour les éléments hors section
     confidence: float = 1.0          # score de confiance de la classification
     table_data: TableData | None = None  # données structurées pour les tableaux
+    image_id: str | None = None      # ex: "img_001" — uniquement pour FIGURE
 
 
 class PageAST(BaseModel):

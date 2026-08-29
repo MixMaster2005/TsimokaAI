@@ -95,7 +95,8 @@
           "page": 1,
           "parent_id": null,
           "confidence": 1.0,
-          "table_data": null
+          "table_data": null,
+          "image_id": "img_001"
         },
         {
           "id": "p1-cap000",

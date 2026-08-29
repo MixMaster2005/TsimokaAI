@@ -102,7 +102,7 @@ public class IngestionPipelineService {
 
             // Markdown pour debug/preview (pas pour le chunking)
             String markdown = imageUploadService.substituteImages(
-                    conversion.markdown(), conversion.images(), document.getSpaceId());
+                    conversion.markdown(), conversion.images(), document.getSpaceId(), document.getId());
             log.info("Document {} converti : méthode {}, {} pages, {} chunks, {} caractères Markdown",
                     documentId, conversion.method(), conversion.pagesProcessed(),
                     structuredChunks.size(), markdown.length());
@@ -143,15 +143,6 @@ public class IngestionPipelineService {
         }
     }
 
-    /** Nettoyage complet (BDD + MinIO + Qdrant) pour un document donné. */
-    @Transactional
-    public void deleteDocument(Document document) {
-        chunkRepository.deleteByDocumentId(document.getId());
-        minioService.delete(document.getStorageUrl());
-        qdrantVectorService.deletePoints(document.getId());
-        documentRepository.delete(document);
-    }
-
     /** Persiste une entité {@link Chunk} par morceau (vectorId = point Qdrant). */
     private void saveChunks(UUID documentId, List<StructuredChunk> chunks, List<UUID> vectorIds) {
         List<Chunk> entities = new ArrayList<>();
@@ -160,7 +151,6 @@ public class IngestionPipelineService {
                     .documentId(documentId)
                     .chunkIndex(chunks.get(i).chunkIndex())
                     .content(chunks.get(i).text())
-                    .tokenCount(0) // temporaire — calculé ailleurs en V2
                     .vectorId(vectorIds.get(i).toString())
                     .build());
         }

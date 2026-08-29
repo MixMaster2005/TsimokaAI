@@ -34,4 +34,10 @@ public class DockerWorkerProperties {
 
     /** Modèle Gemini vision injecté au conteneur via l'env GEMINI_MODEL. */
     private String geminiModel = "";
+
+    /**
+     * Nombre maximum de conteneurs docling-worker simultanés (sémaphore).
+     * Doit être calibré sur la RAM et le CPU disponibles de l'hôte.
+     */
+    private int maxContainers = 4;
 }

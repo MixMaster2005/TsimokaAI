@@ -1,6 +1,7 @@
 package mg.esmia.miage.ingestionservice.service;
 
 import io.minio.*;
+import io.minio.messages.Item;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import mg.esmia.miage.common.exception.ApiException;
@@ -98,6 +99,26 @@ public class MinioService implements InitializingBean {
             minioClient.removeObject(RemoveObjectArgs.builder().bucket(bucket).object(objectName).build());
         } catch (Exception e) {
             log.warn("Échec de la suppression MinIO pour {} (ignoré)", storageUrl, e);
+        }
+    }
+
+    /**
+     * Supprime tous les objets MinIO dont le nom commence par {@code prefix}.
+     * Utilisé pour nettoyer les images extraites d'un document :
+     * {@code spaces/{spaceId}/images/{documentId}*}.
+     */
+    public void deleteByPrefix(String prefix) {
+        try {
+            Iterable<Result<Item>> results = minioClient.listObjects(
+                    ListObjectsArgs.builder().bucket(bucket).prefix(prefix).build());
+            for (Result<Item> result : results) {
+                Item item = result.get();
+                minioClient.removeObject(
+                        RemoveObjectArgs.builder().bucket(bucket).object(item.objectName()).build());
+                log.debug("Objet MinIO supprimé : {}", item.objectName());
+            }
+        } catch (Exception e) {
+            log.warn("Échec de la suppression MinIO par préfixe '{}' (ignoré)", prefix, e);
         }
     }
 

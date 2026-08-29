@@ -35,46 +35,50 @@ class StructureAwareChunkerTest {
     private DocumentElement heading(String id, int level, String text,
                                      String parentId, int page) {
         return new DocumentElement(id, ElementType.HEADING, level, text,
-                List.of(0f, 0f, 100f, 20f), page, parentId, 0.9, null);
+                List.of(0f, 0f, 100f, 20f), page, parentId, 0.9, null, null);
     }
 
     private DocumentElement paragraph(String id, String text,
                                       String parentId, int page) {
         return new DocumentElement(id, ElementType.PARAGRAPH, null, text,
-                List.of(0f, 0f, 100f, 20f), page, parentId, 1.0, null);
+                List.of(0f, 0f, 100f, 20f), page, parentId, 1.0, null, null);
     }
 
     private DocumentElement table(String id, String text, int page) {
         return new DocumentElement(id, ElementType.TABLE, null, text,
                 List.of(0f, 0f, 100f, 20f), page, null, 0.8,
-                new TableData(List.of("A", "B"), List.of(List.of("1", "2"))));
+                new TableData(List.of("A", "B"), List.of(List.of("1", "2"))), null);
     }
 
     private DocumentElement code(String id, String text, int page) {
         return new DocumentElement(id, ElementType.CODE, null, text,
-                List.of(0f, 0f, 100f, 20f), page, null, 0.95, null);
+                List.of(0f, 0f, 100f, 20f), page, null, 0.95, null, null);
     }
 
     private DocumentElement list(String id, String text,
                                  String parentId, int page) {
         return new DocumentElement(id, ElementType.LIST, null, text,
-                List.of(0f, 0f, 100f, 20f), page, parentId, 0.85, null);
+                List.of(0f, 0f, 100f, 20f), page, parentId, 0.85, null, null);
     }
 
     private DocumentElement quote(String id, String text,
                                   String parentId, int page) {
         return new DocumentElement(id, ElementType.QUOTE, null, text,
-                List.of(0f, 0f, 100f, 20f), page, parentId, 0.8, null);
+                List.of(0f, 0f, 100f, 20f), page, parentId, 0.8, null, null);
     }
 
     private DocumentElement caption(String id, String text, int page) {
         return new DocumentElement(id, ElementType.CAPTION, null, text,
-                List.of(0f, 0f, 100f, 20f), page, null, 1.0, null);
+                List.of(0f, 0f, 100f, 20f), page, null, 1.0, null, null);
     }
 
     private DocumentElement figure(String id, String text, int page) {
+        return figure(id, text, page, null);
+    }
+
+    private DocumentElement figure(String id, String text, int page, String imageId) {
         return new DocumentElement(id, ElementType.FIGURE, null, text,
-                List.of(0f, 0f, 100f, 20f), page, null, 1.0, null);
+                List.of(0f, 0f, 100f, 20f), page, null, 1.0, null, imageId);
     }
 
     private CanonicalDocument doc(PageAST... pages) {
@@ -281,19 +285,24 @@ class StructureAwareChunkerTest {
     }
 
     @Test
-    void imageIdsAreEmptyInV1() {
-        CanonicalDocument document = doc(
+    void imageIdsCollectedFromFigureElements() {
+        // Figure AVEC image_id → imageIds doit contenir l'ID
+        CanonicalDocument withImageId = doc(
                 page(1,
-                        figure("f1", "Figure 1", 1),
+                        figure("f1", "Figure 1", 1, "img_001"),
                         caption("c1", "Légende", 1)));
+        List<StructuredChunk> chunksWithId = chunker.chunk(withImageId);
+        assertFalse(chunksWithId.isEmpty());
+        assertEquals(List.of("img_001"), chunksWithId.get(0).imageIds());
 
-        List<StructuredChunk> chunks = chunker.chunk(document);
-
-        assertFalse(chunks.isEmpty());
-        for (StructuredChunk chunk : chunks) {
-            assertTrue(chunk.imageIds().isEmpty(),
-                    "V1: imageIds doit être vide");
-        }
+        // Figure SANS image_id → imageIds reste vide
+        CanonicalDocument withoutImageId = doc(
+                page(1,
+                        figure("f2", "Figure 2", 1),
+                        caption("c2", "Légende", 1)));
+        List<StructuredChunk> chunksWithoutId = chunker.chunk(withoutImageId);
+        assertFalse(chunksWithoutId.isEmpty());
+        assertTrue(chunksWithoutId.get(0).imageIds().isEmpty());
     }
 
     @Test

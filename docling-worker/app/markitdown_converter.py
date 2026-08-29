@@ -109,17 +109,29 @@ class DocumentConverter:
         filename: str,
         warnings: list,
     ) -> list[dict]:
-        """Extraction images via image_extractor + légende Gemini."""
+        """Extraction images via image_extractor + légende Gemini.
+
+        Utilise les placeholder_id pré-assignés par le StructureAnalyzer
+        (document.images) comme source de vérité pour les IDs. Les images
+        extraites par image_extractor sont appariées par position à celles
+        de l'AST.
+        """
         extracted = image_extractor.extract_images(content, filename)
+        ast_refs = document.images  # pré-assignés par le StructureAnalyzer
         images = []
-        for index, image in enumerate(extracted, start=1):
-            if index > image_extractor.MAX_EXTRACTED_IMAGES:
+
+        for index, image in enumerate(extracted):
+            if index >= image_extractor.MAX_EXTRACTED_IMAGES:
                 warnings.append(
                     f"Plafond atteint : seules les {image_extractor.MAX_EXTRACTED_IMAGES} "
                     "premières images sont légendées"
                 )
                 break
-            placeholder_id = f"img_{index:03d}"
+            # Utiliser l'placeholder_id de l'AST si disponible
+            if index < len(ast_refs):
+                placeholder_id = ast_refs[index].placeholder_id
+            else:
+                placeholder_id = f"img_{index + 1:03d}"
             caption = ""
             try:
                 caption = self._vision.caption_figure(image.content, image.content_type)

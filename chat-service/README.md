@@ -163,7 +163,7 @@ Migrations Flyway (`db/migration`) : `V1__init.sql`, `V2__message_citations.sql`
 1. **Validation de bout en bout** avec toute l'infra (postgres + redis + qdrant + ollama +
    space-service) : envoyer un vrai message et vérifier la réponse basée sur les documents
    indexés, ainsi que la qualité du **rerank LLM** (paramètres à ajuster empiriquement).
-2. Remplir `tokenCount` sur la réponse (non renseigné pour l'instant).
+2. Remplir `tokenCount` sur la réponse (V1 nullable, V2 tokenizer réel).
 3. **Test live Gemini** : nécessite une `GEMINI_API_KEY` ; le câblage (endpoint compatible
    OpenAI + `completionsPath /chat/completions`) est vérifié à la compilation mais pas
    exécuté sans clé.

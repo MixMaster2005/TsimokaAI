@@ -17,7 +17,7 @@ import java.util.Set;
  * @param pageStart    première page du chunk
  * @param pageEnd      dernière page du chunk
  * @param elementTypes types d'éléments AST contenus dans le chunk
- * @param imageIds     identifiants des images associées (V1: toujours vide, prêt pour V2)
+ * @param imageIds     identifiants des images associées au chunk (ex: ["img_003"])
  */
 public record StructuredChunk(
     int chunkIndex,

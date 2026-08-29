@@ -25,6 +25,7 @@ public class DocumentService {
     private final DocumentRepository documentRepository;
     private final MinioService minioService;
     private final IngestionPipelineService pipelineService;
+    private final DocumentDeletionService documentDeletionService;
 
     @Transactional
     public DocumentResponse upload(UUID spaceId, UUID userId, MultipartFile file) {
@@ -75,17 +76,17 @@ public class DocumentService {
     public void delete(UUID id, UUID requesterId, boolean isAdmin) {
         Document document = findOrThrow(id);
         assertOwnerOrAdmin(document, requesterId, isAdmin);
-        pipelineService.deleteDocument(document);
+        documentDeletionService.deleteDocument(document);
     }
 
     @Transactional
     public void deleteAllForSpace(UUID spaceId) {
-        documentRepository.findBySpaceId(spaceId).forEach(pipelineService::deleteDocument);
+        documentDeletionService.deleteBySpace(spaceId);
     }
 
     @Transactional
     public void deleteAllForUser(UUID userId) {
-        documentRepository.findByUserId(userId).forEach(pipelineService::deleteDocument);
+        documentDeletionService.deleteByUser(userId);
     }
 
     private Document findOrThrow(UUID id) {

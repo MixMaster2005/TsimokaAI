@@ -69,6 +69,7 @@ docling-worker:
   conversion-timeout-seconds: ${DOCLING_WORKER_CONVERT_TIMEOUT:300}
   gemini-api-key: ${GEMINI_API_KEY:}
   gemini-model: ${GEMINI_MODEL:}
+  max-containers: ${DOCLING_WORKER_MAX_CONTAINERS:4}
 
 management:
   endpoints:

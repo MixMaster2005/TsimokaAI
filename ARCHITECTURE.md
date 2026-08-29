@@ -9,7 +9,7 @@ comme base de la section « choix techniques » du mémoire.
 `infra/postgres-init/01-create-databases.sh` crée une base par service (`user_db`,
 `space_db`, ...).
 
-**Raison** : contrainte matérielle (Intel i5-6200U, 8 Go RAM, pas de GPU). Sept conteneurs
+**Raison** : contrainte matérielle (Intel i5-6200U, 16 Go RAM, pas de GPU). Sept conteneurs
 PostgreSQL séparés consommeraient inutilement de la RAM pour un gain d'isolation marginal
 en développement local.
 
@@ -186,13 +186,13 @@ par ingestion-service) : l'auto-config est l'équivalent du bean explicite du sp
 
 ## 7. Limites connues de ce codebase généré
 
-- **Concurrence d'ingestion non bornée** : `processAsync` (@Async) s'appuie sur le
-  `SimpleAsyncTaskExecutor` par défaut — un thread par upload, aucun pool, et chaque
-  conversion spawné un conteneur `docling-worker` (docker-java). Sous charge, N uploads
-  simultanés = N threads + N conteneurs + N×M appels Gemini (quota RPM) → risque de
-  saturation RAM/CPU en local et de dépassement de quota en serveur. Analyse et pistes de
-  correction (pool borné, sémaphore de conteneurs, idempotence par document, retry/backoff)
-  documentées dans [`docs/ingestion-concurrence.md`](docs/ingestion-concurrence.md).
+- **Concurrence d'ingestion bornée (pool + sémaphore)** : `processAsync` (@Async) utilise
+  un `ThreadPoolTaskExecutor` (core=2, max=4, queue=10, CallerRunsPolicy) et un
+  `Semaphore` (permits=4, configurable via `DOCLING_WORKER_MAX_CONTAINERS`) qui plafonne
+  les conteneurs `docling-worker` simultanés. Les requêtes excédentaires attendent dans la
+  file du pool ; le sémaphore garantit que la RAM/CPU hôte ne sont jamais saturés par les
+  containers. Analyse détaillée dans
+  [`docs/ingestion-concurrence.md`](docs/ingestion-concurrence.md).
 - Versions de dépendances validées par de vraies builds (`mvn clean package` de
   `common`, `ai-common`, `chat-service`, `space-service`, `fiche-service` avec leurs modules
   amont) — build globale à rejouer après toute évolution.
@@ -216,3 +216,7 @@ par ingestion-service) : l'auto-config est l'équivalent du bean explicite du sp
   rappels expirés n'étaient pas purgés, causant une croissance indéfinie de la table).
 - ~~Bug de configuration actuator dans `api-gateway`~~ — **corrigé** (les endpoints
   actuator n'étaient pas exposés correctement via la gateway réactive).
+- `tokenCount` dans `Chunk` et `Message` est `NULL` (V1) — pas de tokenizer intégré.
+  V2 : tokenizer réel selon le modèle cible si besoin de limites de contexte précises.
+- **File de jobs** (ex. Redis + `@Scheduled` sweeper) : à intégrer pour borner la concurrence
+  d'ingestion de manière plus robuste que le pool de threads actuel — à prévoir en V2.

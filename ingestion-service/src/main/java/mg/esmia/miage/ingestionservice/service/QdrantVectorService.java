@@ -104,6 +104,8 @@ public class QdrantVectorService {
                     .putPayload("element_types", ValueFactory.value(
                             chunk.elementTypes().stream().map(Enum::name)
                                     .collect(Collectors.joining(","))))
+                    .putPayload("image_ids", ValueFactory.value(
+                            String.join(",", chunk.imageIds())))
                     .build());
         }
         try {

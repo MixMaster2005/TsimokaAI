@@ -18,16 +18,22 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Semaphore;
+
+import jakarta.annotation.PostConstruct;
 
 /**
  * Orchestration du conteneur docling-worker, spawné à la demande (jamais un service
  * permanent de docker-compose.yml) :
  * <ol>
+ *   <li>acquisition du sémaphore ({@code max-containers}) — les requêtes excédentaires
+ *       attendent dans la file du pool de threads ;</li>
  *   <li>création d'un conteneur au nom unique {@code docling-worker-<uuid>} sur le réseau
  *       Docker configuré (par défaut {@code apa-net}, le réseau de ingestion-service) ;</li>
  *   <li>démarrage puis attente de disponibilité via {@code GET /health} (timeout configurable) ;</li>
  *   <li>{@code POST /v1/convert} (multipart) via WebClient ;</li>
- *   <li>arrêt + suppression du conteneur <b>toujours</b>, même en cas d'erreur (finally).</li>
+ *   <li>arrêt + suppression du conteneur <b>toujours</b>, même en cas d'erreur (finally) ;</li>
+ *   <li>libération du sémaphore (finally).</li>
  * </ol>
  *
  * Le conteneur étant joint par son nom Docker (DNS du réseau nommé), l'URL d'accès est
@@ -47,6 +53,14 @@ public class DockerWorkerClient {
     private final DockerWorkerProperties properties;
     private final WebClient.Builder webClientBuilder;
 
+    private Semaphore containerSemaphore;
+
+    @PostConstruct
+    void init() {
+        containerSemaphore = new Semaphore(properties.getMaxContainers(), true);
+        log.info("Sémaphore Docker initialisé : {} permits", properties.getMaxContainers());
+    }
+
     /**
      * Convertit un fichier (binaire) via docling-worker.
      *
@@ -59,12 +73,18 @@ public class DockerWorkerClient {
         String containerName = CONTAINER_NAME_PREFIX + UUID.randomUUID();
         String containerId = null;
         try {
+            containerSemaphore.acquire();
             containerId = startContainer(containerName);
             String baseUrl = "http://%s:%d".formatted(containerName, properties.getContainerPort());
             waitUntilHealthy(baseUrl);
             return convertFile(baseUrl, fileContent, filename);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ApiException(ERROR_CODE,
+                    "Interruption pendant l'attente du sémaphore Docker", 500);
         } finally {
             stopAndRemoveContainer(containerId);
+            containerSemaphore.release();
         }
     }
 

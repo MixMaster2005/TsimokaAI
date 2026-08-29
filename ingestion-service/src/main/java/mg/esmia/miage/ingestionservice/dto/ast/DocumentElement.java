@@ -12,5 +12,6 @@ public record DocumentElement(
     int page,
     @JsonProperty("parent_id") String parentId,
     double confidence,
-    @JsonProperty("table_data") TableData tableData
+    @JsonProperty("table_data") TableData tableData,
+    @JsonProperty("image_id") String imageId
 ) {}

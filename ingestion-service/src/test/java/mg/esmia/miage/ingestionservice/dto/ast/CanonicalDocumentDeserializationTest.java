@@ -97,6 +97,7 @@ class CanonicalDocumentDeserializationTest {
         DocumentElement figure = page1.elements().get(7);
         assertEquals(ElementType.FIGURE, figure.type());
         assertEquals("p1-e004", figure.id());
+        assertEquals("img_001", figure.imageId());
 
         // --- Caption ---
         DocumentElement caption = page1.elements().get(8);

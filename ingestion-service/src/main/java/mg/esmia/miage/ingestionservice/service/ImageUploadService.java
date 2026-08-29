@@ -2,6 +2,8 @@ package mg.esmia.miage.ingestionservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import mg.esmia.miage.ingestionservice.entity.DocumentImage;
+import mg.esmia.miage.ingestionservice.repository.DocumentImageRepository;
 import mg.esmia.miage.ingestionservice.service.docker.DoclingConversionResult.DoclingImage;
 import org.springframework.stereotype.Service;
 
@@ -21,11 +23,12 @@ import java.util.UUID;
 public class ImageUploadService {
 
     private final MinioService minioService;
+    private final DocumentImageRepository documentImageRepository;
 
     /**
      * @return le Markdown avec les images uplodées dans MinIO et les placeholders substitués.
      */
-    public String substituteImages(String markdown, List<DoclingImage> images, UUID spaceId) {
+    public String substituteImages(String markdown, List<DoclingImage> images, UUID spaceId, UUID documentId) {
         String result = markdown;
         for (DoclingImage image : images) {
             if (image.dataBase64() == null || image.placeholderId() == null) {
@@ -43,6 +46,10 @@ public class ImageUploadService {
                 log.warn("Base64 invalide pour l'image {} — ignorée ({})", image.placeholderId(), e.getMessage());
                 continue;
             }
+            documentImageRepository.save(DocumentImage.builder()
+                    .documentId(documentId)
+                    .storageUrl(storageUrl)
+                    .build());
             String caption = image.caption() == null ? "" : image.caption().trim();
             String altText = caption.isBlank() ? "Figure extraite du document" : caption;
             String replacement = caption.isBlank()
