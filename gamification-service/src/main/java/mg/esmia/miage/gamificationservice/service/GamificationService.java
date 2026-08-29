@@ -8,6 +8,7 @@ import mg.esmia.miage.gamificationservice.entity.SuiviHebdomadaire;
 import mg.esmia.miage.gamificationservice.repository.BadgeObtenuRepository;
 import mg.esmia.miage.gamificationservice.repository.BadgeRepository;
 import mg.esmia.miage.gamificationservice.repository.ObjectifRevisionRepository;
+import mg.esmia.miage.gamificationservice.repository.RappelRepository;
 import mg.esmia.miage.gamificationservice.repository.SuiviHebdomadaireRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class GamificationService {
     private final BadgeRepository badgeRepository;
     private final BadgeObtenuRepository badgeObtenuRepository;
     private final ObjectifRevisionRepository objectifRepository;
+    private final RappelRepository rappelRepository;
 
     @Transactional
     public void onFicheGenerated(UUID userId, UUID spaceId) {
@@ -70,6 +72,7 @@ public class GamificationService {
     public void deleteAllForSpace(UUID spaceId) {
         objectifRepository.deleteBySpaceId(spaceId);
         suiviRepository.deleteBySpaceId(spaceId);
+        rappelRepository.deleteBySpaceId(spaceId);
     }
 
     @Transactional
@@ -77,6 +80,7 @@ public class GamificationService {
         objectifRepository.deleteByUserId(userId);
         suiviRepository.deleteByUserId(userId);
         badgeObtenuRepository.deleteByUserId(userId);
+        rappelRepository.deleteByUserId(userId);
     }
 
     private void awardBadgeIfAbsent(UUID userId, String badgeCode) {

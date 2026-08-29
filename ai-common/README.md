@@ -75,7 +75,7 @@ spring:
       api-key: ${GROQ_API_KEY:}
       chat:
         options:
-          model: ${GROQ_MODEL:openai/gpt-oss-120b}
+          model: ${GROQ_MODEL:llama-3.3-70b-versatile}
     gemini:
       base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
       api-key: ${GEMINI_API_KEY:}
@@ -97,9 +97,12 @@ chat:
 
 > ⚠️ Les valeurs `api-key` vides sont acceptées au démarrage (utile pour Ollama) ; un appel à
 > `ChatProviderResolver.current()` sur un provider non configuré lève
-> `LLM_PROVIDER_UNAVAILABLE` (503) à l'exécution. Le modèle Groq par défaut est une valeur
-> constatée en août 2026 (`openai/gpt-oss-120b`) — le catalogue Groq évolue, vérifier
-> `GET /openai/v1/models` avec sa clé si `model_not_found`.
+> `LLM_PROVIDER_UNAVAILABLE` (503) à l'exécution. Le modèle Groq par défaut existe à deux
+> niveaux :
+> - **Module ai-common** (`@Value` dans `LlmProviderAutoConfiguration`) : `llama-3.3-70b-versatile`
+> - **Application** (`application.yml`) : `openai/gpt-oss-120b` — valeur constatée en août 2026.
+>   C'est la valeur d'`application.yml` qui prévaut au runtime car elle est résolue en premier.
+> Le catalogue Groq évolue, vérifier `GET /openai/v1/models` avec sa clé si `model_not_found`.
 
 ## Fichiers
 

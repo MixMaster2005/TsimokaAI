@@ -23,6 +23,10 @@ pipeline custom `RagPipelineAdvisor` (réécriture de requête → retrieval lar
 - **Modèle de messages typé** : `role` (`USER` / `ASSISTANT`), traçabilité RAG native
   (`retrieved_chunk_ids UUID[]` sur une colonne PostgreSQL, fidèle au schéma du contrat),
   `model_used`, `token_count`.
+- **Content blocks structurés** : les blocs (`MARKDOWN`, `CODE`, `MERMAID`, `MATH_INLINE`,
+  `MATH_DISPLAY`, `IMAGE`) sont calculés **à la volée** au moment de la lecture
+  (`ResponseParser`) et **non persistés** en base — le champ `content` brut est la source
+  de vérité. C'est le design voulu : permettre d'évoluer le parsing sans migration.
 - **Pipeline RAG custom — `RagPipelineAdvisor`** (équivalent fonctionnel du RAG modulaire de
   Spring AI 2.0, absent en 1.1.x — cf. `ARCHITECTURE.md` §6.3). Le `QdrantVectorStore`
   auto-configuré (`spring-ai-starter-vector-store-qdrant`) — **Option A** : collection **unique**
@@ -43,9 +47,10 @@ pipeline custom `RagPipelineAdvisor` (réécriture de requête → retrieval lar
 - **Embedding** : même modèle qu'`ingestion-service` (`nomic-embed-text`) pour que les vecteurs
   indexés soient dans le même espace (propriété `spring.ai.ollama.embedding.options.model`).
 - **Persona de l'espace** : appel REST service-à-service à `space-service`
-  (`GET /api/v1/spaces/{id}`) via `SpaceClient` (RestClient). Les headers `X-User-Id` injectés
-  par la gateway en temps normal sont reproduits en interne avec l'identité du propriétaire.
-  Défaillance non bloquante : persona générique si space-service est injoignable.
+  (`GET /api/v1/spaces/{id}`) via `SpaceClient` (RestClient). Les headers `X-User-Id` et
+  `X-Request-Id` injectés par la gateway en temps normal sont reproduits en interne avec
+  l'identité du propriétaire. Défaillance non bloquante : persona générique si space-service
+  est injoignable.
 - **Noms de documents des citations** : appel REST service-à-service à `ingestion-service`
   (`GET /api/v1/documents/{id}`) via `IngestionClient`, même contrat de headers internes.
   Non bloquant : citation sans nom si ingestion est injoignable ou si le document appartient

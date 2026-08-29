@@ -14,15 +14,13 @@
     <name>chat-service</name>
     <description>
         Orchestration RAG + historique de conversation.
-        ================================ SCAFFOLD VOLONTAIRE ================================
-        Entités, endpoints REST, persistance de l'historique, publication d'événements :
-        fournis et fonctionnels. L'orchestration RAG elle-même (retrieval Qdrant + prompt
-        système = persona + appel LLM avec bascule Groq/Gemini/Ollama) est un TODO explicite
-        dans ChatService — c'est le cœur du mémoire à combler.
-        =======================================================================================
-        ÉTAT : retrieval Qdrant (pipeline RAG custom : rewrite + topK 40 + rerank LLM topN 5,
-        filtre space_id), persona (space-service), historique via JpaBackedChatMemory
-        (MessageChatMemoryAdvisor) et appel LLM (ChatProviderResolver, module ai-common).
+        L'orchestration RAG (retrieval Qdrant + reranking LLM + prompt système = persona +
+        appel LLM avec bascule Groq/Gemini/Ollama) est implémentée dans RagPipelineAdvisor
+        et ChatLlmService : rewrite de requête, retrieval large topK=40 filtre space_id,
+        rerank LLM topN=5, contexte augmenté (anti-hallucination si vide), citations
+        résolues (IngestionClient), circuit breaker llm-chat.
+        Historique via JpaBackedChatMemory (MessageChatMemoryAdvisor) et appel LLM via
+        ChatProviderResolver (module ai-common).
     </description>
 
     <dependencies>

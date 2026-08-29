@@ -71,10 +71,11 @@ nécessitent des endpoints analytiques non implémentés côté analytics-servic
   chat-service avec l'identité de l'utilisateur de la conversation ; si le chunk vient d'un
   document déposé par un AUTRE membre, ingestion-service répond 403 → citation affichée
   sans nom de fichier (l'extrait reste là).
-- **Refresh silencieux non branché** : TODO dans `lib/api-client.ts` (401) et
-  `features/auth/api/use-login.ts`.
-- **GenerateFicheModal** (choix du périmètre de génération) reste à écrire — le bouton
-  génère sur tout le corpus de l'espace.
+- **Refresh silencieux** : implémenté dans `lib/api-client.ts` — intercepteur 401 avec
+  déduplication (requêtes concurrentes partagent un seul refresh) et rotation du refresh
+  token. Le hook `use-login.ts` est aussi câblé.
+- **GenerateFicheModal** (choix du périmètre de génération) : implémenté dans
+  `features/fiches/components/GenerateFicheModal.tsx`.
 - **`/` partagé par deux layouts** : `_app` et `_public` sont tous deux pathless, donc en
   conflit sur `/`. La Landing reste à `/accueil` ; un visiteur non connecté qui arrive sur
   `/` y est redirigé, tandis qu'un étudiant déjà connecté retrouve son étagère. À long terme,
@@ -116,7 +117,7 @@ Détail des conventions (query key factories, quand extraire un composant, `.sur
 ## Prochaines étapes suggérées
 
 1. Régénérer `components/ui/` via la vraie CLI shadcn.
-2. Brancher le refresh silencieux du token (401 → POST `/api/v1/auth/refresh` → replay).
+2. ~~Brancher le refresh silencieux du token~~ — fait (voir intercepteur dans `api-client.ts`).
 3. Résoudre les noms d'utilisateurs (endpoint batch user-service) pour remplacer les UUID tronqués.
 4. Agrégats enseignant côté analytics-service (chapitres difficiles, densité d'encre).
 5. Générer `types/api.d.ts` depuis un futur schéma OpenAPI (springdoc côté back + `openapi-typescript` côté front) pour ne plus avoir à vérifier les DTO à la main.

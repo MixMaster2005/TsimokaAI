@@ -106,16 +106,15 @@ Toutes les routes sont protégées par JWT.
 | GET | `/api/v1/documents?spaceId={id}` | connecté | Lister les documents d'un espace |
 | GET | `/api/v1/documents/{id}` | propriétaire/admin | Détail (inclut le statut) |
 | DELETE | `/api/v1/documents/{id}` | propriétaire/admin | Supprimer (BDD + MinIO + Qdrant) |
+| POST | `/api/v1/documents/{id}/retry` | propriétaire/admin | Relancer le traitement d'un document échoué/en attente |
+| GET | `/api/v1/documents/stream?spaceId={id}` | connecté | SSE pour les statuts de document en temps réel |
 
 ## Règles métier
 
-- **Formats acceptés** : PDF, DOCX, TXT, **Markdown** (`md`/`markdown`), **PPTX**, **XLSX**,
-  **XLS**, **CSV**, **HTML** (`html`/`htm`), **EPUB** — alignés sur les convertisseurs locaux
-  de MarkItDown 0.1.7 (vérifié : conversion réelle de chaque format). Accepté si le MIME **ou**
-  l'extension est dans la liste (repli pour les clients qui envoient un MIME imprécis, ex.
-  `application/octet-stream` pour EPUB). Tout autre format → `400`. Exclus volontairement :
-  images/audio (nécessitent un LLM de description/transcription), `zip`, `ipynb`, `msg`.
-- **Taille max** : 25 Mo (`multipart.max-file-size` / `max-request-size`).
+- **Formats acceptés** : PDF, DOCX, TXT, Markdown (d'autres formats sont prévus). Le
+  `DocumentService` supporte 16 MIME types mais le controller n'accepte pour l'instant que 4
+  formats. Tout autre format → `400`.
+- **Taille max** : 20 Mo (`multipart.max-file-size` / `max-request-size`).
 - **Propriétaire ou admin** requis pour lire/supprimer un document.
 - Un document `READY` n'existe qu'**après** indexation réelle dans Qdrant (implémenté).
 - **Idempotence** : `deleteDocument` purge chunks + MinIO + points Qdrant (filtre `document_id`)
@@ -157,7 +156,7 @@ Points de vigilance et limites :
   sous-titre, découpe de secours de taille fixe avec chevauchement (50 tokens), en préférant
   paragraphes, phrases, lignes puis espaces pour ne pas couper brutalement le sens. Le Markdown
   est normalisé avant découpage (`\f`, fins de ligne, espaces et sauts multiples).
-  `token_count` = heuristique `chars / 4` (pas de tokenizer dédié) — à ajuster
+  `token_count` = heuristique `chars / 3` (pas de tokenizer dédié) — à ajuster
   empiriquement. Limite connue : un titre dans un bloc de code provoque une fausse frontière,
   et un document très fragmenté peut produire des chunks très petits (une section = un chunk).
   Couvert par des tests unitaires (`MarkdownChunkingServiceTest`).

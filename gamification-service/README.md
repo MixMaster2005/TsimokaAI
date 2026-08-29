@@ -2,6 +2,7 @@
 
 > **Statut :** ✅ Complet (livraison des rappels : à brancher)
 > **Port :** `8087` · **Base :** `gamification_db` (PostgreSQL)
+> **Nature :** service **consommateur** d'événements uniquement — ne publie aucun événement.
 
 Objectifs de révision, badges, suivi hebdomadaire et rappels. Alimenté par consommation
 de `fiche.events` (badges) et par les événements de nettoyage (`space.events`, `user.events`).
@@ -90,11 +91,18 @@ Toutes les routes sont protégées par JWT.
 ## Non implémenté / limites connues
 
 - **Livraison des rappels** : le job (`processDueReminders`) marque les rappels `envoye=true`
-  et journalise, mais **aucun canal de notification** (SMTP, web push…) n'existe dans la
-  plateforme actuelle. Brancher un vrai canal est une extension non bloquante.
-- **`PREMIERE_FICHE_VALIDEE`** : nécessite d'enrichir `FICHE_VALIDATED` côté fiche-service
-  avec l'`userId` de l'étudiant auteur (comme pour analytics-service). Actuellement `onFicheValidated`
-  se contente de journaliser.
+  et journalise, mais **aucune notification réelle** n'est envoyée — ni email, ni push, ni SMS.
+  Le service ne contient aucun canal de livraison de notifications. Brancher un vrai canal
+  est une extension non bloquante.
+- **`PREMIERE_FICHE_VALIDEE`** : l'événement `FICHE_VALIDATED` porte `enseignantId` (l'enseignant
+  qui valide) mais **pas l'`userId` de l'étudiant auteur** de la fiche. Le badge ne peut donc
+  pas être attribué automatiquement. Nécessite d'enrichir l'événement côté fiche-service
+  (comme pour analytics-service). Actuellement `onFicheValidated` se contente de journaliser.
+- **Nettoyage des rappels** : `RappelRepository` possède `deleteBySpaceId` et
+  `deleteByUserId`, mais ces méthodes n'étaient historiquement pas appelées lors de la
+  suppression d'un espace ou d'un utilisateur — les rappels orphelins restaient en base.
+  **Corrigé** : les deux méthodes sont désormais invoquées dans `deleteAllForSpace` /
+  `deleteAllForUser`.
 - **Pas de déduplication explicite des événements** : l'idempotence repose sur les contraintes
   `UNIQUE` (badges) et sur des incréments pour les compteurs (un doublon de `FICHE_GENERATED`
   ferait +1 au suivi hebdo en double) — à durcir si la livraison doit être garantie.
@@ -105,8 +113,8 @@ Toutes les routes sont protégées par JWT.
 |---|---|---|
 | `fiche.events` | `FICHE_GENERATED` | +1 suivi hebdo + badges `PREMIERE_FICHE` / `CINQ_FICHES` |
 | `fiche.events` | `FICHE_VALIDATED` | Journalisé (badge `PREMIERE_FICHE_VALIDEE` à câbler) |
-| `space.events` | `SPACE_DELETED` | Purge objectifs + suivi de l'espace |
-| `user.events` | `USER_DELETED` | Purge objectifs + suivi + badges de l'utilisateur |
+| `space.events` | `SPACE_DELETED` | Purge objectifs + suivi + rappels de l'espace |
+| `user.events` | `USER_DELETED` | Purge objectifs + suivi + badges + rappels de l'utilisateur |
 
 ## Lancer
 

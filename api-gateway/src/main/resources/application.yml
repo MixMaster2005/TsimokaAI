@@ -100,7 +100,7 @@ security:
   jwt:
     secret: ${JWT_SECRET:changeme-dev-secret-please-override-in-env-file-min-32-chars}
 
-f:
+management:
   endpoints:
     web:
       exposure:

@@ -9,7 +9,7 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 /**
- * CORS centralisé à la gateway : c'est le seul point d'entrée exposé au frontend Next.js,
+ * CORS centralisé à la gateway : c'est le seul point d'entrée exposé au frontend React/Vite,
  * donc c'est le seul endroit où la politique CORS doit être définie.
  */
 @Configuration

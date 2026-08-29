@@ -23,9 +23,8 @@ extension prévue — l'implémentation fournie est **complète et fonctionnelle
 - **Refresh token opaque + rotation** : 48 octets aléatoires (`SecureRandom`), Base64 URL,
   stockés **hachés** en base (un vol de base ne permet pas de réutiliser les tokens), TTL 30 jours.
   À chaque rafraîchissement, l'ancien token est **invalidé** (rotation).
-- **Modèle de rôles** : `STUDENT` / `ADMIN`. Dans ce projet, un **enseignant est un compte
-  `ADMIN`** (la validation des fiches vérifie `isAdmin()`). Le check `ENSEIGNANT` présent dans
-  `UserContext.isAdmin()` est défensif/futur.
+- **Modèle de rôles** : `STUDENT` / `ENSEIGNANT`. Le rôle `ENSEIGNANT` est vérifié par
+  `UserContext.isAdmin()` pour les opérations de validation et d'administration.
 - **Base dédiée** : `user_db`, propriétaire exclusive de ses tables (aucune FK vers d'autres services).
 
 ## Flux d'authentification
@@ -62,11 +61,12 @@ par la gateway sans JWT). Routes protégées : `/users/**` (JWT vérifié à la 
 
 | Méthode | Route | Rôle | Description |
 |---|---|---|---|
-| POST | `/api/v1/auth/register` | public | Inscription (email, mot de passe, displayName, rôle optionnel) |
+| POST | `/api/v1/auth/register` | public | Inscription (email, mot de passe, displayName) — rôle `STUDENT` par défaut |
 | POST | `/api/v1/auth/login` | public | Connexion → access + refresh token |
 | POST | `/api/v1/auth/refresh` | public | Échange d'un refresh token contre une nouvelle paire |
 | GET | `/api/v1/users/me` | connecté | Profil courant (déduit du header `X-User-Id`) |
-| PATCH | `/api/v1/users/me` | connecté | Mise à jour du displayName |
+| PATCH | `/api/v1/users/me` | connecté | Mise à jour du profil (displayName et/ou role — rôles auto-assignables : STUDENT, ENSEIGNANT) |
+| PUT | `/api/v1/users/me/password` | connecté | Changement de mot de passe (ancienMotDePasse, nouveauMotDePasse) |
 | DELETE | `/api/v1/users/me` | connecté | Suppression du compte → publie `USER_DELETED` |
 | GET | `/api/v1/users/{id}` | connecté | Profil d'un utilisateur (soi-même ou admin) |
 

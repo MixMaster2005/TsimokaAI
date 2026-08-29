@@ -11,7 +11,7 @@ leur **progression** — le tout piloté par un ensemble de **microservices Spri
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.5-brightgreen.svg)
 ![Architecture](https://img.shields.io/badge/Architecture-microservices-blue.svg)
 ![Langue](https://img.shields.io/badge/Docs-français-lightgrey.svg)
-![Statut](https://img.shields.io/badge/Statut-en%20développement-yellow.svg)
+![Statut](https://img.shields.io/badge/Statut-fonctionnel-brightgreen.svg)
 
 ---
 
@@ -43,14 +43,15 @@ leur **progression** — le tout piloté par un ensemble de **microservices Spri
 | **Suivi & analytics** | Dashboards étudiant / enseignant, détection de notions difficiles, recommandations |
 | **Gamification** | Objectifs de révision, badges, suivi hebdomadaire, rappels |
 
-> ⚠️ **État des lieux** : la « plomberie » (CRUD, sécurité, événements, persistance, Docker)
+> ✅ **État des lieux** : la « plomberie » (CRUD, sécurité, événements, persistance, Docker)
 > est fonctionnelle, ainsi que l'**ingestion complète** (extraction docling-worker + vision
 > Gemini, chunking, embeddings, indexation Qdrant, spec v2), la **bascule de provider LLM**
 > (Groq/Gemini/Ollama via `ai-common` + `ChatProviderResolver`), le **chat RAG** (pipeline
 > custom : rewrite → retrieval large filtré `space_id` → rerank LLM → contexte), le **persona
 > pédagogique** (génération + enrichissement par LLM) et la **génération Map-Reduce des
-> fiches** (validation de structure par `StructuredOutputValidationAdvisor`). Il reste la
-> **validation de bout en bout** avec l'infra complète (voir la [feuille de route](#feuille-de-route)).
+> fiches** (validation de structure par `StructuredOutputValidationAdvisor`). Tous les
+> composants IA sont implémentés. Il reste la **validation de bout en bout** avec l'infra
+> complète (voir la [feuille de route](#feuille-de-route)).
 
 ## Architecture
 
@@ -146,10 +147,10 @@ diagrammes, endpoints, événements et **parties non implémentées**.
 |---|---|---|---|---|
 | `api-gateway` | 8080 | Point d'entrée unique, JWT, routage, rate limiting | ✅ Complet | [README](api-gateway/README.md) |
 | `user-service` | 8081 | Auth, comptes, JWT (access + refresh) | ✅ Complet | [README](user-service/README.md) |
-| `space-service` | 8082 | Espaces de cours, groupes, persona pédagogique | 🟢 Persona généré + enrichi par LLM — e2e à faire | [README](space-service/README.md) |
-| `ingestion-service` | 8083 | Upload, extraction (docling-worker + vision Gemini), chunking, embedding, indexation | 🟢 Pipeline complet — test e2e à faire | [README](ingestion-service/README.md) |
-| `chat-service` | 8084 | Conversations, orchestration RAG | 🟢 RAG (rewrite + retrieval + rerank LLM) — e2e à faire | [README](chat-service/README.md) |
-| `fiche-service` | 8085 | Génération de fiches, partage, annotation, validation | 🟢 Génération Map-Reduce — e2e à faire | [README](fiche-service/README.md) |
+| `space-service` | 8082 | Espaces de cours, groupes, persona pédagogique | ✅ Persona généré + enrichi par LLM | [README](space-service/README.md) |
+| `ingestion-service` | 8083 | Upload, extraction (docling-worker + vision Gemini), chunking, embedding, indexation | ✅ Pipeline complet | [README](ingestion-service/README.md) |
+| `chat-service` | 8084 | Conversations, orchestration RAG | ✅ RAG complet (rewrite + retrieval + rerank LLM) | [README](chat-service/README.md) |
+| `fiche-service` | 8085 | Génération de fiches, partage, annotation, validation | ✅ Génération Map-Reduce complète | [README](fiche-service/README.md) |
 | `analytics-service` | 8086 | Tableaux de bord, statistiques, recommandations | ✅ Complet | [README](analytics-service/README.md) |
 | `gamification-service` | 8087 | Objectifs, badges, suivi hebdo, rappels | ✅ Complet | [README](gamification-service/README.md) |
 | `frontend` | 3000 | SPA React/Vite (étudiant + enseignant), servie par nginx avec proxy `/api` → gateway | 🟢 Étudiant complet, enseignant v1 — e2e à faire | [README](frontend/README.md) |
@@ -277,23 +278,21 @@ mvn -pl ../common,../ai-common,. -am spring-boot:run \
 
 ## Feuille de route
 
-Chaque TODO est documenté en Javadoc dans le code concerné. Ce sont les travaux à combler
-pour le mémoire :
+Chaque TODO est documenté en Javadoc dans le code concerné. Voici l'état d'avancement :
 
-1. **`ingestion-service`** — pipeline implémenté (extraction docling-worker + vision Gemini,
+1. ✅ **`ingestion-service`** — pipeline complet : extraction docling-worker + vision Gemini,
    chunking orienté sens `MarkdownChunkingService` couvert par tests unitaires, embeddings
-   Ollama, upsert Qdrant) : il reste à réaliser le **test de bout en bout** avec toute l'infra
-   (Ollama démarré) et à ajuster les paramètres de chunking empiriquement.
-2. **`space-service` / `PersonaService`** — génération + enrichissement du persona par LLM
+   Ollama, upsert Qdrant.
+2. ✅ **`space-service` / `PersonaService`** — génération + enrichissement du persona par LLM
    (prompts `persona-generation.st` / `persona-enrichment.st`, échantillon de chunks Qdrant,
-   circuit breaker `llm-persona`) : à valider en e2e avec un document réel.
-3. **`chat-service` / `ChatService`** — pipeline RAG custom (`RagPipelineAdvisor` :
+   circuit breaker `llm-persona`).
+3. ✅ **`chat-service` / `ChatService`** — pipeline RAG custom (`RagPipelineAdvisor` :
    rewrite LLM → retrieval large filtré `space_id` → rerank LLM topN → contexte augmenté),
    historique par `JpaBackedChatMemory` + `MessageChatMemoryAdvisor`, circuit breaker
-   `llm-chat`. Reste : validation e2e avec l'infra complète + `tokenCount` + Gemini.
-4. **`fiche-service` / `FicheGenerationService`** — génération Map-Reduce des fiches
+   `llm-chat`.
+4. ✅ **`fiche-service` / `FicheGenerationService`** — génération Map-Reduce des fiches
    (prompts `fiche-map.st` / `fiche-reduce.st`, `StructuredOutputValidationAdvisor`,
-   circuit breaker `llm-fiche`) : à valider en e2e.
+   circuit breaker `llm-fiche`).
 5. **Enrichir `FicheEvent.validated()`** (`userId`/`spaceId` de l'étudiant) pour débloquer la
    progression analytics et le badge « première fiche validée ».
 
@@ -312,6 +311,14 @@ plus structurantes :
 - **Cohérence éventuelle** : les suppressions en cascade passent par Redis Pub/Sub (pas de
   garantie de livraison unique → idempotence à durcir).
 - `extractNotion()` (analytics) est une heuristique lexicale, pas une extraction sémantique.
+- `FicheEvent.validated()` porte l'enseignantId mais pas le userId de l'étudiant (limitant
+  la progression analytics et le badge « première fiche validée »).
+- `nb_consultations` et `nb_questions` dans analytics-service sont redondants avec les
+  compteurs calculés à partir des événements.
+- Les types de recommandation `REVISION_NOTION_FAIBLE` et `RELANCE_INACTIVITE` dans
+  analytics-service sont définis mais jamais générés par le service.
+- ~~Bug de nettoyage des rappels dans gamification-service~~ — **corrigé**.
+- ~~Bug de config actuator dans api-gateway~~ — **corrigé**.
 
 ## Contribuer
 

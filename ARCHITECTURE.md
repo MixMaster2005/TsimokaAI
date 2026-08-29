@@ -204,3 +204,15 @@ par ingestion-service) : l'auto-config est l'équivalent du bean explicite du sp
   donc pas encore relier une validation à la progression exacte de l'étudiant concerné —
   documenté en commentaire dans le code, corrigible en enrichissant l'événement côté
   `fiche-service`.
+- `nb_consultations` et `nb_questions` dans `analytics-service` sont des compteurs stockés
+  dans la table `student_stats` mais redondants : ils peuvent être recalculés à partir des
+  événements `DOCUMENT_VIEWED` et `MESSAGE_CREATED`. Cette double écriture est un risque
+  d'incohérence si un compteur manque un événement.
+- Les types de recommandation `REVISION_NOTION_FAIBLE` et `RELANCE_INACTIVITE` dans
+  `analytics-service` sont définis dans l'énumération `RecommendationType` mais jamais
+  générés par `RecommendationService` — ils constituent un squelette pour une future
+  extension.
+- ~~Bug de nettoyage des rappels dans `gamification-service`~~ — **corrigé** (les anciens
+  rappels expirés n'étaient pas purgés, causant une croissance indéfinie de la table).
+- ~~Bug de configuration actuator dans `api-gateway`~~ — **corrigé** (les endpoints
+  actuator n'étaient pas exposés correctement via la gateway réactive).

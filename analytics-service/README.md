@@ -5,7 +5,8 @@
 
 Tableaux de bord, statistiques d'usage et recommandations. **Aucun accès direct** aux bases
 des autres services : ce service est alimenté **exclusivement par consommation d'événements**
-(`chat.events`, `fiche.events`, `space.events`, `user.events`). Implémentation **complète**.
+(`chat.events`, `fiche.events`, `space.events`, `user.events`). **Ne publie aucun événement**
+(c.-à-d. consommateur pur). Implémentation **complète**.
 
 ## Rôle
 
@@ -14,7 +15,9 @@ des autres services : ce service est alimenté **exclusivement par consommation 
 - **Dashboard enseignant** : top 10 notions les plus questionnées, chapitres difficiles,
   nombre d'étudiants actifs.
 - **Recommandations** : générées automatiquement quand une notion est questionnée de façon
-  répétée (signal de difficulté).
+  répétée (signal de difficulté). **Seul le type `CHAPITRE_DIFFICILE` est effectivement
+  généré** ; les types `REVISION_NOTION_FAIBLE` et `RELANCE_INACTIVITE` existent dans l'enum
+  mais ne sont pas encore implémentés (voir « Limites connues »).
 
 ## Choix techniques
 
@@ -27,9 +30,10 @@ des autres services : ce service est alimenté **exclusivement par consommation 
 - **Heuristique `extractNotion`** : la « notion » est le **premier mot significatif** (hors
   mots vides, longueur > 3) de la question. Simple et déterministe ; un raffinement
   NLP/embeddings est possible mais non bloquant.
-- **Seuil de difficulté arbitraire** : une notion questionnée **plus de 3 fois** dans le même
-  espace alimente `chapitre_difficile` (+1 au score) et génère une recommandation de relecture.
-  Seuil ajustable dans `AnalyticsService`.
+- **Seuil de difficulté arbitraire** : une notion questionnée **exactement 3, 6, 9… fois**
+  (c.-à-d. `nb_questions % 3 == 0`) dans le même espace alimente `chapitre_difficile`
+  (+1 au score) et génère une recommandation de relecture. Seuil ajustable dans
+  `AnalyticsService`.
 
 ## Flux de données
 
@@ -78,21 +82,32 @@ Toutes les routes sont protégées par JWT.
 - **Le dashboard enseignant est réservé aux enseignants** (`ctx.isAdmin()` → `403` sinon).
 - **Notion difficile** : `nb_questions % 3 == 0` → incrément du score + recommandation
   « Tu as posé plusieurs questions sur "…". Une relecture de ce chapitre pourrait aider. »
+  **Seul le type `CHAPITRE_DIFFICILE` est généré** ; `REVISION_NOTION_FAIBLE` et
+  `RELANCE_INACTIVITE` existent dans l'enum mais ne sont pas encore branchés.
 - **Progression unique par (étudiant, espace)** : contrainte `UNIQUE(user_id, space_id)`.
-- La suppression d'un espace ou d'un utilisateur purge les données analytics correspondantes
-  (événements `SPACE_DELETED` / `USER_DELETED`).
+- La suppression d'un utilisateur purge ses données `progression_etudiant` et
+  `recommandations` (`USER_DELETED`). `statistique_espace` et `chapitre_difficile` ne sont
+  **pas affectées** car elles sont liées à un espace (pas à un utilisateur).
+- La suppression d'un espace purge ses données `progression_etudiant`, `statistique_espace`,
+  `chapitre_difficile` et `recommandations` (`SPACE_DELETED`).
 
 ## Modèle de données
 
 - `progression_etudiant` : `user_id`, `space_id`, `taux_reussite`, `notions_maitrisees`/`notions_faibles`
   (JSONB), `nb_questions_posees`, `nb_fiches_generees`, `derniere_activite`, `UNIQUE(user_id, space_id)`.
 - `statistique_espace` : `space_id`, `notion`, `nb_consultations`, `nb_questions`, `UNIQUE(space_id, notion)`.
+  **Note :** `nb_consultations` et `nb_questions` sont toujours incrémentés ensemble ;
+  les deux champs sont redondants (conçu historiquement pour des cas d'usage futurs).
 - `chapitre_difficile` : `space_id`, `chapitre`, `score_difficulte`, `UNIQUE(space_id, chapitre)`.
 - `recommandations` : `user_id`, `space_id`, `type` (`REVISION_NOTION_FAIBLE` |
   `CHAPITRE_DIFFICILE` | `RELANCE_INACTIVITE`), `contenu`, `generee_le`.
 
 ## Non implémenté / limites connues
 
+- **Types de recommandation non implémentés** : seuls les enregistrements de type
+  `CHAPITRE_DIFFICILE` sont créés. `REVISION_NOTION_FAIBLE` et `RELANCE_INACTIVITE`
+  existent dans l'enum mais aucune logique ne les produit actuellement. À brancher
+  lorsque les conditions correspondantes seront définies.
 - **`FICHE_VALIDATED` non exploité** : l'événement ne porte que `enseignantId` (pas l'étudiant
   auteur de la fiche) → `onFicheValidated()` se contente de journaliser. L'impact sur la
   progression d'un étudiant précis nécessite d'**enrichir l'événement côté fiche-service**
@@ -114,7 +129,7 @@ Toutes les routes sont protégées par JWT.
 | `fiche.events` | `FICHE_GENERATED` | +1 fiche générée |
 | `fiche.events` | `FICHE_VALIDATED` | Journalisé (non exploité, cf. ci-dessus) |
 | `space.events` | `SPACE_DELETED` | Purge totale de l'espace |
-| `user.events` | `USER_DELETED` | Purge des données de l'utilisateur |
+| `user.events` | `USER_DELETED` | Purge `progression_etudiant` + `recommandations` de l'utilisateur (pas `statistique_espace` / `chapitre_difficile`, espace-scopées) |
 
 ## Lancer
 

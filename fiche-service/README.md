@@ -86,14 +86,14 @@ Toutes les routes sont protégées par JWT.
 | DELETE | `/api/v1/fiches/{id}` | propriétaire/admin | Supprimer (cascade partages/annotations/validation) |
 | POST | `/api/v1/fiches/{id}/share` | propriétaire | Partager à un groupe ou un destinataire |
 | GET | `/api/v1/fiches/{id}/share` | connecté | Lister les partages |
-| POST | `/api/v1/fiches/{id}/annotations` | connecté | Ajouter une annotation (sectionRef optionnelle) |
-| GET | `/api/v1/fiches/{id}/annotations` | connecté | Lister les annotations |
-| PUT | `/api/v1/fiches/{id}/validation` | enseignant (admin) | Valider/rejeter (statut + commentaire) |
-| GET | `/api/v1/fiches/{id}/validation` | connecté | Lire la validation (défaut `EN_ATTENTE`) |
+| POST | `/api/v1/fiches/{ficheId}/annotations` | connecté | Ajouter une annotation (sectionRef optionnelle) |
+| GET | `/api/v1/fiches/{ficheId}/annotations` | connecté | Lister les annotations |
+| PUT | `/api/v1/fiches/{ficheId}/validation` | enseignant (admin) | Valider/rejeter (statut + commentaire) |
+| GET | `/api/v1/fiches/{ficheId}/validation` | connecté | Lire la validation (défaut `EN_ATTENTE`) |
 
 ## Règles métier
 
-- **Seul le propriétaire** (ou admin) peut lire/supprimer/partager une fiche.
+- **Lecture/suppression** : propriétaire ou admin. **Partage** : propriétaire uniquement (`isAdmin=false` codé en dur dans `ShareService`).
 - **Seul un enseignant** (`ADMIN`/`ENSEIGNANT` au sens `UserContext.isAdmin()`) peut valider
   → `403` sinon.
 - **Partage** : fournir `groupeId` **ou** `destinataireId`, jamais les deux ni aucun → `400`.

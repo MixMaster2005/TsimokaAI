@@ -108,7 +108,7 @@ public class MarkdownChunkingService {
         return merged;
     }
 
-    /** Estimation grossière du nombre de tokens d'un texte (chars / 4, minimum 1). */
+    /** Estimation grossière du nombre de tokens d'un texte (chars / 3, minimum 1). */
     public int estimateTokenCount(String text) {
         return text == null ? 0 : Math.max(1, text.length() / CHARS_PER_TOKEN);
     }

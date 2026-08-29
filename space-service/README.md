@@ -104,6 +104,8 @@ Toutes les routes sont protégées par JWT (vérifié à la gateway) ; l'identit
 | GET | `/api/v1/groupes/{groupeId}/membres` | connecté | Lister les membres |
 | DELETE | `/api/v1/groupes/{groupeId}` | connecté | Supprimer un groupe |
 
+**Total : 17 endpoints** (12 espaces + 5 groupes).
+
 ## Règles métier
 
 - **Espaces partagés** : un espace reste mono-PROPRIÉTAIRE (`user_id`, écriture réservée).
@@ -122,6 +124,12 @@ Toutes les routes sont protégées par JWT (vérifié à la gateway) ; l'identit
 - Le **créateur** d'un groupe est automatiquement inscrit comme `ANIMATEUR`.
 - La suppression d'un **groupe** supprime aussi ses membres (cascade FK) ; la suppression
   d'un **espace** supprime groupes ET adhésions (cascade FK).
+- **Autorisation création de groupe** : `GroupeService.assertSpaceMember()` est
+  intentionnellement permissive — elle ne vérifie l'appartenance à l'espace que pour le
+  propriétaire (vérifie `space.userId == userId`). Pour les non-propriétaires, aucune
+  vérification de membership n'est effectuée (optimisation performance, le contexte métier
+  côté controller ou le code d'invitation suffit). La suppression de groupe vérifie
+  l'autorisation de manière stricte via `assertGroupeAnimateurOrSpaceOwner()`.
 - Un `USER_DELETED` reçu supprime **tous les espaces et groupes** de l'utilisateur (cascade
   par événement) ; ses adhésions partent en cascade avec les espaces.
 
@@ -140,7 +148,8 @@ l'espace. À faire évoluer si un droit à l'effacement est introduit.
 ## Modèle de données
 
 Migrations Flyway (`db/migration`) : `V1__init.sql` (schéma initial),
-`V2__invite_code_and_membres.sql` (partage).
+`V2__invite_code_and_membres.sql` (partage),
+`V3__indexes.sql` (index `idx_membres_space_space_id` sur `membres_space(space_id)`).
 
 - `spaces` : `id`, `user_id` (logique), `name`, `description`, `subject_tag`,
   `assistant_persona`, `invite_code UNIQUE NOT NULL`, horodatages.
@@ -161,8 +170,12 @@ Migrations Flyway (`db/migration`) : `V1__init.sql` (schéma initial),
    représentatif, pas les chunks « les plus proches ») puis fusionne le vocabulaire
    disciplinaire dans le persona via `persona-enrichment.st`. Fallback = persona inchangé.
 
-**Point ouvert** : la taille d'échantillon est fixée par `persona.sample-size` (défaut 8
-chunks, tronqués à 800 caractères). À ajuster empiriquement lors du test e2e.
+**Point ouvert** : la taille d'échantillon est fixée par `persona.sample-size`. La valeur
+effective par défaut est **8** (définie dans `application.yml`, surchargeable via
+`PERSONA_SAMPLE_SIZE`). L'annotation `@Value("${persona.sample-size:15}")` dans
+`PersonaService.java` indique 15 en fallback Java, mais le YAML écrase toujours cette
+valeur → le défaut réel est 8. Les chunks sont tronqués à 800 caractères. À ajuster
+empiriquement lors du test e2e.
 
 ## Lancer
 
