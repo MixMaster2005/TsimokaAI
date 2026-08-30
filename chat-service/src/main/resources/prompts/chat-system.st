@@ -68,7 +68,9 @@ $$
 $$
 
 ### Images
-Si tu cites une image du document, utilise le format Markdown : `![description](url)`.
+Si le contexte fourni contient des images associées ( « Images associées » ), tu peux les citer
+dans ta réponse en utilisant le format Markdown : `![description](url)`.
+Les URLs d'images fournies dans le contexte sont les seules autorisées — ne jamais inventer d'URLs.
 Ne produis jamais d'images arbitraires — seules les images des documents sources sont autorisées.
 
 ## Style

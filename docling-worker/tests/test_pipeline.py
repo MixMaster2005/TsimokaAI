@@ -568,14 +568,25 @@ class TestMarkdownRenderer:
         md = render(doc)
         assert "*Figure 1*" in md
 
-    def test_render_figure(self):
-        """Figures render with image placeholder."""
+    def test_render_figure_with_image_id(self):
+        """Figures with image_id render with correct placeholder."""
+        doc = CanonicalDocument(pages=[PageAST(page=1, elements=[
+            DocumentElement(id="e1", type=ElementType.FIGURE,
+                            text="A diagram", bbox=[0, 0, 100, 50], page=1,
+                            image_id="img_042"),
+        ])])
+        md = render(doc)
+        assert "{IMAGE:img_042}" in md
+        assert "A diagram" in md
+
+    def test_render_figure_without_image_id_raises(self):
+        """Figures without image_id raise ValueError."""
         doc = CanonicalDocument(pages=[PageAST(page=1, elements=[
             DocumentElement(id="e1", type=ElementType.FIGURE,
                             text="A diagram", bbox=[0, 0, 100, 50], page=1),
         ])])
-        md = render(doc)
-        assert "IMAGE" in md
+        with pytest.raises(ValueError, match="sans image_id"):
+            render(doc)
 
     def test_table_without_data(self):
         """Table without table_data renders as plain text."""

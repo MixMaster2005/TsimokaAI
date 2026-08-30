@@ -26,6 +26,12 @@ public class DocumentImage {
     @Column(name = "storage_url", nullable = false)
     private String storageUrl;
 
+    @Column(name = "placeholder_id")
+    private String placeholderId;
+
+    @Column(name = "caption")
+    private String caption;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

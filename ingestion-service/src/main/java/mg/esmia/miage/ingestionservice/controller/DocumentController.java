@@ -12,7 +12,11 @@ import mg.esmia.miage.common.messaging.RedisEventPublisher;
 import mg.esmia.miage.common.response.ApiResponse;
 import mg.esmia.miage.ingestionservice.config.SseEmittersRegistry;
 import mg.esmia.miage.ingestionservice.dto.DocumentResponse;
+import mg.esmia.miage.ingestionservice.dto.ImageResolveRequest;
+import mg.esmia.miage.ingestionservice.dto.ImageResolveResponse;
+import mg.esmia.miage.ingestionservice.entity.DocumentImage;
 import mg.esmia.miage.ingestionservice.model.SupportedDocumentType;
+import mg.esmia.miage.ingestionservice.repository.DocumentImageRepository;
 import mg.esmia.miage.ingestionservice.service.DocumentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -21,7 +25,9 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/documents")
@@ -32,6 +38,7 @@ public class DocumentController {
     private final DocumentService documentService;
     private final SseEmittersRegistry sseRegistry;
     private final RedisEventPublisher eventPublisher;
+    private final DocumentImageRepository documentImageRepository;
 
     /** Taille maximale d'un fichier uploadé : 20 Mo. */
     private static final long MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -94,6 +101,24 @@ public class DocumentController {
                 IngestionEvent.processing(doc.id().toString(), doc.spaceId().toString(), ctx.userId()));
 
         return ApiResponse.success(doc, ctx.requestId());
+    }
+
+    /**
+     * Résolution batch d'image_ids (metadata Qdrant) en URLs + captions.
+     * Utilisé par chat-service au moment du RAG pour enrichir le contexte avec les images.
+     */
+    @PostMapping("/images/resolve")
+    public ApiResponse<ImageResolveResponse> resolveImages(@RequestBody ImageResolveRequest request) {
+        UserContext ctx = authenticated();
+        List<DocumentImage> images = documentImageRepository.findByPlaceholderIds(request.imageIds());
+        Map<String, ImageResolveResponse.ResolvedImage> resolved = images.stream()
+                .filter(di -> di.getPlaceholderId() != null)
+                .collect(Collectors.toMap(
+                        DocumentImage::getPlaceholderId,
+                        di -> new ImageResolveResponse.ResolvedImage(di.getStorageUrl(), di.getCaption()),
+                        (a, b) -> a
+                ));
+        return ApiResponse.success(new ImageResolveResponse(resolved), ctx.requestId());
     }
 
     private void validateFile(MultipartFile file) {
