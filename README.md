@@ -37,7 +37,7 @@ leur **progression** — le tout piloté par un ensemble de **microservices Spri
 |---|---|
 | **Comptes & sessions** | Inscription, connexion, refresh token avec rotation, rôles (étudiant / enseignant) |
 | **Espaces de cours** | Création d'espaces, groupes de travail, **persona pédagogique** par espace (instruction système du LLM) |
-| **Ingestion de documents** | Upload PDF / DOCX / PPTX / XLSX / XLS / CSV / HTML / EPUB / TXT / Markdown, extraction **Markdown** (MarkItDown + vision **Gemini** : légende des figures, transcription des scans, images dans MinIO), **chunking orienté sens** (titres `#`/`##` d'abord, récursif si trop grand), **embeddings**, indexation **vectorielle** (Qdrant) |
+| **Ingestion de documents** | Upload PDF / DOCX / PPTX / XLSX / XLS / CSV / HTML / EPUB / TXT / Markdown, extraction (PDF → **AST PyMuPDF** / non-PDF → MarkItDown, vision **Gemini** : légende des figures, transcription des scans, images dans MinIO), **chunking orienté structure** (AST pour les PDF / fallback Markdown pour les non-PDF), **embeddings**, indexation **vectorielle** (Qdrant) |
 | **Assistant RAG** | Conversations par espace, recherche sémantique dans les documents, réponse générée par LLM (Groq / Gemini / Ollama) |
 | **Fiches de révision** | Génération **Map-Reduce**, partage (individuel / groupe), annotations, validation par l'enseignant |
 | **Suivi & analytics** | Dashboards étudiant / enseignant, détection de notions difficiles, recommandations |
@@ -272,7 +272,8 @@ mvn -pl ../common,../ai-common,. -am spring-boot:run \
   plafond d'images, dégradation Gemini) — `python -m unittest tests.test_converter -v`
   (dans `docling-worker/`).
 - **Services Java** : `ingestion-service` dispose de tests unitaires pour le chunking
-  (`MarkdownChunkingServiceTest`) ; les autres services ont `spring-boot-starter-test` en place
+  (`StructureAwareChunker` / `MarkdownFallbackChunker`) ; les autres services ont
+  `spring-boot-starter-test` en place
   sans tests écrits (scaffold généré). Ajout de tests d'intégration par service **recommandé**
   en parallèle de la validation du cœur IA (voir [Contribuer](#contribuer)).
 
@@ -280,8 +281,9 @@ mvn -pl ../common,../ai-common,. -am spring-boot:run \
 
 Chaque TODO est documenté en Javadoc dans le code concerné. Voici l'état d'avancement :
 
-1. ✅ **`ingestion-service`** — pipeline complet : extraction docling-worker + vision Gemini,
-   chunking orienté sens `MarkdownChunkingService` couvert par tests unitaires, embeddings
+1. ✅ **`ingestion-service`** — pipeline complet : extraction docling-worker (spec v3 : PDF → AST,
+   non-PDF → Markdown) + vision Gemini, chunking orienté structure
+   (`StructureAwareChunker` sur l'AST / `MarkdownFallbackChunker` sur le Markdown), embeddings
    Ollama, upsert Qdrant.
 2. ✅ **`space-service` / `PersonaService`** — génération + enrichissement du persona par LLM
    (prompts `persona-generation.st` / `persona-enrichment.st`, échantillon de chunks Qdrant,

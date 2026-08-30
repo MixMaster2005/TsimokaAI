@@ -1,6 +1,6 @@
 # docling-worker — extraction de documents (conteneur à la demande)
 
-> **Statut :** 🟢 Spec v2 — conversion MarkItDown + vision **Gemini** (figures & documents scannés)
+> **Statut :** 🟢 Spec v3 — pipeline PDF PyMuPDF→AST → Markdown dérivé + vision **Gemini** (figures & documents scannés)
 
 Service Python **FastAPI** qui extrait le texte des documents de cours (PDF, DOCX, PPTX,
 XLSX, XLS, CSV, HTML, EPUB, TXT, Markdown) en **Markdown structuré**. Il n'est **pas** un
@@ -15,11 +15,17 @@ service permanent : `ingestion-service` le **spawné à la demande** via l'API D
 > web (BingSerp/YouTube/Wikipedia/RSS). L'**extraction d'images embarquées** ne couvre que
 > PDF/DOCX/PPTX (les autres formats produisent du Markdown sans figures).
 
-## Rôle (spec v2)
+## Rôle (spec v3)
 
 1. Recevoir un fichier en `multipart/form-data`.
-2. **Étage 1 — MarkItDown** (`microsoft/markitdown`) : conversion en Markdown (titres,
-   tableaux, listes). CPU-only, rapide, aucun modèle ML à charger.
+2. **Routage selon le format** :
+   - **PDF** — pipeline **PyMuPDF natif** : extraction brute (`layout_extractor`) → classification
+     page par page (`page_classifier` : native / hybride / scannée) → analyse structurelle → **AST
+     canonique** (`structure_analyzer`) → **Markdown dérivé de l'AST** (`markdown_renderer`,
+     CPU-only, sans LLM). C'est cet **AST** que `ingestion-service` ré-utilise pour le chunking
+     orienté structure (`StructureAwareChunker`).
+   - **Non-PDF** (DOCX, PPTX, XLSX, …) — **MarkItDown** (`microsoft/markitdown`) : conversion
+     directe en Markdown, CPU-only, aucun modèle ML à charger.
 3. **Extraction des images** embarquées (spec v2) : PyMuPDF pour le PDF, python-docx pour
    le DOCX, python-pptx pour le PPTX. Les images trop petites (logos, icônes) sont ignorées.
 4. **Vision Gemini** (remplace l'OCR local de la spec v1 — plus aucun modèle dans le
@@ -35,17 +41,28 @@ service permanent : `ingestion-service` le **spawné à la demande** via l'API D
    `> **Description :** caption` quand Gemini a produit une légende. Si la légende est vide,
    l'image garde une alt text neutre sans description vide.
 
+> ⚠️ **Divergence de placeholders (PDF vs non-PDF)** : le chemin **non-PDF** insère dans le
+> Markdown des placeholders **doubles accolades** `{{IMAGE:img_001}}` (`markitdown_converter.py`),
+> que `ingestion-service` remplace correctement. Le chemin **PDF** émet des placeholders **simples
+> accolades** `![…]({IMAGE:img_id})` (`_render_figure` de `markdown_renderer.py`) qui **ne sont pas
+> reconnus** par `ImageUploadService` (qui ne cherche que `{{IMAGE:…}}`). Conséquence : pour les
+> PDF, les images s'affichent en brut dans le **Markdown de debug/preview**, mais le **RAG n'est pas
+> impacté** — le chunking se fait sur l'**AST** (les `image_ids` vivent dans les `Chunk` / payload
+> Qdrant) et la résolution d'URL/caption se fait via `document_images` + `POST /images/resolve`.
+> À harmoniser (uniformiser le format de placeholder côté PDF).
+
 ## Endpoints
 
 | Méthode | Route | Description |
 |---|---|---|
 | `GET` | `/health` | `{"status": "ok"}` — sondé par `DockerWorkerClient` au démarrage du conteneur |
-| `POST` | `/v1/convert` | `multipart`, champ `file` → `{"markdown", "method", "pages_processed", "images", "warnings"}` |
+| `POST` | `/v1/convert` | `multipart`, champ `file` → `{"document", "markdown", "method", "pages_processed", "images", "warnings"}` |
 
 Réponse type (document textuel avec une figure) :
 
 ```json
 {
+  "document": {"pages": [ /* AST canonique — renseigné pour le PDF, null pour non-PDF */ ]},
   "markdown": "# Rapport\n\nTexte…\n\n{{IMAGE:img_001}}\n\nSuite…",
   "method": "markitdown",
   "pages_processed": 12,
@@ -61,8 +78,12 @@ Réponse type (document textuel avec une figure) :
 }
 ```
 
-- `method` : `markitdown` (document textuel) ou `markitdown_with_page_transcription`
-  (document scanné, pages transcrites par Gemini).
+- `method` : `pymupdf_layout` (PDF via le pipeline AST), `markitdown` (document textuel
+  non-PDF) ou `markitdown_with_page_transcription` (document scanné, pages transcrites par Gemini).
+- `document` : **AST canonique** (représentation structurée : pages, headings, tableaux, figures…)
+  — renseigné uniquement pour les **PDF**. Pour les non-PDF, il est `null` (le Markdown est produit
+  directement par MarkItDown). `ingestion-service` l'utilise pour le chunking orienté structure
+  (`StructureAwareChunker`) ; les `image_ids` y sont référencés pour la résolution RAG.
 - `images` : max **30** (plafond `DOCLING_MAX_EXTRACTED_IMAGES`) — au-delà, warning.
 - `warnings` : non bloquant (ex. ratio faible, légende/transcription Gemini en échec —
   l'échec de Gemini n'empêche jamais la conversion).

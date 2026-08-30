@@ -140,6 +140,9 @@ propriétaire.
   JSONB sur le message ASSISTANT. Une seule résolution à l'écriture, jamais d'appel réseau
   à la lecture. Messages antérieurs à la feature / fallback circuit breaker → liste vide,
   le front retombe sur les UUID bruts.
+- **Figures au RAG** : les `image_ids` des chunks retrouvés (payload Qdrant) sont résolus en
+  URLs + captions via `IngestionClient` → `POST /api/v1/documents/images/resolve`
+  (ingestion-service), non bloquant (appel échoué → contexte sans image).
 - Les messages sont horodatés et ordonnés par `created_at` (historique stable).
 
 ## Événements
@@ -175,13 +178,17 @@ Gemini** (avec clé) reste à faire.
 
 | Variable | Défaut | Rôle |
 |---|---|---|
+| `SERVER_PORT` | `8080` | Port d'écoute |
 | `ACTIVE_LLM_PROVIDER` | `ollama` | `groq` \| `gemini` \| `ollama` |
 | `GROQ_API_KEY` / `GROQ_MODEL` | — / `openai/gpt-oss-120b` | Provider Groq (compatible OpenAI) |
-| `GEMINI_API_KEY` / `GEMINI_MODEL` | — / `gemini-2.5-flash` | Provider Gemini (endpoint OpenAI-compatible, `GEMINI_BASE_URL` surchargeable) |
+| `GROQ_BASE_URL` | `https://api.groq.com/openai` | Endpoint Groq compatible OpenAI (surchargeable) |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | — / `gemini-2.5-flash` | Provider Gemini (endpoint OpenAI-compatible) |
+| `GEMINI_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta/openai` | Endpoint Gemini (surchargeable) |
 | `OLLAMA_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `qwen2.5:3b` | Fallback local |
 | `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Modèle d'embedding (identique à ingestion-service) |
-| `QDRANT_HOST` / `QDRANT_PORT` / `QDRANT_COLLECTION` | `localhost` / `6334` / `chunks` | Base vectorielle (collection unique) |
+| `QDRANT_HOST` / `QDRANT_PORT` / `QDRANT_COLLECTION` / `QDRANT_USE_TLS` | `localhost` / `6334` / `chunks` / `false` | Base vectorielle (collection unique, TLS optionnel) |
 | `SPACE_SERVICE_URL` | `http://localhost:8082` | Persona de l'espace (appel service-à-service) |
+| `INGESTION_SERVICE_URL` | `http://localhost:8083` | Résolution des noms de documents des citations (appel service-à-service) |
 | `CHAT_RETRIEVAL_TOP_K` | `40` | Nombre de candidats du retrieval large |
 | `CHAT_RETRIEVAL_SIMILARITY_THRESHOLD` | `0.5` | Seuil de similarité minimal (phase retrieval large) |
 | `CHAT_MAX_RETRIEVED_CHUNKS` | `5` | Nombre de chunks gardés après rerank (injectés dans le prompt) |

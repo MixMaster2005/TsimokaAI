@@ -71,7 +71,9 @@ composants — nécessaire car les classes de `common` vivent dans un package di
 complets. `space-service` et `fiche-service` ont un CRUD complet et un point d'extension
 IA isolé (`PersonaService`, `FicheGenerationService`) désormais **implémentés** (LLM via
 `ai-common`, §6.1). `ingestion-service` a son **pipeline d'ingestion complet** (extraction
-docling-worker + vision Gemini, chunking orienté sens par titres — `MarkdownChunkingService` —,
+docling-worker spec v3 : PDF → **AST canonique** via PyMuPDF, non-PDF → MarkItDown, vision Gemini ;
+chunking orienté **structure** sur l'AST (`StructureAwareChunker`, fallback Markdown
+`MarkdownFallbackChunker`),
 embeddings, indexation Qdrant), chaque étape déléguée à un service dédié orchestré par
 `IngestionPipelineService`. `chat-service` a son **orchestration RAG câblée** : `QdrantVectorStore`
 (collection unique `chunks`, filtre `space_id` en payload) + pipeline custom `RagPipelineAdvisor`
@@ -133,8 +135,10 @@ autorisait le repli : chat-service implémente donc un **pipeline custom** — `
    « et pour le second cas ? » est sans sens isolé). Échec = question brute.
 2. **Retrieval large** (`VectorStoreDocumentRetriever` 2.0) : `topK` volontairement élevé (40)
    avec seuil bas (0.5), filtré par `space_id` en payload — **Option A multi-tenant** : collection
-   Qdrant **unique** `chunks`, chaque point porte `space_id` (payload `{document_id, space_id,
-   chunk_index, content}`, §3.1 vérifié).
+   Qdrant **unique** `chunks`, chaque point porte `space_id` (payload enrichi `{document_id,
+   space_id, chunk_index, content, doc_content, page_start, page_end, heading_path,
+   element_types, image_ids}`, §3.1 vérifié). Les `image_ids` sont résolus au RAG via
+   `POST /api/v1/documents/images/resolve` (ingestion-service) → URLs + captions dans le contexte.
 3. **Rerank** (`RerankingDocumentPostProcessor` 2.0) : réduction au `topN` restreint (5) par un
    **second appel LLM** (`LlmDocumentReranker`, tags `[C0]..[Cn]`). **Choix : zéro nouvelle
    dépendance** — pas de provider de reranking dédié (type Cohere/Jina), cohérent avec l'arbitrage

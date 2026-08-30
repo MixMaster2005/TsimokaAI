@@ -2,7 +2,7 @@
 
 SPA React (Vite) + TanStack Router (routing par fichiers) + TanStack Query + shadcn/ui.
 Deux applications dans un seul bundle : **App Étudiant** (`_app`) et **App Enseignant**
-(`enseignant`, rôle ADMIN), chacune avec son layout, sa sidebar et son guard.
+(`enseignant`, rôle `ENSEIGNANT` — aux droits d'admin via `UserContext.isAdmin()`), chacune avec son layout, sa sidebar et son guard.
 
 ## Démarrer
 
@@ -37,7 +37,7 @@ Contrats vérifiés contre le code réel des services backend :
 - **citations chat** — `MessageResponse.citations` (document source + extrait, persistés à la génération côté back) affichées par `CitationChips` ; repli placeholder sur les anciens messages (UUID bruts seulement)
 - **fiches** — génération, liste, détail, composant signature `FicheCard` (+ variantes chip/sceau), sur `fiche-service` — y compris le vrai format `content_json` (`definition`/`key_points`/`example`)
 - **mes fiches transverse** — page branchée sur `GET /api/v1/fiches/mine` (vue tous espaces confondus, tri par date de génération)
-- **actions fiche** — partage (`ShareFicheModal` vers groupe ou membre de l'espace), annotations (liste + ajout), validation enseignante (tampon VALIDÉE / À REVOIR, verdict réservé ADMIN)
+- **actions fiche** — partage (`ShareFicheModal` vers groupe ou membre de l'espace), annotations (liste + ajout), validation enseignante (tampon VALIDÉE / À REVOIR, verdict réservé au rôle `ENSEIGNANT`)
 - **documents** — upload multipart, liste avec statut, polling automatique tant qu'un document n'est pas `READY`/`FAILED`
 - **groupes** — liste + création, sur `space-service`
 - **objectifs** / **gamification** (badges, rappels) — câblés sur les vrais DTO, avec les vraies valeurs d'enum (voir plus bas)
@@ -53,8 +53,8 @@ En vérifiant le code réel, deux divergences trouvées avec la cartographie UI 
 
 ## Layout App — Enseignant (v1)
 
-`routes/enseignant/` + `AppSidebarEnseignant`, rôle ADMIN uniquement. Guards bilatéraux :
-un ADMIN sous `_app` repart vers `/enseignant`, un étudiant sous `/enseignant` repart vers
+`routes/enseignant/` + `AppSidebarEnseignant`, rôle `ENSEIGNANT` uniquement. Guards bilatéraux :
+un `ENSEIGNANT` sous `_app` repart vers `/enseignant`, un étudiant sous `/enseignant` repart vers
 `/`. Parcours : tableau de bord (tous les espaces, `GET /api/v1/spaces/all`) → fiches d'un
 espace (`GET /api/v1/fiches/espace/{spaceId}`) → détail avec verdict (tampon du contrat de
 design). Ces deux endpoints ont été ajoutés côté back : sans eux, aucun enseignant ne peut
@@ -101,7 +101,7 @@ npx shadcn@latest add button card input label tabs dialog avatar dropdown-menu s
 ```
 src/
 ├── routes/          # WIRING UNIQUEMENT (loader, validateSearch, composition) — voir chaque fichier
-│   ├── _app/        # app étudiant (pathless, guard auth + anti-ADMIN)
+│   ├── _app/        # app étudiant (pathless, guard auth + anti-ENSEIGNANT)
 │   ├── enseignant/  # app enseignant (PRÉFIXÉ — pas pathless, sinon conflit de chemins avec _app)
 │   └── _public/     # landing, connexion, inscription
 ├── features/        # logique métier par domaine (api/, components/, types.ts, lib/)

@@ -90,9 +90,6 @@ Toutes les routes sont protégées par JWT **sauf** `/api/v1/auth/**` (publique)
 
 ## Non implémenté / limites connues
 
-- **Erreur dans `application.yml`** : le bloc `f:` (lignes 103-110) devrait être
-  `management:` — la configuration des endpoints d'actuator de la gateway est donc
-  **silencieusement ignorée**. À corriger.
 - **Pas de RBAC par route** : le filtre JWT ne vérifie aucun rôle (le champ `role` est
   extrait et transmis, mais aucune route n'est restreinte à un rôle précis au niveau gateway ;
   les restrictions métier sont faites dans les services, ex. validation des fiches).
