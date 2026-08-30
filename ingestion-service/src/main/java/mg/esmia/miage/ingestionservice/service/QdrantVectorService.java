@@ -96,6 +96,7 @@ public class QdrantVectorService {
                     .putPayload("document_id", ValueFactory.value(documentIdStr))
                     .putPayload("space_id", ValueFactory.value(spaceIdStr))
                     .putPayload("chunk_index", ValueFactory.value(chunk.chunkIndex()))
+                    .putPayload("doc_content", ValueFactory.value(chunk.text()))
                     .putPayload("content", ValueFactory.value(chunk.text()))
                     .putPayload("page_start", ValueFactory.value(chunk.pageStart()))
                     .putPayload("page_end", ValueFactory.value(chunk.pageEnd()))

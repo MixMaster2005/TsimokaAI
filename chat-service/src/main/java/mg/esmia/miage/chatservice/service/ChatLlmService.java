@@ -89,8 +89,8 @@ public class ChatLlmService {
 
     /**
      * Extraction des chunks réellement utilisés (métadonnée posée par le RagPipelineAdvisor).
-     * Payload Qdrant par point : {document_id, space_id, chunk_index, content} — cf.
-     * ingestion-service/QdrantVectorService.
+     * Payload Qdrant par point : {document_id, space_id, chunk_index, doc_content, content} —
+     * cf. ingestion-service/QdrantVectorService.
      */
     private List<Document> extractRetrievedDocuments(ChatResponse response) {
         List<Document> docs = response.getMetadata().get(RagPipelineAdvisor.RETRIEVED_DOCUMENTS);

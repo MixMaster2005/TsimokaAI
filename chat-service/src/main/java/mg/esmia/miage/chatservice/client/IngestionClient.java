@@ -10,7 +10,10 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import org.springframework.http.MediaType;
 
 /**
  * Client REST service-à-service vers {@code ingestion-service} pour résoudre le nom
@@ -56,6 +59,41 @@ public class IngestionClient {
             log.warn("Appel à ingestion-service échoué pour le document {} (citation sans nom) : {}",
                     documentId, e.getMessage());
             return null;
+        }
+    }
+
+    public record ResolvedImage(String url, String caption) {}
+
+    private record ResolveRequest(Set<String> imageIds) {}
+    private record ResolveResponse(Map<String, ResolvedImage> images) {}
+
+    /**
+     * Résout batch un ensemble d'image_ids (metadata Qdrant) en URLs + captions
+     * via ingestion-service (POST /api/v1/documents/images/resolve).
+     *
+     * @return Map imageId → (url, caption), ou Map vide en cas d'erreur.
+     */
+    public Map<String, ResolvedImage> resolveImageIds(Set<String> imageIds, UUID requesterUserId) {
+        if (imageIds == null || imageIds.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            ResolveResponse response = restClientBuilder.build()
+                    .post()
+                    .uri(ingestionServiceUrl + "/api/v1/documents/images/resolve")
+                    .header(UserContext.HEADER_USER_ID, requesterUserId.toString())
+                    .header(UserContext.HEADER_REQUEST_ID, UUID.randomUUID().toString())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new ResolveRequest(imageIds))
+                    .retrieve()
+                    .body(ResolveResponse.class);
+            if (response == null || response.images() == null) {
+                return Map.of();
+            }
+            return response.images();
+        } catch (Exception e) {
+            log.warn("Résolution image_ids échouée ({} ids) : {}", imageIds.size(), e.getMessage());
+            return Map.of();
         }
     }
 }

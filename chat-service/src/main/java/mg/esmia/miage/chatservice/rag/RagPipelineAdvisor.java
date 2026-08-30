@@ -14,7 +14,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.stereotype.Component;
 
+import mg.esmia.miage.chatservice.client.IngestionClient;
+import mg.esmia.miage.common.context.UserContextHolder;
+
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -65,6 +73,7 @@ public class RagPipelineAdvisor implements CallAdvisor {
     private final VectorStore vectorStore;
     private final ChatProviderResolver chatProviderResolver;
     private final DocumentReranker documentReranker;
+    private final IngestionClient ingestionClient;
 
     @Value("${chat.retrieval.top-k:40}")
     private int retrievalTopK;
@@ -77,10 +86,12 @@ public class RagPipelineAdvisor implements CallAdvisor {
 
     public RagPipelineAdvisor(VectorStore vectorStore,
                               ChatProviderResolver chatProviderResolver,
-                              DocumentReranker documentReranker) {
+                              DocumentReranker documentReranker,
+                              IngestionClient ingestionClient) {
         this.vectorStore = vectorStore;
         this.chatProviderResolver = chatProviderResolver;
         this.documentReranker = documentReranker;
+        this.ingestionClient = ingestionClient;
     }
 
     @Override
@@ -90,20 +101,43 @@ public class RagPipelineAdvisor implements CallAdvisor {
 
     @Override
     public int getOrder() {
-        // Exécution après le MessageChatMemoryAdvisor (l'historique est déjà dans le prompt).
-        return Ordered.LOWEST_PRECEDENCE;
+        // IMPORTANT : exécution AVANT le terminal ChatModelCallAdvisor (Ordered.LOWEST_PRECEDENCE).
+        // Deux advisors à LOWEST_PRECEDENCE = exécution du terminal en premier, qui appelle le modèle
+        // sans chaîner (adviseCall ne fait pas chain.nextCall) => RAG et mémoire silencieusement ignorés.
+        return Ordered.LOWEST_PRECEDENCE - 1000;
     }
 
     @Override
     public ChatClientResponse adviseCall(ChatClientRequest request, CallAdvisorChain chain) {
-        String rawQuery = request.prompt().getUserMessage().getText();
+        String rawQuery = request.prompt().getUserMessage() != null
+                ? request.prompt().getUserMessage().getText() : null;
         String spaceId = (String) request.context().get(SPACE_ID_CONTEXT);
 
         String rewrittenQuery = rewriteQuery(rawQuery);
         List<Document> candidates = retrieve(rewrittenQuery, spaceId);
         List<Document> topDocs = documentReranker.rerank(rawQuery, candidates, topN);
 
-        String contextBlock = buildContextBlock(topDocs);
+        // Résolution batch des image_ids → URLs (non bloquant)
+        Set<String> allImageIds = topDocs.stream()
+                .map(d -> (String) d.getMetadata().get("image_ids"))
+                .filter(Objects::nonNull)
+                .flatMap(ids -> Arrays.stream(ids.split(",")))
+                .map(String::trim)
+                .filter(id -> !id.isEmpty())
+                .collect(Collectors.toSet());
+        log.info("[RAG] allImageIds={} from {} topDocs", allImageIds.size(), topDocs.size());
+        Map<String, IngestionClient.ResolvedImage> resolvedImages = Map.of();
+        if (!allImageIds.isEmpty()) {
+            String userId = UserContextHolder.get().userId();
+            if (userId != null) {
+                resolvedImages = ingestionClient.resolveImageIds(allImageIds, UUID.fromString(userId));
+                log.info("[RAG] resolvedImages={} images", resolvedImages.size());
+            } else {
+                log.warn("[RAG] userId is null, cannot resolve image IDs");
+            }
+        }
+
+        String contextBlock = buildContextBlock(topDocs, resolvedImages);
         ChatClientRequest augmented = request.mutate()
                 .prompt(request.prompt().augmentSystemMessage(contextBlock))
                 .context(RETRIEVED_DOCUMENTS, topDocs)
@@ -148,16 +182,40 @@ public class RagPipelineAdvisor implements CallAdvisor {
         if (spaceId != null && !spaceId.isBlank()) {
             search.filterExpression("space_id == '" + spaceId + "'");
         }
-        return vectorStore.similaritySearch(search.build());
+        List<Document> results = vectorStore.similaritySearch(search.build());
+        log.info("[RAG] similaritySearch: {} candidats (topK={}, seuil={})", results.size(), retrievalTopK, retrievalSimilarityThreshold);
+        return results;
     }
 
-    private String buildContextBlock(List<Document> docs) {
+    private String buildContextBlock(List<Document> docs, Map<String, IngestionClient.ResolvedImage> resolvedImages) {
         if (docs == null || docs.isEmpty()) {
             return EMPTY_CONTEXT_MESSAGE.strip();
         }
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < docs.size(); i++) {
-            sb.append("[").append(i + 1).append("] ").append(docs.get(i).getText()).append("\n\n");
+            Document doc = docs.get(i);
+            sb.append("[").append(i + 1).append("] ").append(doc.getText()).append("\n\n");
+
+            // Injection des images associées au chunk
+            String imageIdsRaw = (String) doc.getMetadata().get("image_ids");
+            if (imageIdsRaw != null && !imageIdsRaw.isBlank() && !resolvedImages.isEmpty()) {
+                List<String> imageRefs = Arrays.stream(imageIdsRaw.split(","))
+                        .map(String::trim)
+                        .filter(id -> !id.isEmpty())
+                        .map(id -> {
+                            IngestionClient.ResolvedImage img = resolvedImages.get(id);
+                            if (img == null || img.url() == null) return null;
+                            String desc = img.caption() != null ? img.caption() : "Image du document";
+                            return "![%s](%s)".formatted(desc, img.url());
+                        })
+                        .filter(Objects::nonNull)
+                        .toList();
+                if (!imageRefs.isEmpty()) {
+                    sb.append("Images associées :\n");
+                    imageRefs.forEach(ref -> sb.append(ref).append("\n"));
+                    sb.append("\n");
+                }
+            }
         }
         return SYSTEM_AUGMENT_TEMPLATE.formatted(sb.toString().strip()).strip();
     }
