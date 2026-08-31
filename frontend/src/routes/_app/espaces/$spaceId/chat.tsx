@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createFileRoute, useParams } from '@tanstack/react-router';
+import { Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -15,6 +16,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { conversationsQueryOptions, useConversations } from '@/features/chat/api/use-conversations';
 import { useCreateConversation } from '@/features/chat/api/use-create-conversation';
@@ -146,18 +148,19 @@ function ConversationRail({
   onCreate: () => void;
   creating: boolean;
 }) {
+  const { state } = useSidebar();
+
   return (
     <Sidebar side="right" collapsible="icon">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="Nouvelle conversation">
-              <Button
-                className="w-full justify-start"
-                onClick={onCreate}
-                disabled={creating}
-              >
-                <span>{creating ? 'Création…' : '+ Nouvelle conversation'}</span>
+              <Button onClick={onCreate} disabled={creating}>
+                <Plus className="size-4" />
+                {state === 'expanded' && (
+                  <span>{creating ? 'Création…' : 'Nouvelle conversation'}</span>
+                )}
               </Button>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -172,10 +175,15 @@ function ConversationRail({
                 <SidebarMenuItem key={conv.id}>
                   <SidebarMenuButton
                     asChild
+                    size="lg"
                     isActive={conv.id === activeId}
-                    onClick={() => onSelect(conv.id)}
+                    tooltip={state === 'collapsed' ? conv.title ?? 'Sans titre' : undefined}
                   >
-                    <button type="button" className="flex-col items-start gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => onSelect(conv.id)}
+                      className="flex-col items-start gap-0.5"
+                    >
                       <span className="w-full truncate">{conv.title ?? 'Sans titre'}</span>
                       <span className="w-full font-mono text-[0.62rem] text-muted-foreground">
                         {new Date(conv.updatedAt).toLocaleDateString('fr-FR')}
