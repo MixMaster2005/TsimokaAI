@@ -2,12 +2,25 @@ import { useState } from 'react';
 import { createFileRoute, useParams } from '@tanstack/react-router';
 
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+} from '@/components/ui/sidebar';
 import { conversationsQueryOptions, useConversations } from '@/features/chat/api/use-conversations';
 import { useCreateConversation } from '@/features/chat/api/use-create-conversation';
 import { ChatThread } from '@/features/chat/components/ChatThread';
 import { useEspace } from '@/features/espaces/api/use-espace';
 import { getTagColorClass } from '@/features/espaces/lib/get-tag-color';
-import { cn } from '@/lib/utils';
 
 export const Route = createFileRoute('/_app/espaces/$spaceId/chat')({
   loader: ({ context: { queryClient }, params }) =>
@@ -58,49 +71,9 @@ function Chat() {
   if (!activeId) return null;
 
   return (
-    <div className="flex h-full">
-      {/* Rail d'historique — surface Papier (contrat de design §2) */}
-      <aside className="hidden w-60 flex-none flex-col border-r border-border bg-card md:flex">
-        <div className="border-b border-border px-3 py-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={() =>
-              createConversation.mutate(
-                { spaceId },
-                { onSuccess: (conv) => setActiveConversationId(conv.id) },
-              )
-            }
-            disabled={createConversation.isPending}
-          >
-            {createConversation.isPending ? 'Création…' : '+ Nouvelle conversation'}
-          </Button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-2 py-2">
-          {conversations.map((conv) => (
-            <button
-              key={conv.id}
-              onClick={() => setActiveConversationId(conv.id)}
-              className={cn(
-                'w-full rounded-md px-3 py-2.5 text-left transition-colors',
-                conv.id === activeId
-                  ? 'bg-secondary text-foreground'
-                  : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground',
-              )}
-            >
-              <p className="truncate text-sm font-medium">{conv.title ?? 'Sans titre'}</p>
-              <p className="font-mono text-[0.62rem] text-muted-foreground">
-                {new Date(conv.updatedAt).toLocaleDateString('fr-FR')}
-              </p>
-            </button>
-          ))}
-        </div>
-      </aside>
-
+    <SidebarProvider defaultOpen>
       {/* Zone chat — surface Ardoise */}
-      <div className="surface-ardoise flex min-h-0 min-w-0 flex-1 flex-col bg-background text-foreground">
+      <SidebarInset className="surface-ardoise h-svh overflow-y-auto bg-background text-foreground">
         {/* Barre espace + persona reminder */}
         <div className="flex items-center justify-between border-b border-border bg-card/30 px-6 py-2 text-xs">
           <div className="flex min-w-0 items-center gap-2">
@@ -141,7 +114,81 @@ function Chat() {
         <div className="min-h-0 flex-1">
           <ChatThread conversationId={activeId} spaceId={spaceId} />
         </div>
-      </div>
-    </div>
+      </SidebarInset>
+
+      {/* Rail d'historique — surface Papier (contrat de design §2), rétractable */}
+      <ConversationRail
+        conversations={conversations}
+        activeId={activeId}
+        onSelect={setActiveConversationId}
+        onCreate={() =>
+          createConversation.mutate(
+            { spaceId },
+            { onSuccess: (conv) => setActiveConversationId(conv.id) },
+          )
+        }
+        creating={createConversation.isPending}
+      />
+    </SidebarProvider>
+  );
+}
+
+function ConversationRail({
+  conversations,
+  activeId,
+  onSelect,
+  onCreate,
+  creating,
+}: {
+  conversations: { id: string; title: string | null; updatedAt: string }[];
+  activeId: string;
+  onSelect: (id: string) => void;
+  onCreate: () => void;
+  creating: boolean;
+}) {
+  return (
+    <Sidebar side="right" collapsible="icon">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild size="lg" tooltip="Nouvelle conversation">
+              <Button
+                className="w-full justify-start"
+                onClick={onCreate}
+                disabled={creating}
+              >
+                <span>{creating ? 'Création…' : '+ Nouvelle conversation'}</span>
+              </Button>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {conversations.map((conv) => (
+                <SidebarMenuItem key={conv.id}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={conv.id === activeId}
+                    onClick={() => onSelect(conv.id)}
+                  >
+                    <button type="button" className="flex-col items-start gap-0.5">
+                      <span className="w-full truncate">{conv.title ?? 'Sans titre'}</span>
+                      <span className="w-full font-mono text-[0.62rem] text-muted-foreground">
+                        {new Date(conv.updatedAt).toLocaleDateString('fr-FR')}
+                      </span>
+                    </button>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarRail />
+    </Sidebar>
   );
 }
