@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
 
 import { AppSidebar } from '@/components/shared/AppSidebar';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { sessionQueryOptions } from '@/features/auth/api/use-session';
 
 /**
@@ -46,11 +47,11 @@ export const Route = createFileRoute('/_app')({
 
 function AppLayout() {
   return (
-    <div className="flex min-h-screen">
+    <SidebarProvider>
       <AppSidebar />
-      <main className="min-w-0 flex-1 bg-background text-foreground">
+      <SidebarInset className="min-h-svh bg-background text-foreground">
         <Outlet />
-      </main>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

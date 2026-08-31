@@ -1,4 +1,4 @@
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { GraduationCap, Home, Settings } from 'lucide-react';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -10,6 +10,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+  useSidebar,
+} from '@/components/ui/sidebar';
 import { useSession } from '@/features/auth/api/use-session';
 import { clearTokens } from '@/lib/auth-tokens';
 
@@ -21,13 +34,43 @@ import { clearTokens } from '@/lib/auth-tokens';
  * enseignant ponctuel (configuration, supervision), sans instrumentation
  * quotidienne.
  *
- * Surface Ardoise permanente : même règle que la sidebar étudiant — un rail de
- * navigation persistant n'est ni "contenu Papier" ni "chat".
+ * Construit sur le composant Sidebar de shadcn/ui, rétractable via le rail
+ * (ou Ctrl/Cmd+B), hauteur fixe sur l'écran (h-svh), seul le contenu de
+ * navigation scrolle (SidebarContent).
  */
 const NAV_ITEMS = [
   { to: '/enseignant', label: 'Mes espaces', icon: Home },
   { to: '/enseignant/parametres', label: 'Paramètres', icon: Settings },
 ] as const;
+
+function NavItem({
+  to,
+  label,
+  icon: Icon,
+}: {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
+  const { state } = useSidebar();
+  const { pathname } = useLocation();
+  const isActive = pathname === to || pathname.startsWith(`${to}/`);
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        isActive={isActive}
+        tooltip={state === 'collapsed' ? label : undefined}
+      >
+        <Link to={to} activeOptions={{ exact: true }}>
+          <Icon />
+          <span>{label}</span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
 
 export function AppSidebarEnseignant() {
   const { data: user } = useSession();
@@ -46,61 +89,61 @@ export function AppSidebarEnseignant() {
     .toUpperCase();
 
   return (
-    <aside className="surface-ardoise flex w-[250px] flex-none flex-col border-r border-border bg-background text-foreground">
-      <Link to="/enseignant" className="flex items-center gap-2 px-4 py-5 font-display text-base font-semibold">
-        🌱 TsimokaAI
-        <GraduationCap className="ml-auto h-4 w-4 text-muted-foreground" aria-hidden />
-      </Link>
+    <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild size="lg" tooltip="TsimokaAI">
+              <Link to="/enseignant" className="font-display text-base font-semibold">
+                <span>🌱</span>
+                <span>TsimokaAI</span>
+                <GraduationCap className="ml-auto text-muted-foreground" aria-hidden />
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
 
-      <nav className="flex flex-col gap-1 px-2">
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} to={to} label={label} icon={Icon} />
-        ))}
-      </nav>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {NAV_ITEMS.map((item) => (
+                <NavItem key={item.to} {...item} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
 
-      <div className="mt-auto border-t border-border p-3">
-        <DropdownMenu>
-          <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-md p-2 text-left hover:bg-secondary">
-            <Avatar className="h-7 w-7">
-              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm">{user?.displayName ?? '…'}</p>
-              <p className="font-mono text-[0.62rem] uppercase tracking-wide text-muted-foreground">Enseignant</p>
-            </div>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" side="top">
-            <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link to="/enseignant/parametres">Paramètres</Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleLogout}>Déconnexion</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </aside>
-  );
-}
-
-function NavLink({
-  to,
-  label,
-  icon: Icon,
-}: {
-  to: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}) {
-  return (
-    <Link
-      to={to}
-      activeOptions={{ exact: true }}
-      activeProps={{ className: 'bg-secondary text-foreground' }}
-      className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
-    >
-      <Icon className="h-4 w-4" />
-      {label}
-    </Link>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton size="lg" tooltip={user?.displayName ?? '…'}>
+                  <Avatar className="size-5">
+                    <AvatarFallback className="text-[0.625rem]">{initials}</AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0 flex-1 truncate">{user?.displayName ?? '…'}</span>
+                  <span className="font-mono text-[0.62rem] uppercase tracking-wide text-muted-foreground">
+                    Enseignant
+                  </span>
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top">
+                <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/enseignant/parametres">Paramètres</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>Déconnexion</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
   );
 }

@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
 
 import { AppSidebarEnseignant } from '@/components/shared/AppSidebarEnseignant';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { sessionQueryOptions } from '@/features/auth/api/use-session';
 
 /**
@@ -30,11 +31,11 @@ export const Route = createFileRoute('/enseignant')({
 
 function EnseignantLayout() {
   return (
-    <div className="flex min-h-screen">
+    <SidebarProvider>
       <AppSidebarEnseignant />
-      <main className="min-w-0 flex-1 bg-background text-foreground">
+      <SidebarInset className="min-h-svh bg-background text-foreground">
         <Outlet />
-      </main>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
