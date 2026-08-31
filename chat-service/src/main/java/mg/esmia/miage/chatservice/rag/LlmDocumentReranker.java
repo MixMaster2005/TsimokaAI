@@ -32,9 +32,11 @@ public class LlmDocumentReranker implements DocumentReranker {
     /** Regex insensible à la casse et tolérante aux espaces : [C0], [c0], [C 0]... */
     private static final Pattern TOKEN = Pattern.compile("(?i)\\[C\\s*(\\d+)]");
 
-    /** Nombre max de candidats envoyés au LLM reranker (réduit de 40 à 15 pour limiter
-     *  le coût et la dilution d'attention — R2b). */
-    private static final int MAX_CANDIDATES_FOR_RERANK = 15;
+    /** Nombre max de candidats envoyés au LLM reranker (réduit de 40 à 25 pour limiter
+     *  le coût et la dilution d'attention tout en réduisant les faux négatifs — un chunk
+     *  pertinent classé au-delà du seuil par la similarité vectorielle ne doit pas être
+     *  éliminé avant le reranking LLM). */
+    private static final int MAX_CANDIDATES_FOR_RERANK = 25;
 
     private final ChatProviderResolver chatProviderResolver;
 
