@@ -75,6 +75,7 @@ function NavItem({
 export function AppSidebarEnseignant() {
   const { data: user } = useSession();
   const navigate = useNavigate();
+  const { state } = useSidebar();
 
   function handleLogout() {
     clearTokens();
@@ -89,15 +90,19 @@ export function AppSidebarEnseignant() {
     .toUpperCase();
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className="surface-ardoise">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="TsimokaAI">
               <Link to="/enseignant" className="font-display text-base font-semibold">
-                <span>🌱</span>
-                <span>TsimokaAI</span>
-                <GraduationCap className="ml-auto text-muted-foreground" aria-hidden />
+                <span aria-hidden>🌱</span>
+                {state === 'expanded' && (
+                  <>
+                    <span>TsimokaAI</span>
+                    <GraduationCap className="ml-auto text-muted-foreground" aria-hidden />
+                  </>
+                )}
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

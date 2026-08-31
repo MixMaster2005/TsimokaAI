@@ -49,15 +49,17 @@ const NAV_ITEMS = [
 const NAV_SECONDAIRE = [{ to: '/mes-fiches', label: 'Mes fiches', icon: Files }] as const;
 
 export function AppSidebar() {
+  const { state } = useSidebar();
+
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className="surface-ardoise">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="TsimokaAI">
               <Link to="/" className="font-display text-base font-semibold">
-                <span>🌱</span>
-                <span>TsimokaAI</span>
+                <span aria-hidden>🌱</span>
+                {state === 'expanded' && <span>TsimokaAI</span>}
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

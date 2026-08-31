@@ -113,11 +113,11 @@
   --ring: var(--tag-sciences);
 
   /* --- Sidebar tokens — mapped to Ardoise surface --- */
-  --sidebar: var(--ardoise-bg-raised);
+  --sidebar: var(--ardoise-bg);
   --sidebar-foreground: var(--craie);
   --sidebar-primary: var(--craie);
   --sidebar-primary-foreground: var(--ardoise-bg);
-  --sidebar-accent: var(--ardoise-bg);
+  --sidebar-accent: var(--ardoise-bg-raised);
   --sidebar-accent-foreground: var(--craie);
   --sidebar-border: var(--ardoise-border);
   --sidebar-ring: var(--tag-sciences);
