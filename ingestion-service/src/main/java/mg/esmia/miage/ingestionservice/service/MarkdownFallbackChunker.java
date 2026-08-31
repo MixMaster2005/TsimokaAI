@@ -230,11 +230,27 @@ public class MarkdownFallbackChunker {
                                         Set<ElementType> elementTypes) {
         return new StructuredChunk(
                 index,
-                text.toString().trim(),
+                embeddableText(text, headingPath),
                 headingPath,
                 1, 1, // pageStart/pageEnd : pas d'info de page pour non-PDF
                 Collections.unmodifiableSet(new HashSet<>(elementTypes)),
                 List.of());
+    }
+
+    /**
+     * Texte final embedable : on préfixe le contenu par le chemin des titres
+     * (headingPath) pour que les titres/sections soient réellement recherchables
+     * par similarité vectorielle — un titre n'étant jamais stocké comme contenu,
+     * sans ce préfixe une question portant sur le libellé d'un titre ne matcherait
+     * pas le chunk via cosine similarity.
+     */
+    private String embeddableText(StringBuilder text, List<String> headingPath) {
+        String content = text.toString().trim();
+        if (content.isEmpty() || headingPath == null || headingPath.isEmpty()) {
+            return content;
+        }
+        String prefix = String.join(" > ", headingPath);
+        return prefix + "\n\n" + content;
     }
 
     private List<StructuredChunk> mergeTinyChunks(List<StructuredChunk> rawChunks) {

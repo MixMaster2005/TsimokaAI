@@ -136,7 +136,8 @@ class StructureAwareChunkerTest {
         List<StructuredChunk> chunks = chunker.chunk(document);
 
         assertEquals(1, chunks.size());
-        assertEquals("Contenu sous le titre.", chunks.get(0).text());
+        // Le heading est désormais préfixé dans le contenu embedé (recherchable)
+        assertEquals("Titre\n\nContenu sous le titre.", chunks.get(0).text());
         assertEquals(List.of("Titre"), chunks.get(0).headingPath());
     }
 
@@ -244,7 +245,8 @@ class StructureAwareChunkerTest {
 
         // Deux chunks distincts malgré la petitesse du premier
         assertEquals(2, chunks.size());
-        assertEquals("x", chunks.get(0).text());
+        // Le heading est désormais préfixé dans le contenu embedé (recherchable)
+        assertEquals("Chapitre A\n\nx", chunks.get(0).text());
         assertEquals(List.of("Chapitre A"), chunks.get(0).headingPath());
         assertEquals(List.of("Chapitre B"), chunks.get(1).headingPath());
     }
@@ -278,10 +280,11 @@ class StructureAwareChunkerTest {
 
         List<StructuredChunk> chunks = chunker.chunk(document);
 
-        // Le paragraphe est un chunk, la table est un chunk atomique
-        assertEquals(2, chunks.size());
-        assertEquals(Set.of(ElementType.PARAGRAPH), chunks.get(0).elementTypes());
-        assertEquals(Set.of(ElementType.TABLE), chunks.get(1).elementTypes());
+        // Le paragraphe (petit) est fusionné avec la table car ils partagent le
+        // même headingPath ["Titre"] ; le chunk unique cumule les deux types.
+        assertEquals(1, chunks.size());
+        assertEquals(Set.of(ElementType.PARAGRAPH, ElementType.TABLE), chunks.get(0).elementTypes());
+        assertEquals(List.of("Titre"), chunks.get(0).headingPath());
     }
 
     @Test

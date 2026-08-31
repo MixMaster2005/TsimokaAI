@@ -132,6 +132,7 @@ public class StructureAwareChunker {
                 // Mettre à jour le contexte (les headings ne sont PAS du contenu)
                 List<String> newPath = headingPaths.getOrDefault(
                         element.id(), List.of(element.text()));
+                currentHeadingPath = newPath;
                 builder = new ChunkBuilder(newPath);
                 continue;
             }
@@ -274,12 +275,30 @@ public class StructureAwareChunker {
         StructuredChunk build(int index) {
             return new StructuredChunk(
                     index,
-                    text.toString(),
+                    embeddableText(),
                     headingPath,
                     pageStart == Integer.MAX_VALUE ? 0 : pageStart,
                     pageEnd,
                     Collections.unmodifiableSet(new HashSet<>(elementTypes)),
                     Collections.unmodifiableList(new ArrayList<>(imageIds)));
+        }
+
+        /**
+         * Texte final embedable : on préfixe le contenu par le chemin des titres
+         * (headingPath) pour que les titres/sections soient réellement recherchables
+         * par similarité vectorielle — un titre n'étant jamais stocké comme contenu,
+         * sans ce préfixe une question portant sur le libellé d'un titre ne matcherait
+         * pas le chunk via cosine similarity.
+         */
+        private String embeddableText() {
+            if (text.isEmpty()) {
+                return text.toString();
+            }
+            if (headingPath == null || headingPath.isEmpty()) {
+                return text.toString();
+            }
+            String prefix = String.join(" > ", headingPath);
+            return prefix + "\n\n" + text;
         }
     }
 }
