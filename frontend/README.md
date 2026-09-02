@@ -20,7 +20,7 @@ Pour travailler avec le backend complet sans rebuild Docker à chaque fois :
 
 ```bash
 # Terminal 1 : lance le backend (postgres, redis, gateway, 7 microservices)
-./infra/scripts/08-dev-backend.sh
+./infra/scripts/01-premier-demarrage.sh --no-build --no-frontend
 
 # Terminal 2 : lance le frontend Vite avec proxy /api -> :8080
 cd frontend && npm run dev:api
@@ -47,7 +47,7 @@ docker compose up --build frontend
 | Mode | Commande | Frontend | Proxy API | CORS |
 |---|---|---|---|---|
 | **Prod/Docker** | `./infra/scripts/02-start.sh` | Container nginx `:3000` | nginx → api-gateway | Non (same-origin) |
-| **Dev rapide** | `./infra/scripts/08-dev-backend.sh` + `npm run dev:api` | Vite `:5173` | Vite proxy → api-gateway | Non (same-origin) |
+| **Dev rapide** | `./infra/scripts/01-premier-demarrage.sh --no-build --no-frontend` + `npm run dev:api` | Vite `:5173` | Vite proxy → api-gateway | Non (same-origin) |
 
 Dans les deux cas, `VITE_API_BASE_URL` est vide et le proxy (nginx ou Vite)
 forward `/api/*` vers `localhost:8080` — le code frontend est identique.

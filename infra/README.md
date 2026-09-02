@@ -12,14 +12,13 @@ projet eux-mêmes). L'ordre numérique suit le cycle de vie.
 | Script | Rôle |
 |---|---|
 | `scripts/00-prerequis.sh` | Vérifie Docker/Compose, le `.env` (variables obligatoires), les ports hôtes et l'image `docling-worker`. Lecture seule. |
-| `scripts/01-premier-demarrage.sh` | Première installation complète : build docling-worker, stack entière (profil `ollama` inclus), chargement de `nomic-embed-text`, attente des 7 services. Idempotent. |
+| `scripts/01-premier-demarrage.sh` | Première installation complète : build docling-worker, stack entière (profil `ollama` inclus), chargement de `nomic-embed-text`, attente des 7 services. Idempotent. Options : `--no-build` (images déjà construites), `--no-frontend` (dev backend sans le frontend), `--with-chat-model`. Voir ci-dessous. |
 | `scripts/02-start.sh` | Démarrage de routine (images déjà construites). `--profile-ollama` pour inclure le LLM local — requis pour l'ingestion. |
 | `scripts/03-stop.sh` | Arrêt. Les volumes (données) sont conservés. `--purge` supprime en plus conteneurs/réseaux orphelins, jamais les volumes. |
 | `scripts/04-status.sh` | Santé : liste des conteneurs + `/actuator/health` de chaque service interrogé dans le réseau Docker. Code retour = nombre de services KO. |
 | `scripts/05-logs.sh <svc>|all [--tail]` | Logs d'un service ou de toute la stack (follow par défaut). |
 | `scripts/06-service.sh <svc> <action>` | Gestion unitaire : `start`, `stop`, `restart`, `rebuild` (recompile l'image Maven dans Docker puis attend le démarrage), `logs`, `sh`. |
 | `scripts/07-test-e2e.sh` | Test de bout en bout via la gateway uniquement (comme le frontend) : auth → espace + persona LLM → invitation/adhésion → chat RAG → fiches. Ré-exécutable sans collision (utilisateurs suffixés par timestamp). |
-| `scripts/08-dev-backend.sh` | Backend uniquement (sans le frontend Docker) pour dev rapide. Ollama toujours inclus (embeddings nomic-embed-text requis par le RAG). Le frontend se lance séparément via `npm run dev:api` (Vite proxy, zéro CORS). |
 
 ## Parcours types
 
@@ -41,7 +40,9 @@ projet eux-mêmes). L'ordre numérique suit le cycle de vie.
 ./infra/scripts/05-logs.sh all --tail                # vue d'ensemble
 
 # Dev rapide (backend Docker + frontend Vite sur l'hôte)
-./infra/scripts/08-dev-backend.sh                    # lance le backend sans le frontend Docker
+# 01-premier-demarrage.sh lance le backend sans le frontend Docker
+# (Ollama + modèle d'embedding toujours inclus), puis le frontend sur l'hôte :
+./infra/scripts/01-premier-demarrage.sh --no-build --no-frontend    # backend seul
 cd frontend && npm run dev:api                       # Vite sur :5173, proxy /api -> :8080
 ```
 
