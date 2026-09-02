@@ -19,7 +19,7 @@ projet eux-mêmes). L'ordre numérique suit le cycle de vie.
 | `scripts/05-logs.sh <svc>|all [--tail]` | Logs d'un service ou de toute la stack (follow par défaut). |
 | `scripts/06-service.sh <svc> <action>` | Gestion unitaire : `start`, `stop`, `restart`, `rebuild` (recompile l'image Maven dans Docker puis attend le démarrage), `logs`, `sh`. |
 | `scripts/07-test-e2e.sh` | Test de bout en bout via la gateway uniquement (comme le frontend) : auth → espace + persona LLM → invitation/adhésion → chat RAG → fiches. Ré-exécutable sans collision (utilisateurs suffixés par timestamp). |
-| `scripts/08-dev-backend.sh` | Backend uniquement (sans le frontend Docker) pour dev rapide. `--profile-ollama` pour inclure le LLM local. Le frontend se lance séparément via `npm run dev:api` (Vite proxy, zéro CORS). |
+| `scripts/08-dev-backend.sh` | Backend uniquement (sans le frontend Docker) pour dev rapide. `--profile-ollama` pour inclure le LLM local + vérification du modèle d'embedding. Le frontend se lance séparément via `npm run dev:api` (Vite proxy, zéro CORS). |
 
 ## Parcours types
 
