@@ -14,6 +14,22 @@ npm run dev
 
 `npm run build` fait tourner `tsc -b` (type-check strict) puis `vite build`.
 
+### Dev rapide avec backend Docker
+
+Pour travailler avec le backend complet sans rebuild Docker à chaque fois :
+
+```bash
+# Terminal 1 : lance le backend (postgres, redis, gateway, 7 microservices)
+./infra/scripts/08-dev-backend.sh
+
+# Terminal 2 : lance le frontend Vite avec proxy /api -> :8080
+cd frontend && npm run dev:api
+```
+
+Le script `dev:api` lance Vite avec `VITE_API_BASE_URL=""` — les requêtes `/api/*`
+sont interceptées par le proxy Vite (`vite.config.ts`) et forwards vers
+`localhost:8080`. Zéro CORS, même comportement que nginx en prod.
+
 ## Docker
 
 Le service `frontend` de la racine construit ce dossier via un Dockerfile multi-stage :
@@ -25,6 +41,16 @@ nginx. Port exposé : **3000**.
 ```bash
 docker compose up --build frontend
 ```
+
+## Deux modes de fonctionnement
+
+| Mode | Commande | Frontend | Proxy API | CORS |
+|---|---|---|---|---|
+| **Prod/Docker** | `./infra/scripts/02-start.sh` | Container nginx `:3000` | nginx → api-gateway | Non (same-origin) |
+| **Dev rapide** | `./infra/scripts/08-dev-backend.sh` + `npm run dev:api` | Vite `:5173` | Vite proxy → api-gateway | Non (same-origin) |
+
+Dans les deux cas, `VITE_API_BASE_URL` est vide et le proxy (nginx ou Vite)
+forward `/api/*` vers `localhost:8080` — le code frontend est identique.
 
 ## Ce qui est réellement câblé (pas juste stub)
 

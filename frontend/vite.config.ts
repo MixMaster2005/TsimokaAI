@@ -26,4 +26,15 @@ export default defineConfig({
       '@': path.resolve(import.meta.dirname, './src'),
     },
   },
+  // Proxy API en dev local : les requêtes /api/* (VITE_API_BASE_URL="") sont
+  // forwards vers api-gateway sur le port 8080 — même comportement que nginx
+  // en prod, zéro CORS. Inutile en mode Docker (nginx gère le proxy).
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
+  },
 });
