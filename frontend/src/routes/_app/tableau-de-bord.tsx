@@ -46,15 +46,25 @@ function TableauDeBord() {
       {dashboard && (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <div className="rounded-fiche border border-papier-border bg-papier-carte p-5">
+            <h3 className="mb-3 font-display text-sm font-semibold text-encre">Activité</h3>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-encre">Questions posées</p>
+                <p className="font-mono text-lg font-semibold text-encre">{dashboard.nbQuestionsPosees}</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-encre">Fiches générées</p>
+                <p className="font-mono text-lg font-semibold text-encre">{dashboard.nbFichesGenerees}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-fiche border border-papier-border bg-papier-carte p-5">
             <h3 className="mb-3 font-display text-sm font-semibold text-encre">Progression des notions</h3>
             <div className="flex flex-col gap-3">
               <div>
                 <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-succes">Maîtrisées</p>
                 <p className="text-sm text-encre">{dashboard.notionsMaitrisees.join(', ') || '—'}</p>
-              </div>
-              <div>
-                <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-tag-sciences">En cours</p>
-                <p className="text-sm text-encre">{(dashboard.notionsEnCours ?? []).join(', ') || '—'}</p>
               </div>
               <div>
                 <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-attention">Fragiles / À revoir</p>
@@ -93,7 +103,7 @@ function TableauDeBord() {
                     <div className="h-1.5 flex-1 rounded-full bg-papier-bg">
                       <div
                         className={`h-full rounded-full ${isWeak ? 'bg-attention' : 'bg-encre'}`}
-                        style={{ width: `${percent}%` }}
+                        style={{ width: `${Math.max(percent, 2)}%` }}
                       />
                     </div>
                     <span
