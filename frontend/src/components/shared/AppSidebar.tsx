@@ -57,7 +57,7 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="TsimokaAI">
-              <Link to="/" className="font-display text-base font-semibold">
+              <Link to="/" className="font-display text-base font-semibold text-craie">
                 <span aria-hidden>🌱</span>
                 {state === 'expanded' && <span>TsimokaAI</span>}
               </Link>
@@ -68,7 +68,9 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Principal</SidebarGroupLabel>
+          <SidebarGroupLabel className="font-mono text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
+            Principal
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {NAV_ITEMS.map((item) => (
@@ -79,7 +81,9 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Secondaire</SidebarGroupLabel>
+          <SidebarGroupLabel className="font-mono text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
+            Secondaire
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {NAV_SECONDAIRE.map((item) => (
@@ -89,7 +93,7 @@ export function AppSidebar() {
                 <JoinEspaceModal
                   trigger={
                     <SidebarMenuButton asChild tooltip="Rejoindre un espace">
-                      <button type="button">
+                      <button type="button" className="text-craie">
                         <UserPlus />
                         <span>Rejoindre un espace</span>
                       </button>
@@ -126,7 +130,7 @@ function NavItem({ to, label, icon: Icon }: { to: string; label: string; icon: t
         isActive={isActive}
         tooltip={state === 'collapsed' ? label : undefined}
       >
-        <Link to={to} activeOptions={{ exact: to === '/' }}>
+        <Link to={to} activeOptions={{ exact: to === '/' }} className="text-craie">
           <Icon />
           <span>{label}</span>
         </Link>
@@ -159,7 +163,7 @@ function UserMenu() {
           <Avatar className="size-5">
             <AvatarFallback className="text-[0.625rem]">{initials ?? '…'}</AvatarFallback>
           </Avatar>
-          <span className="truncate">{user?.displayName ?? '…'}</span>
+          <span className="truncate text-craie">{user?.displayName ?? '…'}</span>
           <span className="ml-auto flex items-center">
             <span className="relative inline-flex">
               <Bell className="size-4" />

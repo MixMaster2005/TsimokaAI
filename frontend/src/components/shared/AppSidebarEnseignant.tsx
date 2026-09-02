@@ -63,7 +63,7 @@ function NavItem({
         isActive={isActive}
         tooltip={state === 'collapsed' ? label : undefined}
       >
-        <Link to={to} activeOptions={{ exact: true }}>
+        <Link to={to} activeOptions={{ exact: true }} className="text-craie">
           <Icon />
           <span>{label}</span>
         </Link>
@@ -95,7 +95,7 @@ export function AppSidebarEnseignant() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="TsimokaAI">
-              <Link to="/enseignant" className="font-display text-base font-semibold">
+              <Link to="/enseignant" className="font-display text-base font-semibold text-craie">
                 <span aria-hidden>🌱</span>
                 {state === 'expanded' && (
                   <>
@@ -130,7 +130,7 @@ export function AppSidebarEnseignant() {
                   <Avatar className="size-5">
                     <AvatarFallback className="text-[0.625rem]">{initials}</AvatarFallback>
                   </Avatar>
-                  <span className="min-w-0 flex-1 truncate">{user?.displayName ?? '…'}</span>
+                  <span className="min-w-0 flex-1 truncate text-craie">{user?.displayName ?? '…'}</span>
                   <span className="font-mono text-[0.62rem] uppercase tracking-wide text-muted-foreground">
                     Enseignant
                   </span>

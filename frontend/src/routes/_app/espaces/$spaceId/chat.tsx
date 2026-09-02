@@ -156,7 +156,7 @@ function ConversationRail({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="Nouvelle conversation">
-              <Button onClick={onCreate} disabled={creating}>
+              <Button onClick={onCreate} disabled={creating} className="text-craie">
                 <Plus className="size-4" />
                 {state === 'expanded' && (
                   <span>{creating ? 'Création…' : 'Nouvelle conversation'}</span>
@@ -178,14 +178,17 @@ function ConversationRail({
                     size="lg"
                     isActive={conv.id === activeId}
                     tooltip={state === 'collapsed' ? conv.title ?? 'Sans titre' : undefined}
+                    className="h-auto min-h-11 overflow-hidden py-1.5"
                   >
                     <button
                       type="button"
                       onClick={() => onSelect(conv.id)}
-                      className="flex-col items-start gap-0.5"
+                      title={`${conv.title ?? 'Sans titre'} — ${new Date(conv.updatedAt).toLocaleDateString('fr-FR')}`}
                     >
-                      <span className="w-full truncate">{conv.title ?? 'Sans titre'}</span>
-                      <span className="w-full font-mono text-[0.62rem] text-muted-foreground">
+                      <span className="min-w-0 flex-1 truncate text-sm text-encre sm:text-base">
+                        {conv.title ?? 'Sans titre'}
+                      </span>
+                      <span className="hidden shrink-0 font-mono text-[0.6rem] text-muted-foreground sm:inline">
                         {new Date(conv.updatedAt).toLocaleDateString('fr-FR')}
                       </span>
                     </button>
