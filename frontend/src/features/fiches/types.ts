@@ -16,10 +16,17 @@ export interface Fiche {
 }
 
 /** Le contenu structuré une fois `contentJson` parsé. Clés en snake_case (cf. @JsonProperty du back). */
+export interface QuizQuestion {
+  question: string;
+  answer: string;
+}
+
 export interface FicheContent {
   definition: string;
   key_points: string[];
   example: string;
+  common_mistakes?: string[];
+  self_quiz?: QuizQuestion[];
 }
 
 export function parseFicheContent(fiche: Fiche): FicheContent | null {
@@ -30,10 +37,13 @@ export function parseFicheContent(fiche: Fiche): FicheContent | null {
   }
 }
 
+export type FicheStrategy = 'SINGLE_CALL' | 'MAP_REDUCE';
+
 export interface GenerateFichePayload {
   spaceId: string;
   title?: string;
-  documentIds?: string[]; // vide/absent = tout le corpus de l'espace
+  documentIds?: string[];
+  strategy?: FicheStrategy;
 }
 
 /** Calqué sur fiche-service/entity/PartageFiche.java (réponse brute de l'API). */

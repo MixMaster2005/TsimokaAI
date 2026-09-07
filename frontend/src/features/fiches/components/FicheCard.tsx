@@ -1,19 +1,17 @@
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { getTagColorClass } from '@/features/espaces/lib/get-tag-color';
-import { parseFicheContent, type Fiche as FicheType } from '../types';
-
-/**
- * CONTRAT DE COMPOSANT (design contract §9.1) : toute représentation d'une
- * fiche — dans le chat (citation), le dashboard, la gamification (badge),
- * le partage — réutilise CE composant. Aucune carte ad hoc ailleurs.
- *
- * Porté depuis le prototype HTML (tsimokaai-layout-etudiant.html) — même
- * structure, mêmes tokens, maintenant en composants React réels.
- */
+import { parseFicheContent, type Fiche as FicheType, type QuizQuestion } from '../types';
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from '@/components/ui/accordion';
 
 interface FicheCardProps {
   fiche: FicheType;
-  subjectTag?: string | null; // vient de l'espace parent (Space.subjectTag), pas de la fiche elle-même
+  subjectTag?: string | null;
   className?: string;
 }
 
@@ -47,6 +45,36 @@ export function FicheCard({ fiche, subjectTag, className }: FicheCardProps) {
             <Section label="Exemple appliqué">
               <p className="text-sm leading-relaxed text-encre">{content.example}</p>
             </Section>
+
+            {content.common_mistakes && content.common_mistakes.length > 0 && (
+              <Section label="Erreurs courantes">
+                <ul className="flex flex-col gap-1.5">
+                  {content.common_mistakes.map((mistake) => (
+                    <li key={mistake} className="flex items-start gap-2 text-sm leading-relaxed text-encre">
+                      <span className="mt-0.5 flex-none text-attention">⚠️</span>
+                      {mistake}
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            )}
+
+            {content.self_quiz && content.self_quiz.length > 0 && (
+              <Section label="Auto-quiz">
+                <Accordion type="multiple" className="flex flex-col gap-2">
+                  {content.self_quiz.map((q, i) => (
+                    <AccordionItem key={i} value={`quiz-${i}`}>
+                      <AccordionTrigger className="rounded-fiche bg-papier-carte px-2.5 py-2 font-mono text-[0.68rem] text-encre hover:no-underline">
+                        {q.question}
+                      </AccordionTrigger>
+                      <AccordionContent className="px-2.5 pb-2">
+                        <p className="text-sm leading-relaxed text-encre">{q.answer}</p>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </Section>
+            )}
           </div>
         ) : (
           <p className="text-sm text-erreur">Contenu de la fiche illisible (JSON invalide).</p>
@@ -70,10 +98,6 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-/**
- * Variante "chip" — sous un message assistant, pour tracer les sources
- * citées (CDC §4.3). Ne montre volontairement pas tout le contenu.
- */
 export function FicheCitationChip({ fiche, subjectTag }: { fiche: FicheType; subjectTag?: string | null }) {
   return (
     <div className="flex max-w-56 items-stretch gap-2 rounded-fiche bg-papier-carte py-1.5 pr-2.5 text-encre">
@@ -85,11 +109,6 @@ export function FicheCitationChip({ fiche, subjectTag }: { fiche: FicheType; sub
   );
 }
 
-/**
- * Variante "sceau" — gamification, badges. Le contenu réel du badge (icône,
- * libellé) vient de features/gamification, ce composant ne fournit que la
- * forme circulaire cohérente avec le composant Fiche plein format.
- */
 export function FicheBadgeSeal({
   colorClass,
   label,
