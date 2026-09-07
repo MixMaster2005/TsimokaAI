@@ -1,4 +1,10 @@
 import type { Citation } from '../types';
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from '@/components/ui/accordion';
 
 interface CitationChipsProps {
   /** Citations enrichies (document + extrait), persistées par chat-service à la génération. */
@@ -13,13 +19,15 @@ interface CitationChipsProps {
 /**
  * Sources citées sous une réponse de l'assistant.
  *
- * Citations enrichies : nom du document + extrait au survol (title natif,
- * sans dépendance supplémentaire). Plusieurs chunks d'un même document =
- * une chip par chunk, distinguée par l'index du passage.
+ * Citations enrichies : chaque source est un item d'accordéon — le nom du
+ * document et le numéro de passage en trigger, l'extrait visible au clic.
+ * L'accordéon construit la confiance en rendant la traçabilité RAG
+ * explicitement accessible (§4.3 du CDC), sans dépendre de tooltips natifs
+ * invisibles sur mobile.
  *
  * Sans citation résoluble (fallback circuit breaker, document supprimé,
  * messages antérieurs à la feature) : chip placeholder minimale ; l'UUID brut
- * reste visible en title afin de conserver la traçabilité RAG.
+ * reste en title afin de conserver la traçabilité RAG.
  */
 export function CitationChips({ citations, fallbackChunkIds }: CitationChipsProps) {
   if (citations.length === 0 && fallbackChunkIds.length === 0) return null;
@@ -41,27 +49,30 @@ export function CitationChips({ citations, fallbackChunkIds }: CitationChipsProp
   }
 
   return (
-    <div className="mt-3 flex flex-col gap-1.5">
+    <Accordion type="multiple" className="mt-3">
       {citations.map((c, i) => {
         const label = c.documentName ?? 'Document source';
-        const title = [
-          label + (c.chunkIndex !== null ? ` · passage ${c.chunkIndex + 1}` : ''),
-          c.excerpt ? `\u00ab ${c.excerpt} \u00bb` : null,
-        ]
-          .filter(Boolean)
-          .join('\n');
         return (
-          <span
-            key={c.chunkId}
-            className="flex max-w-full items-baseline gap-2 rounded-fiche bg-papier-carte px-2.5 py-1 font-mono text-[0.68rem] text-encre"
-            title={title}
-          >
-            <span className="shrink-0 text-encre-muted">[{i + 1}]</span>
-            <span className="truncate">{label}</span>
-            {c.chunkIndex !== null && <span className="shrink-0 text-encre-muted">p.{c.chunkIndex + 1}</span>}
-          </span>
+          <AccordionItem key={c.chunkId} value={c.chunkId}>
+            <AccordionTrigger className="rounded-fiche bg-papier-carte px-2.5 py-2 font-mono text-[0.68rem] text-encre hover:no-underline">
+              <span className="flex min-w-0 items-baseline gap-2">
+                <span className="shrink-0 text-encre-muted">[{i + 1}]</span>
+                <span className="truncate">{label}</span>
+                {c.chunkIndex !== null && (
+                  <span className="shrink-0 text-encre-muted">p.{c.chunkIndex + 1}</span>
+                )}
+              </span>
+            </AccordionTrigger>
+            {c.excerpt && (
+              <AccordionContent className="px-2.5 pb-2">
+                <p className="font-sans text-xs leading-relaxed text-encre-muted">
+                  &laquo;&nbsp;{c.excerpt}&nbsp;&raquo;
+                </p>
+              </AccordionContent>
+            )}
+          </AccordionItem>
         );
       })}
-    </div>
+    </Accordion>
   );
 }
