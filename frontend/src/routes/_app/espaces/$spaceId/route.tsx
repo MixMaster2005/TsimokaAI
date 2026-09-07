@@ -20,6 +20,7 @@ const TABS_BASE = [
   { to: '/espaces/$spaceId/chat', label: 'Chat' },
   { to: '/espaces/$spaceId/fiches', label: 'Fiches' },
   { to: '/espaces/$spaceId/documents', label: 'Documents' },
+  { to: '/espaces/$spaceId/quiz', label: 'Quiz' },
   { to: '/espaces/$spaceId/membres', label: 'Membres' },
 ] as const;
 
