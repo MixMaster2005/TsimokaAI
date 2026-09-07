@@ -72,6 +72,7 @@ Toutes les routes sont protégées par JWT **sauf** `/api/v1/auth/**` (publique)
 | `/api/v1/documents/**` | ingestion-service (8083) | — | ✅ |
 | `/api/v1/conversations/**`, `/api/v1/messages/**` | chat-service (8084) | — | ✅ |
 | `/api/v1/fiches/**`, `/api/v1/annotations/**`, `/api/v1/validations/**` | fiche-service (8085) | — | ✅ |
+| `/api/v1/quizzes/**` | fiche-service (8085) | — | ✅ |
 | `/api/v1/dashboard/**`, `/api/v1/recommandations/**` | analytics-service (8086) | — | ✅ |
 | `/api/v1/objectifs/**`, `/api/v1/badges/**`, `/api/v1/rappels/**` | gamification-service (8087) | — | ✅ |
 

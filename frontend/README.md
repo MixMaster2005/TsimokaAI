@@ -61,12 +61,13 @@ Contrats vérifiés contre le code réel des services backend :
 - **adhésion par code** — bouton d'onboarding actif : `JoinEspaceModal` (POST `/api/v1/spaces/join`), page Membres avec code d'invitation du propriétaire (copier/régénérer), retrait de membre, quitter l'espace ; `SpaceResponse.owner` distingue posséder / rejoindre
 - **chat** — conversations, messages, envoi (avec ajout optimiste + effet "craie" client-side), sur les vraies routes de `chat-service`
 - **citations chat** — `MessageResponse.citations` (document source + extrait, persistés à la génération côté back) affichées par `CitationChips` ; repli placeholder sur les anciens messages (UUID bruts seulement)
-- **fiches** — génération, liste, détail, composant signature `FicheCard` (+ variantes chip/sceau), sur `fiche-service` — y compris le vrai format `content_json` (`definition`/`key_points`/`example`)
+- **fiches** — génération (avec choix de stratégie Map-Reduce / single-call), liste, détail, composant signature `FicheCard` (+ variantes chip/sceau, affichage `common_mistakes` et `self_quiz`), sur `fiche-service` — y compris le vrai format `content_json` (`definition`/`key_points`/`example`/`common_mistakes`/`self_quiz`)
 - **mes fiches transverse** — page branchée sur `GET /api/v1/fiches/mine` (vue tous espaces confondus, tri par date de génération)
 - **actions fiche** — partage (`ShareFicheModal` vers groupe ou membre de l'espace), annotations (liste + ajout), validation enseignante (tampon VALIDÉE / À REVOIR, verdict réservé au rôle `ENSEIGNANT`)
 - **documents** — upload multipart, liste avec statut, polling automatique tant qu'un document n'est pas `READY`/`FAILED`
 - **groupes** — liste + création, sur `space-service`
 - **objectifs** / **gamification** (badges, rappels) — câblés sur les vrais DTO, avec les vraies valeurs d'enum (voir plus bas)
+- **quiz** — génération ciblée (par document/espace/topic, niveau de difficulté configurable), tentatives avec scoring, résultats (barre de progression, feedback par question), partage à un groupe ou membre, routes `/espaces/$spaceId/quiz/` (liste, détail, passage du quiz)
 - **dashboard étudiant** — progression, recommandations, taux de réussite par matière (agrégé via `useQueries` sur tous les espaces, cf. note dans `use-student-dashboard.ts`)
 - **Layout App Étudiant** en entier + **Layout App Enseignant v1** (cf. plus bas)
 
@@ -117,7 +118,7 @@ nécessitent des endpoints analytiques non implémentés côté analytics-servic
 `ui.shadcn.com` n'était pas joignable depuis l'environnement où ce scaffold a été construit. Les composants dans `src/components/ui/` suivent les conventions actuelles (style `new-york`, attributs `data-slot`) mais n'ont **pas** été générés par la CLI officielle. Recommandé avant de construire dessus :
 
 ```bash
-npx shadcn@latest add button card input label tabs dialog avatar dropdown-menu separator badge --overwrite
+npx shadcn@latest add button card input label tabs dialog avatar dropdown-menu separator badge accordion checkbox progress radio-group sheet sidebar skeleton tooltip --overwrite
 ```
 
 `components.json` est déjà configuré avec les bons alias.
@@ -129,14 +130,39 @@ src/
 ├── routes/          # WIRING UNIQUEMENT (loader, validateSearch, composition) — voir chaque fichier
 │   ├── _app/        # app étudiant (pathless, guard auth + anti-ENSEIGNANT)
 │   ├── enseignant/  # app enseignant (PRÉFIXÉ — pas pathless, sinon conflit de chemins avec _app)
-│   └── _public/     # landing, connexion, inscription
+│   └── _public/     # landing, connexion, inscription, mot-de-passe-oublie
 ├── features/        # logique métier par domaine (api/, components/, types.ts, lib/)
+│   ├── quiz/        # quiz — types, api hooks, components (QuizCard, GenerateQuizModal, QuizResultsPanel...), lib
+│   └── fiches/      # fiches — enrichi (common_mistakes, self_quiz, FicheStrategy)
 ├── components/
-│   ├── ui/          # shadcn — ne pas éditer en profondeur, wrap au lieu de modifier
+│   ├── ui/          # shadcn (18 composants) — ne pas éditer en profondeur, wrap au lieu de modifier
 │   └── shared/      # transverse à ≥2 features (AppSidebar, AppSidebarEnseignant)
 ├── lib/             # api-client, query-client, utils (cn)
 └── styles/globals.css  # tokens du contrat de design → variables shadcn, .surface-ardoise
 ```
+
+### Routes principales
+
+| Route | Page |
+|---|---|
+| `_app/` | Étagère d'espaces |
+| `_app/mes-fiches.tsx` | Fiches transverse (tous espaces) |
+| `_app/objectifs.tsx` | Objectifs de révision |
+| `_app/tableau-de-bord.tsx` | Dashboard étudiant |
+| `_app/parametres.tsx` | Paramètres |
+| `_app/espaces/$spaceId/` | Détail espace (onglets) |
+| `_app/espaces/$spaceId/chat.tsx` | Chat RAG |
+| `_app/espaces/$spaceId/fiches/` | Liste des fiches |
+| `_app/espaces/$spaceId/quiz/` | Liste des quiz |
+| `_app/espaces/$spaceId/quiz/$quizId/take.tsx` | Passer un quiz |
+| `_app/espaces/$spaceId/documents.tsx` | Documents |
+| `_app/espaces/$spaceId/membres.tsx` | Membres + code d'invitation |
+| `_public/accueil.tsx` | Landing |
+| `_public/connexion.tsx` | Login |
+| `_public/inscription.tsx` | Register |
+| `_public/mot-de-passe-oublie.tsx` | Mot de passe oublié |
+| `enseignant/` | Dashboard enseignant |
+| `enseignant/parametres.tsx` | Paramètres enseignant |
 
 Détail des conventions (query key factories, quand extraire un composant, `.surface-ardoise`, etc.) : voir les commentaires en tête de chaque fichier de `lib/` et `features/*/api/keys.ts`.
 
@@ -147,3 +173,4 @@ Détail des conventions (query key factories, quand extraire un composant, `.sur
 3. Résoudre les noms d'utilisateurs (endpoint batch user-service) pour remplacer les UUID tronqués.
 4. Agrégats enseignant côté analytics-service (chapitres difficiles, densité d'encre).
 5. Générer `types/api.d.ts` depuis un futur schéma OpenAPI (springdoc côté back + `openapi-typescript` côté front) pour ne plus avoir à vérifier les DTO à la main.
+6. Publier un événement `QUIZ_GENERATED` côté fiche-service pour alimenter analytics/gamification.

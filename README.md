@@ -39,7 +39,8 @@ leur **progression** — le tout piloté par un ensemble de **microservices Spri
 | **Espaces de cours** | Création d'espaces, groupes de travail, **persona pédagogique** par espace (instruction système du LLM) |
 | **Ingestion de documents** | Upload PDF / DOCX / PPTX / XLSX / XLS / CSV / HTML / EPUB / TXT / Markdown, extraction (PDF → **AST PyMuPDF** / non-PDF → MarkItDown, vision **Gemini** : légende des figures, transcription des scans, images dans MinIO), **chunking orienté structure** (AST pour les PDF / fallback Markdown pour les non-PDF), **embeddings**, indexation **vectorielle** (Qdrant) |
 | **Assistant RAG** | Conversations par espace, recherche sémantique dans les documents, réponse générée par LLM (Groq / Gemini / Ollama) |
-| **Fiches de révision** | Génération **Map-Reduce**, partage (individuel / groupe), annotations, validation par l'enseignant |
+| **Fiches de révision** | Génération **Map-Reduce** ou **single-call**, partage (individuel / groupe), annotations, validation par l'enseignant, contenu enrichi (erreurs courantes, auto-quiz) |
+| **Quiz de révision** | Génération ciblée (par document / espace / topic), niveaux de difficulté, tentatives avec scoring, partage |
 | **Suivi & analytics** | Dashboards étudiant / enseignant, détection de notions difficiles, recommandations |
 | **Gamification** | Objectifs de révision, badges, suivi hebdomadaire, rappels |
 
@@ -55,7 +56,7 @@ leur **progression** — le tout piloté par un ensemble de **microservices Spri
 
 ## Architecture
 
-8 microservices **Spring Boot** derrière une **gateway réactive** unique. Les services ne
+7 microservices **Spring Boot** derrière une **gateway réactive** unique. Les services ne
 communiquent **jamais** en synchrone entre eux : la propagation (suppressions en cascade,
 compteurs, enrichissements) passe par **Redis Pub/Sub**.
 
@@ -129,7 +130,7 @@ tsimokaai/
 ├── space-service/              # 📁 Espaces, groupes, persona → README
 ├── ingestion-service/          # 📥 Upload, extraction, chunking, embeddings → README
 ├── chat-service/               # 💬 Conversations, orchestration RAG → README
-├── fiche-service/              # 📄 Fiches, partage, annotations, validation → README
+├── fiche-service/              # 📄 Fiches, quiz, partage, annotations, validation → README
 ├── analytics-service/          # 📊 Dashboards, recommandations → README
 ├── gamification-service/       # 🏆 Objectifs, badges, rappels → README
 ├── docling-worker/             # 🐍 Conteneur d'extraction (MarkItDown + vision Gemini), spawné à la demande → README
@@ -150,7 +151,7 @@ diagrammes, endpoints, événements et **parties non implémentées**.
 | `space-service` | 8082 | Espaces de cours, groupes, persona pédagogique | ✅ Persona généré + enrichi par LLM | [README](space-service/README.md) |
 | `ingestion-service` | 8083 | Upload, extraction (docling-worker + vision Gemini), chunking, embedding, indexation | ✅ Pipeline complet | [README](ingestion-service/README.md) |
 | `chat-service` | 8084 | Conversations, orchestration RAG | ✅ RAG complet (rewrite + retrieval + rerank LLM) | [README](chat-service/README.md) |
-| `fiche-service` | 8085 | Génération de fiches, partage, annotation, validation | ✅ Génération Map-Reduce complète | [README](fiche-service/README.md) |
+| `fiche-service` | 8085 | Fiches, quiz, partage, annotation, validation | ✅ Génération Map-Reduce/single-call + quiz | [README](fiche-service/README.md) |
 | `analytics-service` | 8086 | Tableaux de bord, statistiques, recommandations | ✅ Complet | [README](analytics-service/README.md) |
 | `gamification-service` | 8087 | Objectifs, badges, suivi hebdo, rappels | ✅ Complet | [README](gamification-service/README.md) |
 | `frontend` | 3000 | SPA React/Vite (étudiant + enseignant), servie par nginx avec proxy `/api` → gateway | 🟢 Étudiant complet, enseignant v1 — e2e à faire | [README](frontend/README.md) |
@@ -295,7 +296,9 @@ Chaque TODO est documenté en Javadoc dans le code concerné. Voici l'état d'av
 4. ✅ **`fiche-service` / `FicheGenerationService`** — génération Map-Reduce des fiches
    (prompts `fiche-map.st` / `fiche-reduce.st`, `StructuredOutputValidationAdvisor`,
    circuit breaker `llm-fiche`).
-5. **Enrichir `FicheEvent.validated()`** (`userId`/`spaceId` de l'étudiant) pour débloquer la
+5. ✅ **`fiche-service` / `QuizGenerationService`** — génération de quiz ciblés (par document,
+   espace ou topic), scoring, tentatives, partage (migration `V3__quiz.sql`).
+6. **Enrichir `FicheEvent.validated()`** (`userId`/`spaceId` de l'étudiant) pour débloquer la
    progression analytics et le badge « première fiche validée ».
 
 Extensions possibles (non bloquantes) : livraison réelle des rappels (SMTP/push), extraction
