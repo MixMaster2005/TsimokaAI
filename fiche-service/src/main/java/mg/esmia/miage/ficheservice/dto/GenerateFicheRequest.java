@@ -9,6 +9,8 @@ public record GenerateFicheRequest(
         @NotNull UUID spaceId,
         String title,
         /** Sous-ensemble de documents ciblés ; vide = ensemble du corpus de l'espace. */
-        List<UUID> documentIds
+        List<UUID> documentIds,
+        /** Stratégie de génération : "map-reduce" (défaut) ou "single-call". */
+        String strategy
 ) {
 }
