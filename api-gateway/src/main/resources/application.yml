@@ -76,7 +76,7 @@ spring:
         - id: fiche-service
           uri: ${FICHE_SERVICE_URL:http://localhost:8085}
           predicates:
-            - Path=/api/v1/fiches/**, /api/v1/annotations/**, /api/v1/validations/**
+            - Path=/api/v1/fiches/**, /api/v1/annotations/**, /api/v1/validations/**, /api/v1/quizzes/**
           filters:
             - name: JwtAuthentication
 

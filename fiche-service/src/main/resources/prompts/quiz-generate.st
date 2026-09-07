@@ -7,7 +7,7 @@ Tu es un enseignant expert qui crée des quiz de révision. Génère un quiz de 
 questions à difficulté {{DIFFICULTY}} portant sur le contenu ci-dessus.
 
 Règles :
-- Varie les types : au moins 1 QCM, 1 VRAI_FAUX, et 1 QRC.
+- Chaque question doit être un QCM (4 options) ou un VRAI_FAUX (2 options).
 - Les distracteurs du QCM doivent être plausibles (pas évidemment faux).
 - Chaque question doit avoir une explication courte de la bonne réponse.
 - Questions du plus fondamental au plus avancé.
@@ -30,12 +30,6 @@ Réponds UNIQUEMENT en JSON valide :
       "options": ["Vrai", "Faux"],
       "answer": "Faux",
       "explanation": "Explication"
-    },
-    {
-      "type": "QRC",
-      "question": "Question ouverte ici",
-      "answer": "Réponse attendue",
-      "explanation": null
     }
   ]
 }

@@ -1,5 +1,6 @@
 package mg.esmia.miage.ficheservice.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import mg.esmia.miage.ficheservice.entity.Quiz;
 
 import java.time.Instant;
@@ -14,7 +15,7 @@ public record QuizResponse(
         String scope, UUID targetDocumentId, String targetTopic,
         UUID sourceFicheId, List<UUID> sourceDocumentIds,
         String difficulty, int questionCount,
-        String contentJsonSansReponses,
+        @JsonProperty("contentJson") String contentJsonSansReponses,
         boolean obsolete, Instant generatedAt, Instant updatedAt
 ) {
     public static QuizResponse from(Quiz q) {
