@@ -1,10 +1,13 @@
 package mg.esmia.miage.ficheservice.service;
 
 import lombok.RequiredArgsConstructor;
+import mg.esmia.miage.common.events.EventChannels;
+import mg.esmia.miage.common.messaging.RedisEventPublisher;
 import mg.esmia.miage.ficheservice.dto.QuizAttemptResponse;
 import mg.esmia.miage.ficheservice.dto.SubmitQuizAttemptRequest;
 import mg.esmia.miage.ficheservice.entity.Quiz;
 import mg.esmia.miage.ficheservice.entity.QuizAttempt;
+import mg.esmia.miage.ficheservice.messaging.QuizEvent;
 import mg.esmia.miage.ficheservice.repository.QuizAttemptRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +22,7 @@ public class QuizAttemptService {
     private final QuizAttemptRepository attemptRepository;
     private final QuizService quizService;
     private final QuizGenerationService generationService;
+    private final RedisEventPublisher eventPublisher;
 
     @Transactional
     public QuizAttemptResponse submit(UUID quizId, UUID userId, SubmitQuizAttemptRequest request) {
@@ -39,6 +43,12 @@ public class QuizAttemptService {
                 .build();
 
         attempt = attemptRepository.save(attempt);
+
+        // Consommé par analytics-service (progression) et gamification-service (badges).
+        eventPublisher.publish(EventChannels.FICHE_EVENTS,
+                QuizEvent.submitted(quizId.toString(), quiz.getSpaceId().toString(),
+                        userId.toString(), attempt.getScore(), attempt.getTotalQuestions()));
+
         return QuizAttemptResponse.from(attempt);
     }
 
@@ -47,6 +57,15 @@ public class QuizAttemptService {
                 .map(QuizAttemptResponse::from).toList();
     }
 
+    public List<QuizAttemptResponse> listAllAttempts(UUID quizId, UUID requesterId, boolean isAdmin) {
+        Quiz quiz = quizService.findOrThrow(quizId);
+        quizService.assertOwnerOrAdmin(quiz, requesterId, isAdmin);
+        return attemptRepository.findByQuizIdOrderByAttemptedAtDesc(quizId).stream()
+                .map(QuizAttemptResponse::from).toList();
+    }
+
+    /** Surcharge historique non sécurisée — conservée pour compatibilité, à éviter. */
+    @Deprecated
     public List<QuizAttemptResponse> listAllAttempts(UUID quizId) {
         return attemptRepository.findByQuizIdOrderByAttemptedAtDesc(quizId).stream()
                 .map(QuizAttemptResponse::from).toList();
