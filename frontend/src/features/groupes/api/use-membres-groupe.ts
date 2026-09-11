@@ -1,11 +1,8 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 
 import { apiClient } from '@/lib/api-client';
+import { membresGroupeKeys } from './keys';
 import type { MembreGroupe } from '../types';
-
-export const membresGroupeKeys = {
-  byGroupe: (groupeId: string) => ['groupes', groupeId, 'membres'] as const,
-};
 
 export const membresGroupeQueryOptions = (groupeId: string) =>
   queryOptions({

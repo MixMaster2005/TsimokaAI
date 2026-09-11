@@ -7,6 +7,10 @@ export const groupeKeys = {
   bySpace: (spaceId: string) => ['groupes', 'space', spaceId] as const,
 };
 
+export const membresGroupeKeys = {
+  byGroupe: (groupeId: string) => ['groupes', groupeId, 'membres'] as const,
+};
+
 export const groupesBySpaceQueryOptions = (spaceId: string) =>
   queryOptions({
     queryKey: groupeKeys.bySpace(spaceId),

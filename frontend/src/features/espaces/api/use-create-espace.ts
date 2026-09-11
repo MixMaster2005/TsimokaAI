@@ -10,10 +10,10 @@ export function useCreateEspace() {
   return useMutation({
     mutationFn: (payload: CreateSpacePayload) => apiClient.post<Space>('/api/v1/spaces', payload),
     onSuccess: () => {
-      // Invalide la liste "mine" pour qu'elle se refetch et inclue le nouvel espace —
-      // pattern standard : après une mutation qui change une collection, on invalide
-      // la query de collection plutôt que de bidouiller le cache à la main.
+      // Invalide la liste "mine" ( étudiant) ET "allSpaces" (enseignant) —
+      // un nouvel espace apparaît des deux côtés.
       queryClient.invalidateQueries({ queryKey: espaceKeys.mine() });
+      queryClient.invalidateQueries({ queryKey: espaceKeys.allSpaces() });
     },
   });
 }

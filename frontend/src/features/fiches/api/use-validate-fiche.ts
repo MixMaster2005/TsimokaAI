@@ -16,7 +16,10 @@ export function useValidateFiche(ficheId: string) {
     mutationFn: (payload: { statut: ValidationStatut; commentaire?: string }) =>
       apiClient.put<Validation>(`/api/v1/fiches/${ficheId}/validation`, payload),
     onSuccess: (validation) => {
+      // MAJ directe du cache pour la validation individuelle
       queryClient.setQueryData(ficheKeys.validation(ficheId), validation);
+      // Invalider les listes pour que les badges statut se mettent à jour
+      queryClient.invalidateQueries({ queryKey: ficheKeys.all });
     },
   });
 }

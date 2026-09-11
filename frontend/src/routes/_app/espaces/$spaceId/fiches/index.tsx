@@ -3,7 +3,7 @@ import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 
 import { Button } from '@/components/ui/button';
 import { fichesBySpaceQueryOptions, useFiches } from '@/features/fiches/api/use-fiches';
-import { useValidation } from '@/features/fiches/api/validation-query-options';
+import { FicheValidationBadge } from '@/features/fiches/components/FicheValidationBadge';
 import { GenerateFicheModal } from '@/features/fiches/components/GenerateFicheModal';
 import { useEspace } from '@/features/espaces/api/use-espace';
 import { getTagColorClass } from '@/features/espaces/lib/get-tag-color';
@@ -14,27 +14,6 @@ export const Route = createFileRoute('/_app/espaces/$spaceId/fiches/')({
     queryClient.ensureQueryData(fichesBySpaceQueryOptions(params.spaceId)),
   component: FichesEspace,
 });
-
-function FicheValidationBadge({ ficheId }: { ficheId: string }) {
-  const { data: validation } = useValidation(ficheId);
-  if (!validation) return null;
-
-  if (validation.statut === 'VALIDEE') {
-    return (
-      <span className="inline-flex items-center rounded-sm border border-succes/40 px-1.5 py-0.5 font-mono text-[0.62rem] font-semibold uppercase tracking-wider text-succes">
-        Validée
-      </span>
-    );
-  }
-  if (validation.statut === 'REJETEE') {
-    return (
-      <span className="inline-flex items-center rounded-sm border border-attention/50 px-1.5 py-0.5 font-mono text-[0.62rem] font-semibold uppercase tracking-wider text-attention">
-        À revoir
-      </span>
-    );
-  }
-  return null;
-}
 
 function FichesEspace() {
   const { spaceId } = useParams({ from: '/_app/espaces/$spaceId/fiches/' });

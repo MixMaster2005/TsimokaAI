@@ -15,11 +15,25 @@ interface DocumentStatusEvent {
 }
 
 /**
+ * Registre global de connexions SSE — un seul socket par spaceId, partagé
+ * entre tous les composants qui appellent useDocumentSse(spaceId).
+ * Ref-counting : le socket reste ouvert tant qu'au moins 1 composant est
+ * monté, et se ferme proprement quand le dernier se démonte.
+ */
+const activeConnections = new Map<string, { refCount: number; close: () => void }>();
+
+/**
  * Hook SSE : ouvre une connexion Server-Sent Events vers l'ingestion-service
  * pour recevoir en temps réel les changements de statut des documents d'un espace.
  *
- * À chaque event reçu, on invalide le query TanStack pour forcer un refetch
- * de la liste des documents (source de vérité = le REST, pas le SSE).
+ * Singleton par spaceId — appelé depuis n'importe quel composant, il ne crée
+ * qu'une seule connexion partagée (ref-counting).
+ *
+ * Gère :
+ *  - Refresh du token à chaque reconnexion (le token est lu à chaque tentative,
+ *    pas capturé dans une closure figée)
+ *  - Reconnexion automatique après fermeture explicite du serveur (timeout 30min)
+ *  - Nettoyage automatique au démontage du dernier consommateur
  */
 export function useDocumentSse(spaceId: string | null) {
   const queryClient = useQueryClient();
@@ -28,37 +42,58 @@ export function useDocumentSse(spaceId: string | null) {
   useEffect(() => {
     if (!spaceId) return;
 
-    const token = getAccessToken();
-    if (!token) return;
+    // --- Singleton par spaceId ---
+    const existing = activeConnections.get(spaceId);
+    if (existing) {
+      existing.refCount++;
+      return () => {
+        existing.refCount--;
+        if (existing.refCount <= 0) {
+          existing.close();
+          activeConnections.delete(spaceId);
+        }
+      };
+    }
 
+    // --- Nouvelle connexion ---
     const controller = new AbortController();
     abortRef.current = controller;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    function invalidateCache() {
+      queryClient.invalidateQueries({ queryKey: documentsKeys.bySpace(spaceId) });
+    }
 
     async function connect() {
+      // Lecture fraîche du token à chaque tentative de connexion/reconnexion
+      const token = getAccessToken();
+      if (!token) {
+        console.warn(`[SSE] No access token for space ${spaceId}, will retry on next mount`);
+        return;
+      }
+
       try {
         await fetchEventSource(
           `${API_BASE_URL}/api/v1/documents/stream?spaceId=${spaceId}`,
           {
             method: 'GET',
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
             signal: controller.signal,
             openWhenHidden: true,
+
             async onopen(response) {
               if (!response.ok) {
                 throw new Error(`SSE connection failed: ${response.status}`);
               }
             },
+
             onmessage(msg) {
               if (msg.event === 'document_status') {
                 try {
                   const data = JSON.parse(msg.data) as DocumentStatusEvent;
-                  // Invalider la query pour refetch la liste complète
                   queryClient.invalidateQueries({
-                    queryKey: documentsKeys.bySpace(spaceId!),
+                    queryKey: documentsKeys.bySpace(spaceId),
                   });
-                  // Aussi invalider le document individuel si on a un détail ouvert
                   queryClient.invalidateQueries({
                     queryKey: documentKeys.byId(data.documentId),
                   });
@@ -67,33 +102,59 @@ export function useDocumentSse(spaceId: string | null) {
                 }
               }
             },
+
             onerror(err) {
-              // En cas d'erreur, fetch-event-source retry automatiquement
-              // sauf si c'est une abort error
               if (err instanceof DOMException && err.name === 'AbortError') {
                 return;
               }
-              console.warn('SSE error, will retry:', err);
+              // fetch-event-source retry automatiquement avec un delay fixe.
+              // En cas d'erreur fatale (4xx non-429), la promise rejette.
+              console.warn('[SSE] Error, will retry:', err);
             },
+
             onclose() {
-              // Connexion fermée — fetch-event-source ne retry pas
-              // si le serveur ferme explicitement
+              // Le serveur a fermé explicitement (timeout 30min ou restart).
+              // fetch-event-source NE retry PAS sur close explicite —
+              // on relance manuellement avec un token frais après un court délai.
+              if (!controller.signal.aborted) {
+                reconnectTimeout = setTimeout(() => {
+                  if (!controller.signal.aborted) {
+                    connect();
+                  }
+                }, 3000);
+              }
             },
           },
         );
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') {
-          // Nettoyage normal au démontage
-          return;
+          return; // Nettoyage normal au démontage
         }
-        console.error('SSE connection failed:', err);
+        console.error('[SSE] Connection failed:', err);
       }
     }
+
+    // Enregistrer dans le registre global AVANT de connecter
+    activeConnections.set(spaceId, {
+      refCount: 1,
+      close: () => {
+        if (reconnectTimeout) clearTimeout(reconnectTimeout);
+        controller.abort();
+        activeConnections.delete(spaceId);
+      },
+    });
 
     connect();
 
     return () => {
-      controller.abort();
+      const entry = activeConnections.get(spaceId);
+      if (entry) {
+        entry.refCount--;
+        if (entry.refCount <= 0) {
+          entry.close();
+          activeConnections.delete(spaceId);
+        }
+      }
       abortRef.current = null;
     };
   }, [spaceId, queryClient]);

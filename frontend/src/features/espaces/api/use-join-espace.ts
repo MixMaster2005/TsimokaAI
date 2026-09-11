@@ -17,6 +17,7 @@ export function useJoinEspace() {
       apiClient.post<Space>('/api/v1/spaces/join', { code: code.trim().toUpperCase() }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: espaceKeys.mine() });
+      queryClient.invalidateQueries({ queryKey: espaceKeys.allSpaces() });
     },
   });
 }

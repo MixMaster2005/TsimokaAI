@@ -11,6 +11,8 @@ export function useDeleteEspace(spaceId: string) {
     mutationFn: () => apiClient.delete<void>(`/api/v1/spaces/${spaceId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: espaceKeys.mine() });
+      queryClient.invalidateQueries({ queryKey: espaceKeys.allSpaces() });
+      queryClient.invalidateQueries({ queryKey: espaceKeys.detail(spaceId) });
       navigate({ to: '/' });
     },
   });

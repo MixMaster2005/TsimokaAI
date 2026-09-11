@@ -11,6 +11,7 @@ export function useUpdateEspace(spaceId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: espaceKeys.detail(spaceId) });
       queryClient.invalidateQueries({ queryKey: espaceKeys.mine() });
+      queryClient.invalidateQueries({ queryKey: espaceKeys.allSpaces() });
     },
   });
 }

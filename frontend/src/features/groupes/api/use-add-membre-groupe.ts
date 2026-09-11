@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { apiClient } from '@/lib/api-client';
+import { membresGroupeKeys } from './keys';
 import type { MembreGroupe } from '../types';
 import type { AddMembrePayload } from '../types';
-import { membresGroupeKeys } from './use-membres-groupe';
 
 export function useAddMembreGroupe(groupeId: string) {
   const queryClient = useQueryClient();

@@ -1,9 +1,7 @@
-import { createFileRoute, Link, Outlet, useParams } from '@tanstack/react-router';
+import { createFileRoute, useParams } from '@tanstack/react-router';
 
-import { espaceQueryOptions, useEspace } from '@/features/espaces/api/use-espace';
-import { getTagColorClass } from '@/features/espaces/lib/get-tag-color';
-import { useSession } from '@/features/auth/api/use-session';
-import { cn } from '@/lib/utils';
+import { espaceQueryOptions } from '@/features/espaces/api/use-espace';
+import { SpaceLayout } from '@/components/shared/SpaceLayout';
 
 /**
  * Layout D — Espace partagé entre les deux rôles.
@@ -16,7 +14,7 @@ export const Route = createFileRoute('/_app/espaces/$spaceId')({
   component: EspaceLayout,
 });
 
-const TABS_BASE = [
+const TABS = [
   { to: '/espaces/$spaceId/chat', label: 'Chat' },
   { to: '/espaces/$spaceId/fiches', label: 'Fiches' },
   { to: '/espaces/$spaceId/documents', label: 'Documents' },
@@ -28,51 +26,7 @@ const TAB_PARAMETRES = { to: '/espaces/$spaceId/parametres', label: 'Paramètres
 
 function EspaceLayout() {
   const { spaceId } = useParams({ from: '/_app/espaces/$spaceId' });
-  const { data: space } = useEspace(spaceId);
-  const { data: session } = useSession();
-
-  const isOwner = space?.userId === session?.id;
-  const tabs = isOwner ? [...TABS_BASE, TAB_PARAMETRES] : TABS_BASE;
-
   return (
-    <div className="flex h-full flex-col">
-      <div className="px-6 pt-5">
-        <Link to="/" className="font-mono text-xs text-muted-foreground hover:text-foreground">
-          ← Mes espaces
-        </Link>
-        <div className="mt-2 flex items-center gap-2.5">
-          <h1 className="font-display text-xl font-semibold text-foreground">{space?.name}</h1>
-          {space?.subjectTag && (
-            <span
-              className={cn(
-                'inline-flex items-center rounded-sm px-2 py-0.5 font-mono text-[0.65rem] font-medium uppercase tracking-wide text-white',
-                getTagColorClass(space.subjectTag),
-              )}
-            >
-              {space.subjectTag}
-            </span>
-          )}
-        </div>
-        {space?.description && <p className="mt-1 text-sm text-muted-foreground">{space.description}</p>}
-      </div>
-
-      <nav className="mt-4 flex gap-1 border-b border-border px-6">
-        {tabs.map((tab) => (
-          <Link
-            key={tab.to}
-            to={tab.to}
-            params={{ spaceId }}
-            className="-mb-px border-b-2 border-transparent px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-            activeProps={{ className: 'border-tag-sciences text-foreground' }}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </nav>
-
-      <div className="min-h-0 flex-1">
-        <Outlet />
-      </div>
-    </div>
+    <SpaceLayout spaceId={spaceId} backTo="/" tabs={TABS} tabParametres={TAB_PARAMETRES} />
   );
 }

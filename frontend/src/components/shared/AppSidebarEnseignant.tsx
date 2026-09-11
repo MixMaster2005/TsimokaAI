@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from '@tanstack/react-router';
-import { GraduationCap, Home, Settings } from 'lucide-react';
+import { GraduationCap, Home, LayoutGrid, ClipboardCheck, Settings, Bell } from 'lucide-react';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -16,6 +16,7 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -24,6 +25,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { useSession } from '@/features/auth/api/use-session';
+import { useRappels } from '@/features/gamification/api/use-rappels';
 import { clearTokens } from '@/lib/auth-tokens';
 
 /**
@@ -38,8 +40,13 @@ import { clearTokens } from '@/lib/auth-tokens';
  * (ou Ctrl/Cmd+B), hauteur fixe sur l'écran (h-svh), seul le contenu de
  * navigation scrolle (SidebarContent).
  */
-const NAV_ITEMS = [
+const NAV_PRINCIPAL = [
   { to: '/enseignant', label: 'Mes espaces', icon: Home },
+  { to: '/enseignant/tableau-de-bord', label: 'Tableau de bord', icon: LayoutGrid },
+  { to: '/enseignant/fiches-a-valider', label: 'Fiches à valider', icon: ClipboardCheck },
+] as const;
+
+const NAV_SECONDAIRE = [
   { to: '/enseignant/parametres', label: 'Paramètres', icon: Settings },
 ] as const;
 
@@ -74,6 +81,7 @@ function NavItem({
 
 export function AppSidebarEnseignant() {
   const { data: user } = useSession();
+  const { data: rappels } = useRappels();
   const navigate = useNavigate();
   const { state } = useSidebar();
 
@@ -111,9 +119,25 @@ export function AppSidebarEnseignant() {
 
       <SidebarContent>
         <SidebarGroup>
+          <SidebarGroupLabel className="font-mono text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
+            Principal
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV_ITEMS.map((item) => (
+              {NAV_PRINCIPAL.map((item) => (
+                <NavItem key={item.to} {...item} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="font-mono text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
+            Secondaire
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {NAV_SECONDAIRE.map((item) => (
                 <NavItem key={item.to} {...item} />
               ))}
             </SidebarMenu>
@@ -131,12 +155,34 @@ export function AppSidebarEnseignant() {
                     <AvatarFallback className="text-[0.625rem]">{initials}</AvatarFallback>
                   </Avatar>
                   <span className="min-w-0 flex-1 truncate text-craie">{user?.displayName ?? '…'}</span>
-                  <span className="font-mono text-[0.62rem] uppercase tracking-wide text-muted-foreground">
-                    Enseignant
+                  <span className="ml-auto flex items-center gap-2">
+                    <span className="font-mono text-[0.62rem] uppercase tracking-wide text-muted-foreground">
+                      Enseignant
+                    </span>
+                    <span className="relative inline-flex">
+                      <Bell className="size-4" />
+                      {rappels && rappels.filter((r) => !r.envoye).length > 0 && (
+                        <span className="absolute right-1 top-1 size-1.5 rounded-full bg-attention" />
+                      )}
+                    </span>
                   </span>
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" side="top">
+                <DropdownMenuLabel>Rappels récents</DropdownMenuLabel>
+                {!rappels || rappels.length === 0 ? (
+                  <DropdownMenuItem disabled>Aucun rappel pour l'instant</DropdownMenuItem>
+                ) : (
+                  rappels.slice(0, 5).map((r) => (
+                    <DropdownMenuItem key={r.id} disabled className="flex-col items-start whitespace-normal">
+                      <span>{r.message}</span>
+                      <span className="font-mono text-[0.62rem] text-muted-foreground">
+                        {new Date(r.prevuLe).toLocaleDateString('fr-FR')}
+                      </span>
+                    </DropdownMenuItem>
+                  ))
+                )}
+                <DropdownMenuSeparator />
                 <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>

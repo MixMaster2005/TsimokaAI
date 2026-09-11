@@ -11,7 +11,7 @@ import type { Fiche } from '../types';
  */
 export const fichesForSpaceQueryOptions = (spaceId: string) =>
   queryOptions({
-    queryKey: [...ficheKeys.bySpace(spaceId), 'all'] as const,
+    queryKey: ficheKeys.forSpace(spaceId),
     queryFn: () => apiClient.get<Fiche[]>(`/api/v1/fiches/espace/${spaceId}`),
   });
 

@@ -10,7 +10,7 @@ import type { Space } from '../types';
  * au layout `enseignant`.
  */
 export const espacesAllQueryOptions = queryOptions({
-  queryKey: [...espaceKeys.all, 'all'] as const,
+  queryKey: espaceKeys.allSpaces(),
   queryFn: () => apiClient.get<Space[]>('/api/v1/spaces/all'),
 });
 
