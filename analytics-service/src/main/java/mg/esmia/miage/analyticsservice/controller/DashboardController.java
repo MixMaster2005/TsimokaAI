@@ -6,10 +6,12 @@ import mg.esmia.miage.common.context.UserContextHolder;
 import mg.esmia.miage.common.exception.ForbiddenException;
 import mg.esmia.miage.common.response.ApiResponse;
 import mg.esmia.miage.analyticsservice.dto.StudentDashboardResponse;
+import mg.esmia.miage.analyticsservice.dto.StudentRowResponse;
 import mg.esmia.miage.analyticsservice.dto.TeacherDashboardResponse;
 import mg.esmia.miage.analyticsservice.service.AnalyticsService;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -33,6 +35,15 @@ public class DashboardController {
             throw new ForbiddenException("Tableau de bord enseignant réservé aux enseignants");
         }
         return ApiResponse.success(analyticsService.teacherDashboard(spaceId), ctx.requestId());
+    }
+
+    @GetMapping("/teacher/students")
+    public ApiResponse<List<StudentRowResponse>> teacherStudents(@RequestParam UUID spaceId) {
+        UserContext ctx = authenticated();
+        if (!ctx.isAdmin()) {
+            throw new ForbiddenException("Tableau de bord enseignant réservé aux enseignants");
+        }
+        return ApiResponse.success(analyticsService.teacherStudents(spaceId), ctx.requestId());
     }
 
     private UserContext authenticated() {

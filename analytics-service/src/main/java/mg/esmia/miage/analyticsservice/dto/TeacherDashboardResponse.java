@@ -7,6 +7,8 @@ public record TeacherDashboardResponse(
         UUID spaceId,
         List<NotionStatResponse> notionsLesPlusConsultees,
         List<ChapitreDifficileResponse> chapitresDifficiles,
-        int nbEtudiantsActifs
+        int nbEtudiantsActifs,
+        List<QuestionFrequenteResponse> questionsFrequentes,
+        List<EvolutionSemaineResponse> evolution
 ) {
 }

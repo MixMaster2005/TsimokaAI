@@ -51,6 +51,18 @@ public class ProgressionEtudiant {
     @Builder.Default
     private Integer nbFichesGenerees = 0;
 
+    @Column(name = "nb_quiz_passes")
+    @Builder.Default
+    private Integer nbQuizPasses = 0;
+
+    /** Meilleur score de quiz en pourcentage (0-100), null si aucun quiz passé. */
+    @Column(name = "meilleur_score")
+    private Double meilleurScore;
+
+    /** Dernier score de quiz en pourcentage (0-100), null si aucun quiz passé. */
+    @Column(name = "dernier_score")
+    private Double dernierScore;
+
     @Column(name = "derniere_activite")
     private Instant derniereActivite;
 

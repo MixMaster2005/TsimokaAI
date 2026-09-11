@@ -26,6 +26,9 @@ public class RedisListenerConfig {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         container.addMessageListener(chatEventListener, new ChannelTopic(EventChannels.CHAT_EVENTS));
+        // Canal unique fiche.events : transporte FicheEvent (FICHE_*) + QuizEvent
+        // (QUIZ_SUBMITTED/QUIZ_CORRECTED), dispatchés par FicheEventListener.
+        // Pas d'abonnement quiz.events (canal dédié supprimé).
         container.addMessageListener(ficheEventListener, new ChannelTopic(EventChannels.FICHE_EVENTS));
         container.addMessageListener(spaceEventListener, new ChannelTopic(EventChannels.SPACE_EVENTS));
         container.addMessageListener(userEventListener, new ChannelTopic(EventChannels.USER_EVENTS));
