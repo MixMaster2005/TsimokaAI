@@ -12,7 +12,8 @@ import java.util.UUID;
  */
 public record SpaceResponse(
         UUID id, UUID userId, String name, String description, String subjectTag,
-        String assistantPersona, boolean owner, Instant createdAt, Instant updatedAt
+        String assistantPersona, Integer personaVersion, Instant personaUpdatedAt,
+        boolean owner, Instant createdAt, Instant updatedAt
 ) {
     public static SpaceResponse from(Space space) {
         return from(space, null);
@@ -21,6 +22,7 @@ public record SpaceResponse(
     public static SpaceResponse from(Space space, UUID requesterId) {
         return new SpaceResponse(space.getId(), space.getUserId(), space.getName(), space.getDescription(),
                 space.getSubjectTag(), space.getAssistantPersona(),
+                space.getPersonaVersion(), space.getPersonaUpdatedAt(),
                 requesterId != null && space.getUserId().equals(requesterId),
                 space.getCreatedAt(), space.getUpdatedAt());
     }

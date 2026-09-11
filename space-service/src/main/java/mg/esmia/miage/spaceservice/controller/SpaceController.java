@@ -122,6 +122,14 @@ public class SpaceController {
                 ctx.requestId());
     }
 
+    /** Régénération manuelle du persona pédagogique — propriétaire ou admin. */
+    @PostMapping("/{id}/persona/regenerate")
+    public ApiResponse<SpaceResponse> regeneratePersona(@PathVariable UUID id) {
+        UserContext ctx = authenticated();
+        return ApiResponse.success(spaceService.regeneratePersona(id, UUID.fromString(ctx.userId()), ctx.isAdmin()),
+                ctx.requestId());
+    }
+
     private UserContext authenticated() {
         UserContext ctx = UserContextHolder.get();
         if (ctx.userId() == null) {

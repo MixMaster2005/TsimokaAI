@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -53,6 +54,8 @@ public class SpaceService {
                 .description(request.description())
                 .subjectTag(request.subjectTag())
                 .assistantPersona(persona)
+                .personaVersion(1)
+                .personaUpdatedAt(Instant.now())
                 .inviteCode(generateUniqueCode())
                 .build();
         return SpaceResponse.from(spaceRepository.save(space), userId);
@@ -204,8 +207,27 @@ public class SpaceService {
             String enriched = personaService.enrichPersonaAfterIngestion(
                     space.getAssistantPersona(), spaceId, documentId, chunkCount);
             space.setAssistantPersona(enriched);
+            space.setPersonaVersion(space.getPersonaVersion() == null ? 1 : space.getPersonaVersion() + 1);
+            space.setPersonaUpdatedAt(Instant.now());
             spaceRepository.save(space);
         });
+    }
+
+    /**
+     * Régénération manuelle du persona par le propriétaire (ou admin) depuis le
+     * cockpit enseignant — recalibre le registre disciplinaire à partir de
+     * nom/tag/description courants.
+     */
+    @Transactional
+    public SpaceResponse regeneratePersona(UUID spaceId, UUID requesterId, boolean isAdmin) {
+        Space space = findOrThrow(spaceId);
+        assertOwnerOrAdmin(space, requesterId, isAdmin);
+        String persona = personaService.generateInitialPersona(
+                space.getName(), space.getSubjectTag(), space.getDescription());
+        space.setAssistantPersona(persona);
+        space.setPersonaVersion(space.getPersonaVersion() == null ? 1 : space.getPersonaVersion() + 1);
+        space.setPersonaUpdatedAt(Instant.now());
+        return SpaceResponse.from(spaceRepository.save(space), requesterId);
     }
 
     /** Appelé par UserEventListener suite à un USER_DELETED. */

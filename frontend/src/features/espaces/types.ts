@@ -14,6 +14,10 @@ export interface Space {
   description: string | null;
   subjectTag: string | null;
   assistantPersona: string | null;
+  /** Version du persona — incrémentée à chaque génération/enrichissement/régénération. */
+  personaVersion?: number | null;
+  /** Date de dernière MAJ du persona (ISO). */
+  personaUpdatedAt?: string | null;
   /**
    * true = l'utilisateur courant possède l'espace (écriture réservée) ;
    * false = il l'a rejoint via code d'invitation (accès lecture/participation).

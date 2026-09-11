@@ -41,6 +41,15 @@ public class Space {
     @Column(name = "assistant_persona", columnDefinition = "TEXT")
     private String assistantPersona;
 
+    /** Version du persona pédagogique — incrémentée à chaque génération/enrichissement. */
+    @Builder.Default
+    @Column(name = "persona_version", nullable = false)
+    private Integer personaVersion = 1;
+
+    /** Date de dernière MAJ du persona (génération initiale, enrichissement, régénération). */
+    @Column(name = "persona_updated_at")
+    private Instant personaUpdatedAt;
+
     /**
      * Code d'invitation permettant à un autre étudiant de rejoindre l'espace en
      * lecture/participation (POST /api/v1/spaces/join). Unique, généré à la création,
