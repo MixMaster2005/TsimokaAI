@@ -27,33 +27,42 @@ public class QuizController {
 
     @PostMapping("/generate")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<QuizResponse> generate(@Valid @RequestBody GenerateQuizRequest request) {
+    public ApiResponse<QuizView> generate(@Valid @RequestBody GenerateQuizRequest request) {
         UserContext ctx = authenticated();
-        return ApiResponse.success(quizService.generate(UUID.fromString(ctx.userId()), request), ctx.requestId());
+        // Le créateur (owner) a un accès complet (détail avec réponses).
+        return ApiResponse.success(quizService.generate(UUID.fromString(ctx.userId()), request, true), ctx.requestId());
     }
 
     @GetMapping
-    public ApiResponse<List<QuizResponse>> listMine(@RequestParam UUID spaceId) {
+    public ApiResponse<List<QuizView>> listMine(@RequestParam UUID spaceId) {
         UserContext ctx = authenticated();
-        return ApiResponse.success(quizService.listMine(spaceId, UUID.fromString(ctx.userId())), ctx.requestId());
+        // Ses propres quiz : accès complet.
+        return ApiResponse.success(quizService.listMine(spaceId, UUID.fromString(ctx.userId()), true), ctx.requestId());
     }
 
     @GetMapping("/mine")
-    public ApiResponse<List<QuizResponse>> listAllMine() {
+    public ApiResponse<List<QuizView>> listAllMine() {
         UserContext ctx = authenticated();
-        return ApiResponse.success(quizService.listAllMine(UUID.fromString(ctx.userId())), ctx.requestId());
+        return ApiResponse.success(quizService.listAllMine(UUID.fromString(ctx.userId()), true), ctx.requestId());
     }
 
     @GetMapping("/espace/{spaceId}")
-    public ApiResponse<List<QuizResponse>> listForSpace(@PathVariable UUID spaceId) {
+    public ApiResponse<List<QuizView>> listForSpace(@PathVariable UUID spaceId) {
         UserContext ctx = authenticated();
-        return ApiResponse.success(quizService.listForSpace(spaceId, ctx.isAdmin()), ctx.requestId());
+        return ApiResponse.success(quizService.listForSpace(spaceId, ctx.isAdmin(), ctx.isAdmin()), ctx.requestId());
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<QuizResponse> getById(@PathVariable UUID id) {
+    public ApiResponse<QuizView> getById(@PathVariable UUID id) {
         UserContext ctx = authenticated();
-        return ApiResponse.success(quizService.getById(id, UUID.fromString(ctx.userId()), ctx.isAdmin()), ctx.requestId());
+        // fullAccess=true si admin ; le service l'élargit aussi au owner.
+        return ApiResponse.success(quizService.getById(id, UUID.fromString(ctx.userId()), ctx.isAdmin(), ctx.isAdmin()), ctx.requestId());
+    }
+
+    @PostMapping("/{id}/publish")
+    public ApiResponse<QuizView> publish(@PathVariable UUID id) {
+        UserContext ctx = authenticated();
+        return ApiResponse.success(quizService.publish(id, UUID.fromString(ctx.userId()), ctx.isAdmin()), ctx.requestId());
     }
 
     @DeleteMapping("/{id}")
@@ -97,7 +106,9 @@ public class QuizController {
     @GetMapping("/{id}/attempts/stats")
     public ApiResponse<List<QuizAttemptResponse>> listAllAttempts(@PathVariable UUID id) {
         UserContext ctx = authenticated();
-        return ApiResponse.success(attemptService.listAllAttempts(id), ctx.requestId());
+        return ApiResponse.success(
+                attemptService.listAllAttempts(id, UUID.fromString(ctx.userId()), ctx.isAdmin()),
+                ctx.requestId());
     }
 
     private UserContext authenticated() {

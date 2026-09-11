@@ -61,6 +61,10 @@ public class Quiz {
     @Column(name = "content_json", columnDefinition = "jsonb")
     private String contentJson;
 
+    @Column(name = "statut", nullable = false)
+    @Builder.Default
+    private String statut = "PUBLIE";
+
     @Column(name = "obsolete")
     @Builder.Default
     private boolean obsolete = false;
@@ -71,6 +75,10 @@ public class Quiz {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    public enum Statut {
+        BROUILLON, PUBLIE
+    }
 
     public enum Scope {
         DOCUMENT, SPACE, TOPIC

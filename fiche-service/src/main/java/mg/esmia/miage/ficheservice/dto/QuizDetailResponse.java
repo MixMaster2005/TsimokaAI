@@ -8,26 +8,29 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Réponse quiz SANS les réponses (pour l'étudiant qui consulte).
- * @deprecated Préférer {@link QuizPublicResponse} (étudiant) ou {@link QuizDetailResponse} (enseignant/owner).
+ * Vue complète du quiz (enseignant / owner) : contentJson brut avec answer/explanation.
+ * Utilisée pour la correction et la consultation propriétaire.
+ * Le scoring {@code QuizGenerationService.scoreAttempt} continue de lire le champ
+ * {@code answer} en base (jamais depuis cette vue côté client).
  */
-public record QuizResponse(
+public record QuizDetailResponse(
         UUID id, UUID spaceId, UUID userId, String title,
         String scope, UUID targetDocumentId, String targetTopic,
         UUID sourceFicheId, List<UUID> sourceDocumentIds,
         String difficulty, int questionCount,
-        @JsonProperty("contentJson") String contentJsonSansReponses,
+        @JsonProperty("contentJson") String contentJson,
         String statut,
         boolean obsolete, Instant generatedAt, Instant updatedAt
-) {
-    public static QuizResponse from(Quiz q) {
-        return new QuizResponse(
+) implements QuizView {
+
+    public static QuizDetailResponse from(Quiz q) {
+        return new QuizDetailResponse(
                 q.getId(), q.getSpaceId(), q.getUserId(), q.getTitle(),
                 q.getScope(), q.getTargetDocumentId(), q.getTargetTopic(),
                 q.getSourceFicheId(),
                 q.getSourceDocumentIds() == null ? List.of() : List.of(q.getSourceDocumentIds()),
                 q.getDifficulty(), q.getQuestionCount(),
-                QuizPublicResponse.sanitizeContent(q.getContentJson()),
+                q.getContentJson(),
                 q.getStatut(),
                 q.isObsolete(), q.getGeneratedAt(), q.getUpdatedAt()
         );

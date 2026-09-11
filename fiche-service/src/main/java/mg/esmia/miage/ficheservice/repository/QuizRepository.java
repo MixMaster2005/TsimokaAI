@@ -14,6 +14,8 @@ public interface QuizRepository extends JpaRepository<Quiz, UUID> {
 
     List<Quiz> findBySpaceId(UUID spaceId);
 
+    List<Quiz> findBySpaceIdAndStatut(UUID spaceId, String statut);
+
     void deleteBySpaceId(UUID spaceId);
 
     void deleteByUserId(UUID userId);
