@@ -1,5 +1,6 @@
 export type QuizDifficulty = 'FACILE' | 'MOYEN' | 'DIFFICILE';
 export type QuizScope = 'DOCUMENT' | 'SPACE' | 'TOPIC';
+export type QuizStatut = 'BROUILLON' | 'PUBLIE';
 
 export interface Question {
   question: string;
@@ -29,6 +30,7 @@ export interface Quiz {
   questionCount: number;
   contentJson: string;
   obsolete: boolean;
+  statut?: QuizStatut;
   generatedAt: string;
   updatedAt: string;
 }
@@ -71,4 +73,19 @@ export interface SubmitQuizAttemptRequest {
 export interface ShareQuizRequest {
   groupeId?: string;
   destinataireId?: string;
+}
+
+export interface QuizCorrection {
+  id: string;
+  quizId: string;
+  attemptId: string | null;
+  enseignantId: string;
+  commentaire: string | null;
+  scoreCorrige: number | null;
+  createdAt: string;
+}
+
+export interface CreateCorrectionRequest {
+  commentaire?: string;
+  scoreCorrige?: number;
 }

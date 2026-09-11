@@ -32,7 +32,7 @@ function QuizEspace() {
 
       <div className="flex flex-col gap-3">
         {quizzes?.map((quiz) => (
-          <QuizCard key={quiz.id} quiz={quiz} spaceId={spaceId} />
+          <QuizCard key={quiz.id} quiz={quiz} spaceId={spaceId} basePath="/espaces/$spaceId" />
         ))}
       </div>
 

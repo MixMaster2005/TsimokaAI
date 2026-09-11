@@ -10,12 +10,13 @@ interface QuizCardProps {
   quiz: Quiz;
   spaceId: string;
   className?: string;
+  basePath?: string;
 }
 
-export function QuizCard({ quiz, spaceId, className }: QuizCardProps) {
+export function QuizCard({ quiz, spaceId, className, basePath = '/espaces/$spaceId' }: QuizCardProps) {
   return (
     <Link
-      to="/espaces/$spaceId/quiz/$quizId"
+      to={basePath === '/enseignant' ? '/enseignant/espaces/$spaceId/quiz/$quizId' : '/espaces/$spaceId/quiz/$quizId'}
       params={{ spaceId, quizId: quiz.id }}
       className={cn(
         'flex overflow-hidden rounded-fiche border border-papier-border bg-papier-carte shadow-sm transition-colors hover:bg-papier-bg',
@@ -29,6 +30,7 @@ export function QuizCard({ quiz, spaceId, className }: QuizCardProps) {
 
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <QuizBadgeDifficulty difficulty={quiz.difficulty} />
+          {quiz.statut === 'BROUILLON' && <Badge variant="outline">Brouillon</Badge>}
           <Badge variant="secondary">
             <FileQuestion className="mr-1 size-3" />
             {quiz.questionCount} question{quiz.questionCount > 1 ? 's' : ''}
