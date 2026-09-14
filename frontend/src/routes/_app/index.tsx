@@ -3,6 +3,7 @@ import { useQueries } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { espacesQueryOptions, useEspaces } from '@/features/espaces/api/use-espaces';
+import { useSession } from '@/features/auth/api/use-session';
 import { conversationsQueryOptions } from '@/features/chat/api/use-conversations';
 import { useFichesMine } from '@/features/fiches/api/use-fiches';
 import { CreateEspaceModal } from '@/features/espaces/components/CreateEspaceModal';
@@ -19,7 +20,8 @@ export const Route = createFileRoute('/_app/')({
 });
 
 function Etagere() {
-  const { data: espaces } = useEspaces();
+  const { data: espaces, isLoading, isError } = useEspaces();
+  const { data: session } = useSession();
   const { data: fiches } = useFichesMine();
 
   const conversationsQueries = useQueries({
@@ -93,7 +95,12 @@ function Etagere() {
         </div>
       )}
 
-      <EtagereGrid />
+      <EtagereGrid
+        espaces={espaces ?? []}
+        isLoading={isLoading}
+        isError={isError}
+        currentUserId={session?.id}
+      />
     </div>
   );
 }
