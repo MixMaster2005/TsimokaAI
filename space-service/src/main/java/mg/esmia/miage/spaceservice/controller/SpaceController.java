@@ -55,7 +55,7 @@ public class SpaceController {
     @GetMapping("/all")
     public ApiResponse<List<SpaceResponse>> listAll() {
         UserContext ctx = authenticated();
-        return ApiResponse.success(spaceService.listAll(ctx.isAdmin()), ctx.requestId());
+        return ApiResponse.success(spaceService.listAll(ctx.isAdmin(), UUID.fromString(ctx.userId())), ctx.requestId());
     }
 
     @GetMapping("/{id}")

@@ -93,14 +93,13 @@ public class SpaceService {
     /**
      * Tous les espaces de la plateforme — réservé aux admins (enseignants) : c'est
      * la vue de supervision qui permet de naviguer vers les fiches à valider.
+     * Le flag owner est calculé avec requesterId, donc fiable pour le demandeur.
      */
-    public List<SpaceResponse> listAll(boolean isAdmin) {
+    public List<SpaceResponse> listAll(boolean isAdmin, UUID requesterId) {
         if (!isAdmin) {
             throw new ForbiddenException("Réservé aux enseignants");
         }
-        // Pas de requesterId => owner=false partout (c'est une vue de supervision,
-        // pas une liste d'espaces possédés).
-        return spaceRepository.findAll().stream().map(SpaceResponse::from).toList();
+        return spaceRepository.findAll().stream().map(s -> SpaceResponse.from(s, requesterId)).toList();
     }
 
     /**
