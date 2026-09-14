@@ -41,15 +41,14 @@ service permanent : `ingestion-service` le **spawné à la demande** via l'API D
    `> **Description :** caption` quand Gemini a produit une légende. Si la légende est vide,
    l'image garde une alt text neutre sans description vide.
 
-> ⚠️ **Divergence de placeholders (PDF vs non-PDF)** : le chemin **non-PDF** insère dans le
-> Markdown des placeholders **doubles accolades** `{{IMAGE:img_001}}` (`markitdown_converter.py`),
-> que `ingestion-service` remplace correctement. Le chemin **PDF** émet des placeholders **simples
-> accolades** `![…]({IMAGE:img_id})` (`_render_figure` de `markdown_renderer.py`) qui **ne sont pas
-> reconnus** par `ImageUploadService` (qui ne cherche que `{{IMAGE:…}}`). Conséquence : pour les
-> PDF, les images s'affichent en brut dans le **Markdown de debug/preview**, mais le **RAG n'est pas
-> impacté** — le chunking se fait sur l'**AST** (les `image_ids` vivent dans les `Chunk` / payload
-> Qdrant) et la résolution d'URL/caption se fait via `document_images` + `POST /images/resolve`.
-> À harmoniser (uniformiser le format de placeholder côté PDF).
+> **Historique — divergence de placeholders résolue (PDF vs non-PDF)** : le chemin
+> **non-PDF** insère des placeholders **doubles accolades** `{{IMAGE:img_001}}`
+> (`markitdown_converter.py`). Le chemin **PDF** émettait historiquement des placeholders
+> **simples accolades** `![…]({IMAGE:img_id})` (`_render_figure` de `markdown_renderer.py`)
+> non reconnus par `ImageUploadService`. **Harmonisé** : le rendu PDF émet désormais des
+> doubles `{{IMAGE:img_id}}`. Le RAG n'a jamais été impacté — le chunking se fait sur
+> l'**AST** (les `image_ids` vivent dans les `Chunk` / payload Qdrant) et la résolution
+> d'URL/caption se fait via `document_images` + `POST /images/resolve`.
 
 ## Endpoints
 
@@ -95,6 +94,9 @@ Réponse type (document textuel avec une figure) :
 | `GEMINI_API_KEY` | *(obligatoire pour fig/scan)* | Injectée par ingestion-service via docker-java (OpenAI-compatible) |
 | `GEMINI_MODEL` | *(obligatoire pour fig/scan)* | Modèle vision utilisé |
 | `DOCLING_MIN_CHARS_PER_PAGE` | `40` | Seuil ratio caractères/page déclenchant la transcription |
+| `DOCLING_SCANNED_TEXT_DENSITY` | `0.01` | Seuil densité texte sous lequel une page chargée en images est classée scannée (`page_classifier`) |
+| `DOCLING_HYBRID_TEXT_DENSITY` | `0.05` | Seuil densité texte au-delà duquel une page est classée native (`page_classifier`) |
+| `DOCLING_SCANNED_IMAGE_RATIO` | `0.3` | Ratio surface images/page au-delà duquel une page pauvre en texte est classée scannée (`page_classifier`) |
 | `DOCLING_MAX_EXTRACTED_IMAGES` | `30` | Plafond d'images légendées par document |
 | `DOCLING_MIN_IMAGE_DIMENSION` | `64` | Pixels min (largeur ou hauteur) pour ignorer logos/icônes |
 | `GEMINI_MAX_RETRIES` / `GEMINI_RETRY_BACKOFF` | `3` / `1.5` | Retry avec backoff sur les appels Gemini |
@@ -111,7 +113,7 @@ curl http://localhost:8090/health
 Tests unitaires (sans clé Gemini — appels mockés) :
 
 ```bash
-python -m unittest tests.test_converter -v
+python -m unittest tests.test_converter tests.test_pipeline -v
 ```
 
 ## Construire l'image (une fois, à la racine du repo)

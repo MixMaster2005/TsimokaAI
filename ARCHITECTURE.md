@@ -188,6 +188,15 @@ ne dépend pas de `ai-common`). Les `VectorStore` Qdrant restent **auto-configur
 starters des services (collection `chunks`, `initializeSchema=false` — la collection est créée
 par ingestion-service) : l'auto-config est l'équivalent du bean explicite du spec §3.3.
 
+**Contrat quiz (phase B)** : `common.events.QuizEvent` (`QUIZ_SUBMITTED` /
+`QUIZ_CORRECTED`) publié par `fiche-service` (`QuizAttemptService`,
+`QuizCorrectionService`, publish-after-commit) sur le **canal unique `fiche.events`**
+(même canal que `FicheEvent`, via `RedisEventPublisher`). Les records locaux
+`fiche`/`analytics` sont supprimés ; l'ancien listener dédié est désactivé et le
+canal historique `quiz.events` est **supprimé du câblage**. Les consommateurs
+(`analytics-service`, `gamification-service`) dispatchent sur `JsonNode` (champ
+`event`, désérialisation Jackson tolérante) et ignorent les types inconnus.
+
 ## 7. Limites connues de ce codebase généré
 
 - **Concurrence d'ingestion bornée (pool + sémaphore)** : `processAsync` (@Async) utilise
@@ -203,15 +212,36 @@ par ingestion-service) : l'auto-config est l'équivalent du bean explicite du sp
 - `extractNotion()` dans `analytics-service` est une heuristique lexicale simple (premier
   mot significatif hors mots vides), pas une extraction sémantique — suffisante pour
   peupler les tableaux de bord dès le départ, améliorable par la suite.
-- `FicheEvent.validated()` ne porte que l'identifiant de l'enseignant, pas celui de
-  l'étudiant auteur de la fiche : `analytics-service` et `gamification-service` ne peuvent
-  donc pas encore relier une validation à la progression exacte de l'étudiant concerné —
-  documenté en commentaire dans le code, corrigible en enrichissant l'événement côté
-  `fiche-service`.
+- `FicheEvent.validated()` **enrichi** : `validated(ficheId, spaceId, userId,
+  enseignantId, statut)` publié par `ValidationService` avec `spaceId`/`userId` réels
+  lus depuis la fiche (**publish-after-commit**, envoi immédiat hors transaction) ;
+  ancienne signature 3-args conservée `@Deprecated` (contrat historique à `null`s →
+  no-op loggé côté consommateurs). `analytics-service` crédite la progression et
+  `gamification-service` attribue `PREMIERE_FICHE_VALIDEE` à `userId` quand l'événement
+  est enrichi.
 - `nb_consultations` et `nb_questions` dans `analytics-service` sont des compteurs stockés
   dans la table `student_stats` mais redondants : ils peuvent être recalculés à partir des
   événements `DOCUMENT_VIEWED` et `MESSAGE_CREATED`. Cette double écriture est un risque
   d'incohérence si un compteur manque un événement.
+- `taux_reussite` / `notions_maitrisees` / `notions_faibles` **calculés** : recalculés via
+  `refreshProgressionMetrics()` après chaque événement (et avant le dashboard étudiant),
+  pas stockés à la main (`taux = min(1, nb_fiches / nb_questions)`, `faibles` = notions
+  à `nb_questions >= 3`).
+- **TTL cache MAP câblé** : `FicheMapCacheService` lit `@Value fiche.map-cache-ttl-hours`
+  (entrée `application.yml` `FICHE_MAP_CACHE_TTL_HOURS:24`, clé
+  `fiche:map:{spaceId}:{documentId}`, invalidation `DOCUMENT_READY` / `SPACE_DELETED`).
+- **Placeholders PDF harmonisés** : `markdown_renderer.py` émet des doubles
+  `{{IMAGE:id}}` comme le chemin non-PDF (divergence historique `{IMAGE:…}` simple
+  résolue) ; `requirements.txt` épinglé, `Dockerfile` spec v3.
+- **Publish-after-commit** : `ValidationService`, `QuizAttemptService`,
+  `QuizCorrectionService` diffèrent l'envoi Redis après le commit (sinon un rollback DB
+  laisserait un événement fantôme).
+- **Idempotence à durcir (at-least-once Redis)** : dispatch `JsonNode` tolérant + garde-fous
+  `UNIQUE` (`existsByUserIdAndBadgeId`, `UNIQUE(user_id, space_id)`, upserts) ; compteurs
+  rejoués en cas de redélivrance. TODO commentés : déduplication Set Redis clé
+  `messageId` (`analytics:dedup:message:<messageId>`), `ficheId`
+  (`analytics:dedup:fiche:<ficheId>` / `gamification:dedup:fiche:<ficheId>`),
+  `attemptId` (`analytics:dedup:attempt:<attemptId>`, SETNX + TTL).
 - Les types de recommandation `REVISION_NOTION_FAIBLE` et `RELANCE_INACTIVITE` dans
   `analytics-service` sont définis dans l'énumération `RecommendationType` mais jamais
   générés par `RecommendationService` — ils constituent un squelette pour une future

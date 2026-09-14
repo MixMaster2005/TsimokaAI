@@ -50,9 +50,12 @@ leur **progression** — le tout piloté par un ensemble de **microservices Spri
 > (Groq/Gemini/Ollama via `ai-common` + `ChatProviderResolver`), le **chat RAG** (pipeline
 > custom : rewrite → retrieval large filtré `space_id` → rerank LLM → contexte), le **persona
 > pédagogique** (génération + enrichissement par LLM) et la **génération Map-Reduce des
-> fiches** (validation de structure par `StructuredOutputValidationAdvisor`). Tous les
-> composants IA sont implémentés. Il reste la **validation de bout en bout** avec l'infra
-> complète (voir la [feuille de route](#feuille-de-route)).
+> fiches** (validation de structure par `StructuredOutputValidationAdvisor`). **Phase B** :
+> contrat quiz unifié (`QuizEvent` common sur canal unique `fiche.events`, `quiz.events`
+> supprimé), `FicheEvent.validated()` enrichi (`spaceId`/`userId` réels, publish-after-commit),
+> cache MAP à TTL câblé (`FICHE_MAP_CACHE_TTL_HOURS`), placeholders PDF harmonisés en doubles
+> `{{IMAGE:id}}`. Tous les composants IA sont implémentés. Il reste la **validation de bout
+> en bout** avec l'infra complète (voir la [feuille de route](#feuille-de-route)).
 
 ## Architecture
 
@@ -295,14 +298,19 @@ Chaque TODO est documenté en Javadoc dans le code concerné. Voici l'état d'av
    `llm-chat`.
 4. ✅ **`fiche-service` / `FicheGenerationService`** — génération Map-Reduce des fiches
    (prompts `fiche-map.st` / `fiche-reduce.st`, `StructuredOutputValidationAdvisor`,
-   circuit breaker `llm-fiche`).
+   circuit breaker `llm-fiche`), cache MAP Redis à TTL câblé (`FICHE_MAP_CACHE_TTL_HOURS`).
 5. ✅ **`fiche-service` / `QuizGenerationService`** — génération de quiz ciblés (par document,
-   espace ou topic), scoring, tentatives, partage (migration `V3__quiz.sql`).
-6. **Enrichir `FicheEvent.validated()`** (`userId`/`spaceId` de l'étudiant) pour débloquer la
-   progression analytics et le badge « première fiche validée ».
+   espace ou topic), scoring, tentatives, partage (migration `V3__quiz.sql`), événements
+   `QUIZ_SUBMITTED` / `QUIZ_CORRECTED` via `QuizEvent` common sur canal unique `fiche.events`
+   (`quiz.events` supprimé, publish-after-commit).
+6. ✅ **Enrichir `FicheEvent.validated()`** — fait : `validated(ficheId, spaceId, userId,
+   enseignantId, statut)` publié avec `spaceId`/`userId` réels (ancienne signature
+   `@Deprecated`) → progression analytics créditée + badge « première fiche validée »
+   attribué (no-op loggé sur contrat historique).
 
 Extensions possibles (non bloquantes) : livraison réelle des rappels (SMTP/push), extraction
-sémantique des notions (NLP/embeddings), idempotence stricte des listeners d'événements.
+sémantique des notions (NLP/embeddings), idempotence stricte des listeners d'événements
+(TODO déduplication Redis clé `messageId` / `ficheId` / `attemptId`).
 
 ## Limites connues
 
@@ -314,10 +322,18 @@ plus structurantes :
   sont vides (warning non bloquant).
 - **Confiance aux headers** : un service accédé directement hors gateway n'est pas protégé.
 - **Cohérence éventuelle** : les suppressions en cascade passent par Redis Pub/Sub (pas de
-  garantie de livraison unique → idempotence à durcir).
+  garantie de livraison unique → idempotence à durcir : dispatch `JsonNode` tolérant +
+  garde-fous `UNIQUE`, TODO déduplication Redis clé `messageId` / `ficheId` / `attemptId` ;
+  envois `fiche-service` en publish-after-commit).
 - `extractNotion()` (analytics) est une heuristique lexicale, pas une extraction sémantique.
-- `FicheEvent.validated()` porte l'enseignantId mais pas le userId de l'étudiant (limitant
-  la progression analytics et le badge « première fiche validée »).
+- `FicheEvent.validated()` enrichi (`spaceId`/`userId` réels, publish-after-commit) : progression
+  analytics créditée + badge « première fiche validée » attribué ; contrat historique
+  (sans `userId`) → no-op loggé.
+- Quiz : contrat unifié `QuizEvent` common (`QUIZ_SUBMITTED` / `QUIZ_CORRECTED`) sur canal
+  unique `fiche.events` (`quiz.events` supprimé) ; correction au niveau tentative porte le
+  score effectif, correction au niveau quiz sans tentative → ignorée côté analytics.
+- Cache MAP : TTL câblé (`FICHE_MAP_CACHE_TTL_HOURS`, défaut 24h).
+- Placeholders images harmonisés en doubles `{{IMAGE:id}}` (divergence PDF historique résolue).
 - `nb_consultations` et `nb_questions` dans analytics-service sont redondants avec les
   compteurs calculés à partir des événements.
 - Les types de recommandation `REVISION_NOTION_FAIBLE` et `RELANCE_INACTIVITE` dans

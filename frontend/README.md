@@ -13,6 +13,8 @@ npm run dev
 ```
 
 `npm run build` fait tourner `tsc -b` (type-check strict) puis `vite build`.
+Scripts disponibles (`package.json`) : `dev` (Vite seul), `dev:api` (Vite + proxy `/api` → `:8080`),
+`build`, `typecheck` (`tsc -b --noEmit`, vérification seule), `preview` (sert le bundle de prod en local).
 
 ### Dev rapide avec backend Docker
 
@@ -36,7 +38,8 @@ Le service `frontend` de la racine construit ce dossier via un Dockerfile multi-
 build Vite dans node, puis nginx sert le bundle et **proxifie `/api` vers api-gateway**.
 Conséquence : `VITE_API_BASE_URL` est vide au build → requêtes relatives, même origine,
 zéro CORS. Le fallback SPA (refresh sur une URL profonde → `index.html`) est géré par
-nginx. Port exposé : **3000**.
+nginx. Port exposé dans le conteneur : **80** (`EXPOSE 80` du Dockerfile),
+mapping hôte **3000→80** via `docker-compose.yml` (`"3000:80"` → `http://localhost:3000`).
 
 ```bash
 docker compose up --build frontend
@@ -46,7 +49,7 @@ docker compose up --build frontend
 
 | Mode | Commande | Frontend | Proxy API | CORS |
 |---|---|---|---|---|
-| **Prod/Docker** | `./infra/scripts/02-start.sh` | Container nginx `:3000` | nginx → api-gateway | Non (same-origin) |
+| **Prod/Docker** | `./infra/scripts/02-start.sh` | Container nginx `:80` (hôte `:3000` via mapping `3000:80`) | nginx → api-gateway | Non (same-origin) |
 | **Dev rapide** | `./infra/scripts/01-premier-demarrage.sh --no-build --no-frontend` + `npm run dev:api` | Vite `:5173` | Vite proxy → api-gateway | Non (same-origin) |
 
 Dans les deux cas, `VITE_API_BASE_URL` est vide et le proxy (nginx ou Vite)

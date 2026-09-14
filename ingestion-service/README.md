@@ -55,10 +55,9 @@ service dédié orchestré par `IngestionPipelineService` — seul un test de bo
   Si la légende est vide, l'image garde une alt text neutre sans ligne de description vide.
   Chaque image est aussi persistée en base (entité `DocumentImage` : `document_id`,
   `storage_url`, `placeholder_id`, `caption`) — c'est cette table qui alimente la
-  **résolution batch** au RAG (`POST /api/v1/documents/images/resolve`). Note : seul le
-  placeholder `{{IMAGE:…}}` (double accolades, format non-PDF) est reconnu ; le format
-  PDF (`{IMAGE:…}` simple) n'est pas substitué dans le Markdown de preview (cf.
-  `docling-worker/README.md`).
+  **résolution batch** au RAG (`POST /api/v1/documents/images/resolve`). Les placeholders
+  sont harmonisés en **doubles accolades** `{{IMAGE:…}}` côté PDF comme non-PDF
+  (divergence historique `{IMAGE:…}` simple côté PDF résolue dans `markdown_renderer.py`).
 - **Chunking orienté structure (spec v3)** : deux chunkers, choisis selon le résultat de
   l'extraction :
   - `StructureAwareChunker` — pour les **PDF** (AST canonique disponible) : découpe directement
@@ -143,7 +142,9 @@ Toutes les routes sont protégées par JWT.
 
 | Canal | Événement | Direction | Rôle |
 |---|---|---|---|
+| `ingestion.events` | `DOCUMENT_PROCESSING` | publié | Push SSE immédiat (upload/retry/début `processAsync`) |
 | `ingestion.events` | `DOCUMENT_READY` / `DOCUMENT_FAILED` | publié | Déclenche enrichissement persona (space-service) + signalement obsolescence des fiches (fiche-service) |
+| `ingestion.events` | `DOCUMENT_PROCESSING` / `DOCUMENT_READY` / `DOCUMENT_FAILED` | consommé (auto) | `DocumentStatusListener` → push SSE temps réel (`GET /api/v1/documents/stream`) |
 | `space.events` | `SPACE_DELETED` | consommé | Purge tous les documents de l'espace |
 | `user.events` | `USER_DELETED` | consommé | Purge tous les documents de l'utilisateur |
 

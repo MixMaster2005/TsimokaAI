@@ -54,9 +54,9 @@ Le **sous-système quiz** (génération LLM ciblée, tentatives avec scoring, pa
   par `StructuredOutputValidationAdvisor` (3 tentatives max) + `entity(FicheContent.class)`
   (`fiche-reduce.st`).
 - **Cache MAP Redis** (`FicheMapCacheService`) : les résumés intermédiaires de la phase MAP
-  sont mis en cache (clé `fiche:map:{spaceId}:{documentId}`, TTL 24h configurable via
-  `fiche.map-cache-ttl-hours`). Le cache est invalidé à chaque `DOCUMENT_READY` pour
-  l'espace concerné. Partagé entre fiches et quiz.
+  sont mis en cache (clé `fiche:map:{spaceId}:{documentId}`, TTL câblé via
+  `FICHE_MAP_CACHE_TTL_HOURS` → `fiche.map-cache-ttl-hours`, défaut 24h). Le cache est
+  invalidé à chaque `DOCUMENT_READY` pour l'espace concerné. Partagé entre fiches et quiz.
 - Résilience : circuit breaker `llm-fiche` → en échec, erreur métier 503 (pas de fiche
   placeholder trompeuse).
 
@@ -147,6 +147,11 @@ Toutes les routes sont protégées par JWT.
 | POST | `/api/v1/quizzes/{id}/attempts` | connecté | Soumettre une tentative (answersJson) |
 | GET | `/api/v1/quizzes/{id}/attempts/mine` | connecté | Mes tentatives pour un quiz |
 | GET | `/api/v1/quizzes/{id}/attempts/stats` | connecté | Statistiques de toutes les tentatives |
+| POST | `/api/v1/quizzes/{id}/publish` | enseignant (admin) | Publier un quiz (`BROUILLON` → `PUBLIE`, idempotent) |
+| GET | `/api/v1/quizzes/{id}/corrections` | connecté | Lister les corrections au niveau quiz |
+| POST | `/api/v1/quizzes/{id}/corrections` | propriétaire/admin | Ajouter une correction au niveau quiz (commentaire / score corrigé) |
+| GET | `/api/v1/quizzes/{id}/attempts/{attemptId}/corrections` | connecté | Lister les corrections d'une tentative |
+| POST | `/api/v1/quizzes/{id}/attempts/{attemptId}/corrections` | propriétaire/admin | Corriger une tentative (commentaire / score corrigé) |
 
 ## Règles métier
 
@@ -171,7 +176,12 @@ Toutes les routes sont protégées par JWT.
   `PUBLIE`, `400` si statut inattendu (ni `BROUILLON` ni `PUBLIE`).
 - **Tentative** (`POST /api/v1/quizzes/{id}/attempts`) : `400` si quiz `BROUILLON`
   (« Quiz non publié »). Code 400 volontaire (état, pas droits ; l'invisibilité `BROUILLON`
-  est assurée par `getById` owner/admin + filtre front).
+  est assurée par `getById` owner/admin + filtre front). Publie `QUIZ_SUBMITTED` sur `fiche.events`.
+- **Corrections** (`QuizCorrectionService` + `QuizCorrectionController`) : création réservée
+  propriétaire ou admin (`assertOwnerOrAdmin`, `403` sinon). Correction au niveau quiz
+  (retour global enseignant) ou au niveau tentative (commentaire et/ou `scoreCorrige` individuel ;
+  `404` si tentative introuvable, `403` si tentative d'un autre quiz). Chaque correction publie
+  `QUIZ_CORRECTED` sur `fiche.events` (score effectif = corrigé si fourni, sinon score auto).
 - **Partage** : propriétaire uniquement.
  - **Scope** : `DOCUMENT` (chunks d'un document), `SPACE` (tous les chunks de l'espace), `TOPIC` (thème libre → targetTopic requis).
 - **TOPIC** → `targetTopic` requis (3-120 car.) : filtré par consigne LLM (`{{TOPIC}}` dans `quiz-generate.st`), retrieval = espace seul (pas d'embedding).
@@ -184,12 +194,20 @@ Toutes les routes sont protégées par JWT.
 |---|---|---|---|
 | `fiche.events` | `FICHE_GENERATED` | publié | Progression étudiant (analytics) + suivi hebdo/badges (gamification) |
 | `fiche.events` | `FICHE_VALIDATED` | publié | Progression (analytics) + badge validation (gamification) |
+| `fiche.events` | `QUIZ_SUBMITTED` | publié | Soumission de tentative (`QuizAttemptService.submit` : quizId, spaceId, userId, score, total) → progression (analytics) + badges (gamification) |
+| `fiche.events` | `QUIZ_CORRECTED` | publié | Correction enseignant (`QuizCorrectionService` : quizId, attemptId?, userIdEtu?, spaceId, enseignantId, score corrigé/effectif, total) → progression (analytics) + badges (gamification) |
 | `ingestion.events` | `DOCUMENT_READY` | consommé | Marquage obsolescence des fiches **et quiz** de l'espace + invalidation du cache MAP |
 | `space.events` | `SPACE_DELETED` | consommé | Purge des fiches **et quiz** de l'espace |
 | `user.events` | `USER_DELETED` | consommé | Purge des fiches **et quiz** de l'utilisateur |
 
-> **Note** : aucun événement n'est publié pour les quiz (pas de `QUIZ_GENERATED`).
-> Les quiz ne sont donc pas encore visibles dans les dashboards analytics ni les badges gamification.
+> **Note** : les événements quiz (`QUIZ_SUBMITTED`, `QUIZ_CORRECTED`) sont publiés sur le
+> même canal `fiche.events` via `QuizEvent` common (`common.events.QuizEvent`,
+> `RedisEventPublisher`, publish-after-commit). Les consommateurs existants ignorent les
+> types inconnus (désérialisation Jackson tolérante + filtre sur `event`).
+>
+> **Note** : `FICHE_VALIDATED` est publié **enrichi** (`validated(ficheId, spaceId, userId,
+> enseignantId, statut)` avec `spaceId`/`userId` réels lus depuis la fiche,
+> publish-after-commit ; ancienne signature 3-args `@Deprecated`).
 
 ## Modèle de données
 
@@ -265,7 +283,8 @@ Toutes les routes sont protégées par JWT.
 
 ### `FicheMapCacheService`
 
-- Cache Redis des résumés intermédiaires MAP (clé `fiche:map:{spaceId}:{documentId}`, TTL 24h).
+- Cache Redis des résumés intermédiaires MAP (clé `fiche:map:{spaceId}:{documentId}`,
+  TTL câblé `@Value fiche.map-cache-ttl-hours`, défaut 24h via `FICHE_MAP_CACHE_TTL_HOURS`).
 - Invalidation : `invalidateSpace(spaceId)` à chaque `DOCUMENT_READY`.
 - Partagé entre `FicheGenerationService` et `QuizGenerationService`.
 
@@ -287,7 +306,7 @@ Toutes les routes sont protégées par JWT.
 | `QDRANT_HOST` / `QDRANT_PORT` / `QDRANT_COLLECTION` | `localhost` / `6334` / `chunks` | Lecture des chunks (phase MAP) |
 | `QDRANT_USE_TLS` | `false` | TLS pour Qdrant |
 | `FICHE_MAX_CHUNKS_PER_DOCUMENT` | `50` | Plafond de chunks lus par document |
-| `fiche.map-cache-ttl-hours` | `24` | TTL du cache MAP Redis (heures) |
+| `FICHE_MAP_CACHE_TTL_HOURS` | `24` | TTL du cache MAP Redis, en heures (`fiche.map-cache-ttl-hours`) |
 
 ## Lancer
 

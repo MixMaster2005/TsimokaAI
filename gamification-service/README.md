@@ -32,6 +32,9 @@ Implémentation **complète** — sauf la **livraison effective** des rappels (v
   5 min, configurable). Requête `envoye=false AND prevu_le < now()` → marque `envoye=true`.
 - **Badge `CINQ_FICHES` via cumul hebdo** : somme des `nb_fiches_generees` de **toutes** les
   semaines de l'utilisateur dans l'espace ≥ 5.
+- **Canal unique `fiche.events`** : `FicheEventListener` dispatche sur `JsonNode` (champ
+  `event`, payloads `FicheEvent` / `QuizEvent` common) ; les types `QUIZ_*` sont ignorés
+  (aucune règle badge), payload incomplet → warn + ignoré.
 
 ## Flux d'attribution des badges
 
@@ -75,8 +78,11 @@ Toutes les routes sont protégées par JWT.
 - **Badges une seule fois** : `UNIQUE(user_id, badge_id)` + vérification pré-insertion.
 - **Objectif atteint** : `updateStatut(ATTEINT)` incrémente `nb_objectifs_atteints` de la
   semaine courante et attribue `PREMIER_OBJECTIF_ATTEINT`.
-- **`PREMIERE_FICHE_VALIDEE` non attribué automatiquement** : l'événement `FICHE_VALIDATED`
-  ne porte que `enseignantId`, pas l'étudiant auteur — voir « Non implémenté ».
+- **`PREMIERE_FICHE_VALIDEE` attribué si enrichi** : `onFicheValidated(userId, enseignantId,
+  statut)` impute le badge à l'**auteur de la fiche** (`userId` de l'événement
+  `FICHE_VALIDATED` enrichi, publish-after-commit côté fiche-service) quand `statut =
+  VALIDEE` ; sans `userId` (contrat historique) → no-op loggé. Idempotent via
+  `existsByUserIdAndBadgeId` + `UNIQUE(user_id, badge_id)`.
 - **Rappel** : le job ne fait que **marquer envoyé** ; aucune notification réelle n'est envoyée.
 
 ## Modèle de données
@@ -94,25 +100,27 @@ Toutes les routes sont protégées par JWT.
   et journalise, mais **aucune notification réelle** n'est envoyée — ni email, ni push, ni SMS.
   Le service ne contient aucun canal de livraison de notifications. Brancher un vrai canal
   est une extension non bloquante.
-- **`PREMIERE_FICHE_VALIDEE`** : l'événement `FICHE_VALIDATED` porte `enseignantId` (l'enseignant
-  qui valide) mais **pas l'`userId` de l'étudiant auteur** de la fiche. Le badge ne peut donc
-  pas être attribué automatiquement. Nécessite d'enrichir l'événement côté fiche-service
-  (comme pour analytics-service). Actuellement `onFicheValidated` se contente de journaliser.
+- **`PREMIERE_FICHE_VALIDEE`** : attribué à l'**auteur de la fiche** (`userId` de
+  l'événement `FICHE_VALIDATED` enrichi désormais publié côté fiche-service,
+  publish-after-commit) quand le statut est `VALIDEE`. Sans `userId` (contrat historique :
+  l'événement ne portait que `enseignantId`), `onFicheValidated` se contente de journaliser
+  (no-op). Surcharge historique conservée `@Deprecated`.
 - **Nettoyage des rappels** : `RappelRepository` possède `deleteBySpaceId` et
   `deleteByUserId`, mais ces méthodes n'étaient historiquement pas appelées lors de la
   suppression d'un espace ou d'un utilisateur — les rappels orphelins restaient en base.
   **Corrigé** : les deux méthodes sont désormais invoquées dans `deleteAllForSpace` /
   `deleteAllForUser`.
-- **Pas de déduplication explicite des événements** : l'idempotence repose sur les contraintes
-  `UNIQUE` (badges) et sur des incréments pour les compteurs (un doublon de `FICHE_GENERATED`
-  ferait +1 au suivi hebdo en double) — à durcir si la livraison doit être garantie.
+- **Pas de déduplication explicite des événements** : dispatch `JsonNode` tolérant (champ
+  `event`), idempotence via contraintes `UNIQUE` (badges) ; les compteurs hebdo sont
+  rejoués (+1) en cas de redélivrance `FICHE_GENERATED` (at-least-once). À durcir via Set
+  Redis (TODO commenté : clé `ficheId` `gamification:dedup:fiche:<ficheId>`, SETNX + TTL).
 
 ## Événements consommés
 
 | Canal | Événement | Impact |
 |---|---|---|
 | `fiche.events` | `FICHE_GENERATED` | +1 suivi hebdo + badges `PREMIERE_FICHE` / `CINQ_FICHES` |
-| `fiche.events` | `FICHE_VALIDATED` | Journalisé (badge `PREMIERE_FICHE_VALIDEE` à câbler) |
+| `fiche.events` | `FICHE_VALIDATED` | Badge `PREMIERE_FICHE_VALIDEE` à l'auteur (`userId` enrichi, `VALIDEE`) ; no-op loggé sans `userId` |
 | `space.events` | `SPACE_DELETED` | Purge objectifs + suivi + rappels de l'espace |
 | `user.events` | `USER_DELETED` | Purge objectifs + suivi + badges + rappels de l'utilisateur |
 

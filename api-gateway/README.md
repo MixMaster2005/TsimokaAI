@@ -104,5 +104,7 @@ Toutes les routes sont protégées par JWT **sauf** `/api/v1/auth/**` (publique)
 ```bash
 # Seul, en local (il faut Redis) :
 docker compose up -d redis
-mvn -pl common,api-gateway -am spring-boot:run
+mvn -pl api-gateway -am spring-boot:run
+# (pas de `-pl common` : la gateway ne dépend pas du module `common`, cf. Choix techniques ci-dessus ;
+# `-am` ne construit ici que le parent).
 ```

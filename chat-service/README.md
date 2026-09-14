@@ -178,7 +178,7 @@ Gemini** (avec clé) reste à faire.
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `SERVER_PORT` | `8080` | Port d'écoute |
+| `SERVER_PORT` | `8084` | Port d'écoute |
 | `ACTIVE_LLM_PROVIDER` | `ollama` | `groq` \| `gemini` \| `ollama` |
 | `GROQ_API_KEY` / `GROQ_MODEL` | — / `openai/gpt-oss-120b` | Provider Groq (compatible OpenAI) |
 | `GROQ_BASE_URL` | `https://api.groq.com/openai` | Endpoint Groq compatible OpenAI (surchargeable) |

@@ -78,6 +78,17 @@ flowchart LR
 > Chaîne de repli : échec d'appel LLM ou circuit `llm-persona` ouvert → persona générique
 > (création) ou persona inchangé (enrichissement). Le service ne bloque jamais le flux de
 > création d'espace ni l'ingestion.
+>
+> **Plafond d'enrichissement** : `MAX_ENRICHMENTS_PER_SPACE = 3` (`PersonaService.java`).
+> Au-delà de 3 enrichissements réussis par espace, le persona est considéré comme mature
+> et `enrichPersonaAfterIngestion()` retourne le persona inchangé (sans appel LLM).
+> Compteur **volatil en mémoire** (`ConcurrentHashMap`, non persisté) → **perdu au restart**.
+>
+> **Échantillonnage Qdrant** : `topK = min(chunkCount, sampleSize)` (avec `max(1, …)` ;
+> si `chunkCount <= 0`, `topK = sampleSize`). Chaque chunk est **tronqué à 800 caractères**
+> (`MAX_CHUNK_CHARS`) avant fusion dans le prompt `persona-enrichment.st`.
+> La régénération manuelle (`POST /api/v1/spaces/{id}/persona/regenerate`,
+> propriétaire/admin) n'est pas plafonnée par ce compteur.
 
 ## Endpoints
 
@@ -98,13 +109,14 @@ Toutes les routes sont protégées par JWT (vérifié à la gateway) ; l'identit
 | DELETE | `/api/v1/spaces/{id}/membres/{memberId}` | propriétaire/admin | Retirer un membre |
 | GET | `/api/v1/spaces/{id}/invite-code` | propriétaire/admin | Lire le code d'invitation |
 | POST | `/api/v1/spaces/{id}/invite-code/regenerate` | propriétaire/admin | Régénérer le code (l'ancien meurt) |
+| POST | `/api/v1/spaces/{id}/persona/regenerate` | propriétaire/admin | Régénérer le persona via LLM |
 | POST | `/api/v1/spaces/{spaceId}/groupes` | connecté | Créer un groupe (créateur = ANIMATEUR) |
 | GET | `/api/v1/spaces/{spaceId}/groupes` | connecté | Lister les groupes d'un espace |
 | POST | `/api/v1/groupes/{groupeId}/membres` | connecté | Ajouter un membre |
 | GET | `/api/v1/groupes/{groupeId}/membres` | connecté | Lister les membres |
 | DELETE | `/api/v1/groupes/{groupeId}` | connecté | Supprimer un groupe |
 
-**Total : 17 endpoints** (12 espaces + 5 groupes).
+**Total : 18 endpoints** (13 espaces + 5 groupes).
 
 ## Règles métier
 
@@ -149,10 +161,14 @@ l'espace. À faire évoluer si un droit à l'effacement est introduit.
 
 Migrations Flyway (`db/migration`) : `V1__init.sql` (schéma initial),
 `V2__invite_code_and_membres.sql` (partage),
-`V3__indexes.sql` (index `idx_membres_space_space_id` sur `membres_space(space_id)`).
+`V3__indexes.sql` (index `idx_membres_space_space_id` sur `membres_space(space_id)`),
+`V4__persona_versioning.sql` (versioning du persona : `persona_version`,
+`persona_updated_at`).
 
 - `spaces` : `id`, `user_id` (logique), `name`, `description`, `subject_tag`,
-  `assistant_persona`, `invite_code UNIQUE NOT NULL`, horodatages.
+  `assistant_persona`, `persona_version` (INT NOT NULL DEFAULT 1, incrémentée à
+  chaque génération/enrichissement/régénération), `persona_updated_at`
+  (TIMESTAMP, backfillé depuis `updated_at`), `invite_code UNIQUE NOT NULL`, horodatages.
 - `membres_space` : `id`, `space_id (FK cascade)`, `user_id` (logique), `joined_at`,
   `UNIQUE(space_id, user_id)` — adhésions via code d'invitation.
 - `groupes` : `id`, `space_id (FK cascade)`, `nom`, `description`, `created_by` (logique).
@@ -176,6 +192,25 @@ effective par défaut est **8** (définie dans `application.yml`, surchargeable 
 `PersonaService.java` indique 15 en fallback Java, mais le YAML écrase toujours cette
 valeur → le défaut réel est 8. Les chunks sont tronqués à 800 caractères. À ajuster
 empiriquement lors du test e2e.
+
+## Variables d'environnement
+
+Valeurs lues dans `src/main/resources/application.yml` (`${VAR:défaut}`) :
+
+| Variable | Défaut | Usage |
+|---|---|---|
+| `SERVER_PORT` | `8082` | Port HTTP du service |
+| `DB_URL` | `jdbc:postgresql://localhost:5432/space_db` | JDBC PostgreSQL (`space_db`) |
+| `DB_USERNAME` / `DB_PASSWORD` | `postgres` / `postgres` | Identifiants BDD |
+| `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | Pub/sub événements (`space.events`, …) |
+| `QDRANT_HOST` / `QDRANT_PORT` / `QDRANT_USE_TLS` | `localhost` / `6334` / `false` | Lecture de l'échantillon de chunks |
+| `QDRANT_COLLECTION` | `chunks` | Collection unique partagée (filtre `space_id` + `document_id`) |
+| `ACTIVE_LLM_PROVIDER` | `ollama` | Provider actif (`ollama` / `groq` / `gemini`, via `ai-common`) |
+| `GROQ_BASE_URL` / `GROQ_API_KEY` / `GROQ_MODEL` | `https://api.groq.com/openai` / `` (vide) / `openai/gpt-oss-120b` | Chat Groq (API compatible OpenAI) |
+| `GEMINI_BASE_URL` / `GEMINI_API_KEY` / `GEMINI_MODEL` | `https://generativelanguage.googleapis.com/v1beta/openai` / `` (vide) / `gemini-2.5-flash` | Chat Gemini (endpoint compatible OpenAI) |
+| `OLLAMA_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `qwen2.5:3b` | Chat local par défaut |
+| `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Embedding de retrieval (même espace vectoriel qu'`ingestion-service`) |
+| `PERSONA_SAMPLE_SIZE` | `8` | `persona.sample-size` : taille d'échantillon Qdrant (défaut réel via YAML ; fallback Java `15` ignoré en pratique) |
 
 ## Lancer
 

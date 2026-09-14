@@ -103,6 +103,7 @@ par la gateway sans JWT). Routes protégées : `/users/**` (JWT vérifié à la 
 | `DB_USERNAME` / `DB_PASSWORD` | `postgres` / `postgres` | Identifiants base |
 | `JWT_SECRET` | — (dev) | Clé HMAC, **doit être identique à api-gateway** |
 | `JWT_ACCESS_TTL_SECONDS` | `900` | TTL du JWT d'accès (15 min) |
+| `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | Redis (publication `USER_DELETED` via common, config Spring implicite) |
 
 ## Lancer
 

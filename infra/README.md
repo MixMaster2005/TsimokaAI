@@ -19,6 +19,7 @@ projet eux-mêmes). L'ordre numérique suit le cycle de vie.
 | `scripts/05-logs.sh <svc>|all [--tail]` | Logs d'un service ou de toute la stack (follow par défaut). |
 | `scripts/06-service.sh <svc> <action>` | Gestion unitaire : `start`, `stop`, `restart`, `rebuild` (recompile l'image Maven dans Docker puis attend le démarrage), `logs`, `sh`. |
 | `scripts/07-test-e2e.sh` | Test de bout en bout via la gateway uniquement (comme le frontend) : auth → espace + persona LLM → invitation/adhésion → chat RAG → fiches. Ré-exécutable sans collision (utilisateurs suffixés par timestamp). |
+| `scripts/_lib.sh` | Helper partagé (à sourcer, jamais à exécuter) : racine repo, logs colorés, `await_service`, `GATEWAY_URL`. |
 
 ## Parcours types
 
@@ -48,6 +49,10 @@ cd frontend && npm run dev:api                       # Vite sur :5173, proxy /ap
 
 ## Notes
 
+- **PostgreSQL : 7 bases** créées par `postgres-init/01-create-databases.sh`
+  (une par service) : `user_db` / `space_db` / `ingestion_db` / `chat_db` /
+  `fiche_db` / `analytics_db` / `gamification_db` — instance unique mutualisée
+  (voir le commentaire architectural en tête du script).
 - **`.env` obligatoire** : copier `.env.example` à la racine puis renseigner au
   minimum `JWT_SECRET` et `ACTIVE_LLM_PROVIDER` (+ les clés du provider choisi).
 - **Docker Socket** : `ingestion-service` utilise `docker-java` pour spawner le
