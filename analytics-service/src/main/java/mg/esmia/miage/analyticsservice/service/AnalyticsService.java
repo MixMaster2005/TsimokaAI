@@ -69,6 +69,14 @@ public class AnalyticsService {
     private final QuestionFrequenteRepository questionFrequenteRepository;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Idempotence : ligne progression verrouillée par UNIQUE(user_id, space_id)
+     * (getOrCreate) et question agrégée par UNIQUE(space_id, question_normalisee)
+     * (upsert). Redis Pub/Sub est at-least-once : une redélivrance de MESSAGE_CREATED
+     * rejoue les compteurs (+1). TODO : déduplication via Set Redis clé messageId
+     * (clé {@code "analytics:dedup:message:<messageId>"}, SETNX + TTL) quand le
+     * producteur propagera un identifiant stable.
+     */
     @Transactional
     public void onQuestionAsked(UUID userId, UUID spaceId, String content) {
         ProgressionEtudiant progression = getOrCreateProgression(userId, spaceId);
@@ -102,6 +110,12 @@ public class AnalyticsService {
         }
     }
 
+    /**
+     * Idempotence : getOrCreate adossé à UNIQUE(user_id, space_id) — pas de ligne
+     * dupliquée. Compteur nbFichesGenerees rejoué en cas de redélivrance
+     * (at-least-once). TODO : garde-fou {@code exists} / Set Redis clé ficheId
+     * ({@code "analytics:dedup:fiche:<ficheId>"}) si le producteur joint l'ID.
+     */
     @Transactional
     public void onFicheGenerated(UUID userId, UUID spaceId) {
         ProgressionEtudiant progression = getOrCreateProgression(userId, spaceId);
@@ -138,6 +152,13 @@ public class AnalyticsService {
         onFicheValidated(null, null, statut);
     }
 
+    /**
+     * Idempotence : getOrCreate adossé à UNIQUE(user_id, space_id). Une redélivrance
+     * de QUIZ_SUBMITTED rejoue nbQuizPasses (+1) et écrase dernier/meilleur score
+     * avec les mêmes valeurs (effet convergent). TODO : déduplication via Set Redis
+     * clé attemptId ({@code "analytics:dedup:attempt:<attemptId>"}) quand le payload
+     * le porte systématiquement.
+     */
     @Transactional
     public void onQuizSubmitted(UUID spaceId, UUID userId, double score, double total) {
         ProgressionEtudiant progression = getOrCreateProgression(userId, spaceId);
@@ -156,6 +177,11 @@ public class AnalyticsService {
         maybeGenererRecommandationQuizDifficile(progression, precedent, pct);
     }
 
+    /**
+     * Idempotence par construction : rejoue les scores sans incrémenter
+     * nbQuizPasses — une redélivrance de QUIZ_CORRECTED converge vers les mêmes
+     * valeurs (dernier/meilleur score écrasés à l'identique).
+     */
     @Transactional
     public void onQuizCorrected(UUID spaceId, UUID userId, double scoreCorrige, double total) {
         // Une correction ne rejoue pas le quiz : pas d'incrément de nbQuizPasses,

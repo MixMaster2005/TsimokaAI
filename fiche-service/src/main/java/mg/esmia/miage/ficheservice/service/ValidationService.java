@@ -14,6 +14,8 @@ import mg.esmia.miage.ficheservice.repository.FicheRepository;
 import mg.esmia.miage.ficheservice.repository.ValidationFicheRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -42,9 +44,14 @@ public class ValidationService {
         validation = validationFicheRepository.save(validation);
 
         // Consommé par analytics-service (progression, onFicheValidated enrichi en
-        // userId/spaceId) et gamification-service (badges, enseignantId/statut).
-        // Champs userId/spaceId renseignés depuis la fiche (record inchangé :
-        // nouveaux champs déjà nullables, remplissage rétrocompatible).
+        // userId/spaceId) et gamification-service (badge PREMIERE_FICHE_VALIDEE imputé
+        // à userId, pas enseignantId). Champs userId/spaceId renseignés depuis la
+        // fiche (record inchangé : nouveaux champs déjà nullables, remplissage
+        // rétrocompatible ; ancienne signature validated() 3-args conservée
+        // @Deprecated côté common pour les producteurs historiques).
+        // Publish-after-commit : l'envoi Redis est différé après le commit (sinon un
+        // rollback DB laisserait un événement fantôme). Sans transaction active
+        // (tests unitaires), envoi immédiat.
         String userId = null;
         String spaceId = null;
         try {
@@ -62,9 +69,9 @@ public class ValidationService {
         } catch (Exception e) {
             log.warn("Lecture fiche {} impossible : FICHE_VALIDATED publié sans userId/spaceId", ficheId, e);
         }
-        eventPublisher.publish(EventChannels.FICHE_EVENTS,
-                new FicheEvent(FicheEvent.FICHE_VALIDATED, ficheId.toString(), spaceId, userId,
-                        enseignantId.toString(), request.statut().name(), Instant.now()));
+        FicheEvent event = FicheEvent.validated(ficheId.toString(), spaceId, userId,
+                enseignantId.toString(), request.statut().name());
+        publishAfterCommit(EventChannels.FICHE_EVENTS, event);
 
         return ValidationResponse.from(validation);
     }
@@ -73,5 +80,18 @@ public class ValidationService {
         ValidationFiche validation = validationFicheRepository.findByFicheId(ficheId)
                 .orElse(ValidationFiche.builder().ficheId(ficheId).statut(ValidationFiche.Statut.EN_ATTENTE).build());
         return ValidationResponse.from(validation);
+    }
+
+    private void publishAfterCommit(String channel, Object event) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    eventPublisher.publish(channel, event);
+                }
+            });
+        } else {
+            eventPublisher.publish(channel, event);
+        }
     }
 }

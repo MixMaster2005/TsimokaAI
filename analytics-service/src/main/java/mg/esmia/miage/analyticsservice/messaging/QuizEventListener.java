@@ -3,6 +3,7 @@ package mg.esmia.miage.analyticsservice.messaging;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import mg.esmia.miage.analyticsservice.service.AnalyticsService;
+import mg.esmia.miage.common.events.QuizEvent;
 import mg.esmia.miage.common.messaging.AbstractRedisEventListener;
 
 import java.util.UUID;
@@ -16,6 +17,9 @@ import java.util.UUID;
  * conservé pour traçabilité mais n'est plus un bean Spring (pas de
  * {@code @Component}) et n'est abonné à aucun canal dans
  * {@code RedisListenerConfig} : un seul chemin actif.
+ *
+ * <p>Contrat : {@link QuizEvent} commun (canal unique {@code fiche.events},
+ * {@code score}/{@code total} en Integer).
  */
 @Deprecated(forRemoval = false)
 @Slf4j
@@ -39,13 +43,14 @@ public class QuizEventListener extends AbstractRedisEventListener<QuizEvent> {
                     UUID.fromString(event.spaceId()), UUID.fromString(event.userId()),
                     event.score(), event.total());
         } else if (QuizEvent.QUIZ_CORRECTED.equals(event.event())) {
-            Double corrige = event.scoreCorrige() != null ? event.scoreCorrige() : event.score();
-            if (event.spaceId() == null || event.userId() == null || corrige == null || event.total() == null) {
+            Integer corrige = event.scoreCorrige() != null ? event.scoreCorrige() : event.score();
+            String rawUser = event.userId() != null ? event.userId() : event.userIdEtu();
+            if (event.spaceId() == null || rawUser == null || corrige == null || event.total() == null) {
                 log.warn("QUIZ_CORRECTED incomplet ignoré (quizId={})", event.quizId());
                 return;
             }
             analyticsService.onQuizCorrected(
-                    UUID.fromString(event.spaceId()), UUID.fromString(event.userId()),
+                    UUID.fromString(event.spaceId()), UUID.fromString(rawUser),
                     corrige, event.total());
         }
         // Les autres types (messages chat/fiche présents sur les canaux partagés)

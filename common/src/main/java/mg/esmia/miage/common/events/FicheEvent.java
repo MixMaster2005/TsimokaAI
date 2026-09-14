@@ -23,7 +23,23 @@ public record FicheEvent(
         return new FicheEvent(FICHE_GENERATED, ficheId, spaceId, userId, null, null, Instant.now());
     }
 
+    /**
+     * Événement enrichi : porte l'auteur de la fiche ({@code userId}) et son espace
+     * ({@code spaceId}) en plus du validateur ({@code enseignantId}) et du statut.
+     * Les consommateurs (analytics, gamification) imputent à {@code userId}.
+     */
+    public static FicheEvent validated(String ficheId, String spaceId, String userId, String enseignantId, String statut) {
+        return new FicheEvent(FICHE_VALIDATED, ficheId, spaceId, userId, enseignantId, statut, Instant.now());
+    }
+
+    /**
+     * Contrat historique (non enrichi) : {@code spaceId}/{@code userId} à null.
+     * Les consommateurs doivent traiter ce cas en no-op loggé.
+     *
+     * @deprecated Préférer {@link #validated(String, String, String, String, String)}.
+     */
+    @Deprecated
     public static FicheEvent validated(String ficheId, String enseignantId, String statut) {
-        return new FicheEvent(FICHE_VALIDATED, ficheId, null, null, enseignantId, statut, Instant.now());
+        return validated(ficheId, null, null, enseignantId, statut);
     }
 }

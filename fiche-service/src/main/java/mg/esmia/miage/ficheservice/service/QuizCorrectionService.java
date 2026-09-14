@@ -10,11 +10,13 @@ import mg.esmia.miage.ficheservice.dto.QuizCorrectionResponse;
 import mg.esmia.miage.ficheservice.entity.Quiz;
 import mg.esmia.miage.ficheservice.entity.QuizAttempt;
 import mg.esmia.miage.ficheservice.entity.QuizCorrection;
-import mg.esmia.miage.ficheservice.messaging.QuizEvent;
+import mg.esmia.miage.common.events.QuizEvent;
 import mg.esmia.miage.ficheservice.repository.QuizAttemptRepository;
 import mg.esmia.miage.ficheservice.repository.QuizCorrectionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.UUID;
@@ -41,7 +43,9 @@ public class QuizCorrectionService {
                 .scoreCorrige(req == null ? null : req.scoreCorrige())
                 .build());
 
-        eventPublisher.publish(EventChannels.FICHE_EVENTS,
+        // Publish-after-commit : voir QuizAttemptService (évite l'événement fantôme
+        // en cas de rollback ; envoi immédiat hors transaction).
+        publishAfterCommit(EventChannels.FICHE_EVENTS,
                 QuizEvent.corrected(quizId.toString(), null, null,
                         quiz.getSpaceId().toString(), enseignantId.toString(),
                         req == null ? null : req.scoreCorrige(), quiz.getQuestionCount()));
@@ -70,8 +74,10 @@ public class QuizCorrectionService {
 
         // Score effectif : corrigé s'il est fourni, sinon score auto de la tentative
         // (une correction par commentaire seul crédite quand même l'avancement).
+        // Idempotence côté consommateurs (clé attemptId, UNIQUE) : une redélivrance
+        // de QUIZ_CORRECTED rejoue les scores sans incrémenter nbQuizPasses.
         Integer scoreEffectif = req != null && req.scoreCorrige() != null ? req.scoreCorrige() : attempt.getScore();
-        eventPublisher.publish(EventChannels.FICHE_EVENTS,
+        publishAfterCommit(EventChannels.FICHE_EVENTS,
                 QuizEvent.corrected(quizId.toString(), attemptId.toString(), attempt.getUserId().toString(),
                         quiz.getSpaceId().toString(), enseignantId.toString(),
                         scoreEffectif, attempt.getTotalQuestions()));
@@ -93,5 +99,18 @@ public class QuizCorrectionService {
         }
         return correctionRepository.findByAttemptId(attemptId).stream()
                 .map(QuizCorrectionResponse::from).toList();
+    }
+
+    private void publishAfterCommit(String channel, Object event) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    eventPublisher.publish(channel, event);
+                }
+            });
+        } else {
+            eventPublisher.publish(channel, event);
+        }
     }
 }

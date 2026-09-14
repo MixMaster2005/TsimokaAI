@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import mg.esmia.miage.common.events.FicheEvent;
+import mg.esmia.miage.common.events.QuizEvent;
 import mg.esmia.miage.common.messaging.AbstractRedisEventListener;
 import mg.esmia.miage.analyticsservice.service.AnalyticsService;
 import org.springframework.stereotype.Component;
@@ -19,7 +20,7 @@ import java.util.UUID;
  *   <li>{@code FICHE_GENERATED} / {@code FICHE_VALIDATED} (record
  *   {@code common.events.FicheEvent} côté producteur) ;</li>
  *   <li>{@code QUIZ_SUBMITTED} / {@code QUIZ_CORRECTED} (record
- *   {@code ficheservice.messaging.QuizEvent} côté producteur : {@code score}/{@code total}
+ *   {@code common.events.QuizEvent} côté producteur : {@code score}/{@code total}
  *   en Integer, {@code userIdEtu} au lieu de {@code userId} pour les corrections,
  *   champs {@code null} selon le type — cf. {@code QuizAttemptService} /
  *   {@code QuizCorrectionService}).</li>

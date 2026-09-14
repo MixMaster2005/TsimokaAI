@@ -8,10 +8,12 @@ import mg.esmia.miage.ficheservice.dto.QuizAttemptResponse;
 import mg.esmia.miage.ficheservice.dto.SubmitQuizAttemptRequest;
 import mg.esmia.miage.ficheservice.entity.Quiz;
 import mg.esmia.miage.ficheservice.entity.QuizAttempt;
-import mg.esmia.miage.ficheservice.messaging.QuizEvent;
+import mg.esmia.miage.common.events.QuizEvent;
 import mg.esmia.miage.ficheservice.repository.QuizAttemptRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.UUID;
@@ -49,9 +51,11 @@ public class QuizAttemptService {
         attempt = attemptRepository.save(attempt);
 
         // Consommé par analytics-service (progression) et gamification-service (badges).
-        eventPublisher.publish(EventChannels.FICHE_EVENTS,
-                QuizEvent.submitted(quizId.toString(), quiz.getSpaceId().toString(),
-                        userId.toString(), attempt.getScore(), attempt.getTotalQuestions()));
+        // Publish-after-commit : différé après le commit pour éviter un événement
+        // fantôme en cas de rollback ; envoi immédiat hors transaction (tests).
+        QuizEvent event = QuizEvent.submitted(quizId.toString(), quiz.getSpaceId().toString(),
+                userId.toString(), attempt.getScore(), attempt.getTotalQuestions());
+        publishAfterCommit(EventChannels.FICHE_EVENTS, event);
 
         return QuizAttemptResponse.from(attempt);
     }
@@ -73,6 +77,19 @@ public class QuizAttemptService {
     public List<QuizAttemptResponse> listAllAttempts(UUID quizId) {
         return attemptRepository.findByQuizIdOrderByAttemptedAtDesc(quizId).stream()
                 .map(QuizAttemptResponse::from).toList();
+    }
+
+    private void publishAfterCommit(String channel, Object event) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    eventPublisher.publish(channel, event);
+                }
+            });
+        } else {
+            eventPublisher.publish(channel, event);
+        }
     }
 
     private int countCorrectAnswers(String scoredAnswersJson) {

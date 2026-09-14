@@ -33,6 +33,16 @@ public class GamificationService {
     private final ObjectifRevisionRepository objectifRepository;
     private final RappelRepository rappelRepository;
 
+    /**
+     * Idempotence : suivi hebdo verrouillé par UNIQUE(user_id, space_id, semaine_debut)
+     * (getOrCreate) ; attribution des badges verrouillée par
+     * {@code existsByUserIdAndBadgeId} + UNIQUE(user_id, badge_id) — une redélivrance
+     * de FICHE_GENERATED ne duplique aucun badge. Le compteur hebdo nbFichesGenerees
+     * est rejoué (+1) en cas de redélivrance (at-least-once).
+     * TODO : déduplication via Set Redis clé ficheId
+     * ({@code "gamification:dedup:fiche:<ficheId>"}, SETNX + TTL) pour rendre
+     * l'incrément hebdo strictement idempotent.
+     */
     @Transactional
     public void onFicheGenerated(UUID userId, UUID spaceId) {
         SuiviHebdomadaire suivi = getOrCreateSuiviCourant(userId, spaceId);
@@ -48,16 +58,36 @@ public class GamificationService {
         }
     }
 
+    /**
+     * Impute le badge PREMIERE_FICHE_VALIDEE à l'auteur de la fiche ({@code userId},
+     * événement FICHE_VALIDATED enrichi), pas au validateur. Idempotent via
+     * {@code existsByUserIdAndBadgeId} + UNIQUE(user_id, badge_id) : une redélivrance
+     * converge (no-op). Sans {@code userId} (contrat historique), no-op loggé.
+     */
+    @Transactional
+    public void onFicheValidated(UUID userId, UUID enseignantId, String statut) {
+        if (!"VALIDEE".equalsIgnoreCase(statut)) {
+            return;
+        }
+        if (userId == null) {
+            log.info("FICHE_VALIDATED (VALIDEE) reçu sans userId (contrat historique, "
+                    + "enseignantId={}) — badge {} non imputable, en attente de "
+                    + "l'événement enrichi.", enseignantId, BadgeCode.PREMIERE_FICHE_VALIDEE);
+            return;
+        }
+        awardBadgeIfAbsent(userId, BadgeCode.PREMIERE_FICHE_VALIDEE);
+    }
+
+    /**
+     * Contrat historique : l'événement ne portait que l'enseignantId.
+     *
+     * @deprecated Préférer {@link #onFicheValidated(UUID, UUID, String)} avec
+     *             l'userId enrichi de la fiche.
+     */
+    @Deprecated
     @Transactional
     public void onFicheValidated(UUID enseignantId, String statut) {
-        // NB : l'événement FICHE_VALIDATED (cf. contrat) porte enseignantId, pas l'étudiant
-        // auteur de la fiche. Pour attribuer PREMIERE_FICHE_VALIDEE au bon étudiant, il
-        // faudrait enrichir l'événement côté fiche-service avec l'userId de la fiche —
-        // amélioration naturelle, non bloquante pour le fonctionnement du service.
-        if ("VALIDEE".equalsIgnoreCase(statut)) {
-            log.info("FICHE_VALIDATED (VALIDEE) reçu — attribution de {} à affiner une fois " +
-                    "l'événement enrichi avec l'userId de l'auteur de la fiche.", BadgeCode.PREMIERE_FICHE_VALIDEE);
-        }
+        onFicheValidated(null, enseignantId, statut);
     }
 
     @Transactional
