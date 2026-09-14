@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { createFileRoute, redirect, useParams } from '@tanstack/react-router';
+import { createFileRoute, Link, redirect, useParams } from '@tanstack/react-router';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { useEspace, espaceQueryOptions } from '@/features/espaces/api/use-espace';
 import { useInviteCode } from '@/features/espaces/api/use-invite-code';
 import { useRegenerateInviteCode } from '@/features/espaces/api/use-regenerate-invite-code';
+import { useRegeneratePersona } from '@/features/espaces/api/use-regenerate-persona';
 import { useUpdateEspace } from '@/features/espaces/api/use-update-espace';
 import { useDeleteEspace } from '@/features/espaces/api/use-delete-espace';
 import { sessionQueryOptions } from '@/features/auth/api/use-session';
@@ -35,6 +36,7 @@ function ParametresEspace() {
   const { data: space } = useEspace(spaceId);
   const { data: inviteCode } = useInviteCode(spaceId, true);
   const regenerateInviteCode = useRegenerateInviteCode(spaceId);
+  const regeneratePersona = useRegeneratePersona(spaceId);
   const updateEspace = useUpdateEspace(spaceId);
   const deleteEspace = useDeleteEspace(spaceId);
   const [name, setName] = useState(space?.name ?? '');
@@ -57,6 +59,11 @@ function ParametresEspace() {
 
   if (!space) return null;
 
+  const personaVersion = space.personaVersion ?? 1;
+  const personaUpdatedAt = space.personaUpdatedAt
+    ? new Date(space.personaUpdatedAt).toLocaleString('fr-FR')
+    : '—';
+
   return (
     <div className="max-w-lg p-6">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -73,11 +80,32 @@ function ParametresEspace() {
           <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label>Persona pédagogique généré</Label>
-          {/* Lecture seule pour l'instant — pas de endpoint de régénération identifié côté back */}
-          <p className="rounded-fiche border border-border bg-secondary p-3 text-xs text-muted-foreground">
-            {space.assistantPersona ?? 'Non généré pour l\u2019instant.'}
+          <Label>Persona pédagogique</Label>
+          <p className="text-xs text-encre-muted">
+            Version {personaVersion} — MAJ {personaUpdatedAt}
           </p>
+          <p className="rounded-fiche border border-papier-border bg-secondary p-3 text-xs text-encre-muted">
+            {space.assistantPersona ?? 'Non généré pour l\'instant.'}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={regeneratePersona.isPending}
+              onClick={() => regeneratePersona.mutate()}
+            >
+              {regeneratePersona.isPending ? 'Régénération…' : 'Régénérer le persona'}
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/espaces/$spaceId/chat" params={{ spaceId }}>
+                Tester dans le chat
+              </Link>
+            </Button>
+          </div>
+          {regeneratePersona.isError && (
+            <p className="text-xs text-red-600">La régénération a échoué, réessaie.</p>
+          )}
         </div>
         <Button type="submit" disabled={updateEspace.isPending} className="self-start">
           Enregistrer

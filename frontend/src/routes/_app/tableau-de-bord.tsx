@@ -63,11 +63,17 @@ function TableauDeBord() {
             <h3 className="mb-3 font-display text-sm font-semibold text-encre">Progression des notions</h3>
             <div className="flex flex-col gap-3">
               <div>
-                <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-succes">Maîtrisées</p>
+                <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-encre-muted">Abordées</p>
+                <p className="text-sm text-encre">
+                  {[...new Set([...dashboard.notionsMaitrisees, ...dashboard.notionsFaibles])].join(', ') || '—'}
+                </p>
+              </div>
+              <div>
+                <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-succes">Stabilisées</p>
                 <p className="text-sm text-encre">{dashboard.notionsMaitrisees.join(', ') || '—'}</p>
               </div>
               <div>
-                <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-attention">Fragiles / À revoir</p>
+                <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-attention">Fragiles</p>
                 <p className="text-sm text-encre opacity-75">{dashboard.notionsFaibles.join(', ') || '—'}</p>
               </div>
             </div>

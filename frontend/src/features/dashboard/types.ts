@@ -38,9 +38,31 @@ export interface ChapitreDifficile {
   scoreDifficulte: number;
 }
 
+export interface QuestionFrequente {
+  question: string;
+  nbOccurrences: number;
+  dernierAsk: string;
+}
+
+export interface EvolutionSemaine {
+  semaine: string;
+  nbActifs: number;
+}
+
 export interface TeacherDashboard {
   spaceId: string;
   notionsLesPlusConsultees: NotionStat[];
   chapitresDifficiles: ChapitreDifficile[];
   nbEtudiantsActifs: number;
+  questionsFrequentes: QuestionFrequente[];
+  evolution: EvolutionSemaine[];
+}
+
+export interface StudentRow {
+  userId: string;
+  derniereActivite: string | null;
+  nbQuestions: number;
+  nbFiches: number;
+  nbQuizPasses: number;
+  taux: number;
 }

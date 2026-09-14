@@ -5,4 +5,5 @@ export const dashboardKeys = {
 
 export const recommandationsKeys = {
   bySpace: (spaceId: string) => ['recommandations', spaceId] as const,
+  teacher: (spaceId: string, studentId: string) => ['recommandations', 'teacher', spaceId, studentId] as const,
 };
