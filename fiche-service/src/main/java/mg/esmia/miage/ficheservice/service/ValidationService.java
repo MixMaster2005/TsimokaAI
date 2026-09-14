@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import mg.esmia.miage.common.events.EventChannels;
 import mg.esmia.miage.common.events.FicheEvent;
 import mg.esmia.miage.common.messaging.RedisEventPublisher;
+import mg.esmia.miage.common.exception.BadRequestException;
 import mg.esmia.miage.ficheservice.dto.ValidateFicheRequest;
 import mg.esmia.miage.ficheservice.dto.ValidationResponse;
 import mg.esmia.miage.ficheservice.entity.Fiche;
@@ -28,6 +29,9 @@ public class ValidationService {
 
     @Transactional
     public ValidationResponse validate(UUID ficheId, UUID enseignantId, ValidateFicheRequest request) {
+        if (request.statut() == ValidationFiche.Statut.REJETEE && (request.commentaire() == null || request.commentaire().isBlank())) {
+            throw new BadRequestException("Commentaire obligatoire pour un rejet");
+        }
         ValidationFiche validation = validationFicheRepository.findByFicheId(ficheId)
                 .orElseGet(() -> ValidationFiche.builder().ficheId(ficheId).build());
 
