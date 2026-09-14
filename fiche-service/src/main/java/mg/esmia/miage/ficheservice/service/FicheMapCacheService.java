@@ -2,6 +2,7 @@ package mg.esmia.miage.ficheservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -25,9 +26,11 @@ import java.util.UUID;
 public class FicheMapCacheService {
 
     private static final String PREFIX = "fiche:map:";
-    private static final Duration DEFAULT_TTL = Duration.ofHours(24);
 
     private final StringRedisTemplate redis;
+
+    @Value("${fiche.map-cache-ttl-hours:24}")
+    private long mapCacheTtlHours = 24;
 
     /**
      * Récupère un résumé intermédiaire mis en cache pour un document donné.
@@ -46,7 +49,7 @@ public class FicheMapCacheService {
      */
     public void put(UUID spaceId, UUID documentId, String summary) {
         String key = key(spaceId, documentId);
-        redis.opsForValue().set(key, summary, DEFAULT_TTL);
+        redis.opsForValue().set(key, summary, Duration.ofHours(mapCacheTtlHours));
         log.debug("MAP cache put : space={}, doc={}, length={}", spaceId, documentId, summary.length());
     }
 

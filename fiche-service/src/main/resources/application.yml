@@ -96,6 +96,7 @@ chat:
 
 fiche:
   max-chunks-per-document: ${FICHE_MAX_CHUNKS_PER_DOCUMENT:50}
+  map-cache-ttl-hours: ${FICHE_MAP_CACHE_TTL_HOURS:24}
 
 resilience4j:
   circuitbreaker:
