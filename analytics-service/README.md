@@ -75,6 +75,8 @@ Toutes les routes sont protégées par JWT.
 |---|---|---|---|
 | GET | `/api/v1/dashboard/student?spaceId={id}` | connecté | Tableau de bord de l'étudiant courant pour un espace |
 | GET | `/api/v1/dashboard/teacher?spaceId={id}` | enseignant (admin) | Tableau de bord de l'espace (notions, chapitres, actifs) |
+| GET | `/api/v1/dashboard/teacher/students?spaceId={id}` | enseignant (admin) | Lignes étudiants de l'espace (progression par étudiant) |
+| GET | `/api/v1/dashboard/teacher/recommandations?spaceId={id}&studentId={id}` | enseignant (admin) | Recommandations d'un étudiant de l'espace (404 si étudiant hors espace) |
 | GET | `/api/v1/recommandations?spaceId={id}` | connecté | Recommandations de l'étudiant courant (réutilise le calcul du dashboard) |
 
 ## Règles métier

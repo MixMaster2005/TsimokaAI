@@ -4,7 +4,9 @@ import lombok.RequiredArgsConstructor;
 import mg.esmia.miage.common.context.UserContext;
 import mg.esmia.miage.common.context.UserContextHolder;
 import mg.esmia.miage.common.exception.ForbiddenException;
+import mg.esmia.miage.common.exception.ResourceNotFoundException;
 import mg.esmia.miage.common.response.ApiResponse;
+import mg.esmia.miage.analyticsservice.dto.RecommandationResponse;
 import mg.esmia.miage.analyticsservice.dto.StudentDashboardResponse;
 import mg.esmia.miage.analyticsservice.dto.StudentRowResponse;
 import mg.esmia.miage.analyticsservice.dto.TeacherDashboardResponse;
@@ -44,6 +46,22 @@ public class DashboardController {
             throw new ForbiddenException("Tableau de bord enseignant réservé aux enseignants");
         }
         return ApiResponse.success(analyticsService.teacherStudents(spaceId), ctx.requestId());
+    }
+
+    @GetMapping("/teacher/recommandations")
+    public ApiResponse<List<RecommandationResponse>> teacherRecommandations(
+            @RequestParam UUID spaceId, @RequestParam UUID studentId) {
+        UserContext ctx = authenticated();
+        if (!ctx.isAdmin()) {
+            throw new ForbiddenException("Tableau de bord enseignant réservé aux enseignants");
+        }
+        boolean appartient = analyticsService.teacherStudents(spaceId).stream()
+                .anyMatch(row -> row.userId().equals(studentId));
+        if (!appartient) {
+            throw new ResourceNotFoundException("Étudiant introuvable dans cet espace");
+        }
+        return ApiResponse.success(
+                analyticsService.studentDashboard(studentId, spaceId).recommandations(), ctx.requestId());
     }
 
     private UserContext authenticated() {
