@@ -62,7 +62,8 @@ public class QuizGenerationService {
         String prompt = readPrompt(quizGeneratePrompt)
                 .replace("{{CHUNKS}}", content)
                 .replace("{{QUESTION_COUNT}}", String.valueOf(quiz.getQuestionCount()))
-                .replace("{{DIFFICULTY}}", quiz.getDifficulty());
+                .replace("{{DIFFICULTY}}", quiz.getDifficulty())
+                .replace("{{TOPIC}}", quiz.getTargetTopic() == null ? "" : quiz.getTargetTopic());
 
         String systemPrompt = "Tu es un enseignant expert qui crée des quiz de révision. " +
                 "Réponds UNIQUEMENT en JSON valide, en français.";

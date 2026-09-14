@@ -173,7 +173,8 @@ Toutes les routes sont protégées par JWT.
   (« Quiz non publié »). Code 400 volontaire (état, pas droits ; l'invisibilité `BROUILLON`
   est assurée par `getById` owner/admin + filtre front).
 - **Partage** : propriétaire uniquement.
-- **Scope** : `DOCUMENT` (chunks d'un document), `SPACE` (tous les chunks de l'espace), `TOPIC` (thème libre → title requis).
+ - **Scope** : `DOCUMENT` (chunks d'un document), `SPACE` (tous les chunks de l'espace), `TOPIC` (thème libre → targetTopic requis).
+- **TOPIC** → `targetTopic` requis (3-120 car.) : filtré par consigne LLM (`{{TOPIC}}` dans `quiz-generate.st`), retrieval = espace seul (pas d'embedding).
 - **Scoring** : comparaison exacte (insensible à la casse) entre `answer` et `correct_answer`.
 - La suppression d'un quiz supprime en cascade tentatives et partages (FK).
 

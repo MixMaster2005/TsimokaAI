@@ -191,7 +191,12 @@ export function GenerateQuizModal({ open, onOpenChange, spaceId }: GenerateQuizM
                   placeholder="Ex : Les algorithmes de tri"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
+                  minLength={3}
+                  maxLength={120}
                 />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  3 à 120 caractères — le quiz portera exclusivement sur ce thème.
+                </p>
               </div>
             )}
           </div>

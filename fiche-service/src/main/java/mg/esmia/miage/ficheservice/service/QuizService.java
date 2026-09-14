@@ -32,6 +32,13 @@ public class QuizService {
         int questionCount = request.questionCount() == null ? 10 : request.questionCount();
         String statut = normalizeStatut(request.statut());
 
+        if ("TOPIC".equals(scope) && (request.targetTopic() == null || request.targetTopic().isBlank())) {
+            throw new BadRequestException("targetTopic requis pour un quiz de scope TOPIC (3-120 caractères)");
+        }
+        if ("DOCUMENT".equals(scope) && request.targetDocumentId() == null) {
+            throw new BadRequestException("targetDocumentId requis pour un quiz de scope DOCUMENT");
+        }
+
         Quiz quiz = Quiz.builder()
                 .spaceId(request.spaceId())
                 .userId(userId)
