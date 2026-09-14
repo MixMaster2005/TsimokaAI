@@ -7,6 +7,8 @@ import type { Space } from '../types';
 
 interface SpineCardProps {
   space: Space;
+  /** 'etudiant' -> /espaces/$spaceId, 'enseignant' -> /enseignant/espaces/$spaceId. */
+  basePath?: 'etudiant' | 'enseignant';
 }
 
 /**
@@ -14,13 +16,13 @@ interface SpineCardProps {
  * Réutilisé tel quel partout où un espace doit s'afficher sous cette forme —
  * ne pas redessiner une variante ad hoc ailleurs.
  */
-export function SpineCard({ space }: SpineCardProps) {
+export function SpineCard({ space, basePath = 'etudiant' }: SpineCardProps) {
   const { data: conversations } = useConversations(space.id);
   const latestActivity = conversations?.[0]?.updatedAt ?? space.createdAt;
 
   return (
     <Link
-      to="/espaces/$spaceId"
+      to={basePath === 'enseignant' ? '/enseignant/espaces/$spaceId' : '/espaces/$spaceId'}
       params={{ spaceId: space.id }}
       title={`Dernière activité : ${new Date(latestActivity).toLocaleDateString('fr-FR')}`}
       className={cn(
