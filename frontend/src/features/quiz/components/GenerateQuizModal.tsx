@@ -57,7 +57,7 @@ export function GenerateQuizModal({ open, onOpenChange, spaceId }: GenerateQuizM
   }
 
   function handleGenerate() {
-    const payload: GenerateQuizRequest = { spaceId, scope, difficulty, questionCount };
+    const payload: GenerateQuizRequest = { spaceId, scope, difficulty, questionCount, statut: 'BROUILLON' };
 
     if (scope === 'DOCUMENT' && selectedDocId) {
       payload.targetDocumentId = selectedDocId;

@@ -63,7 +63,7 @@ public class Quiz {
 
     @Column(name = "statut", nullable = false)
     @Builder.Default
-    private String statut = "PUBLIE";
+    private String statut = "BROUILLON";
 
     @Column(name = "obsolete")
     @Builder.Default

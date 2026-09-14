@@ -158,11 +158,20 @@ Toutes les routes sont protégées par JWT.
 - **Partage** : fournir `groupeId` **ou** `destinataireId`, jamais les deux ni aucun → `400`.
 - **Obsolescence** : toute nouvelle ingestion dans l'espace rend les fiches **et quiz** existants obsolètes.
 - **Validation unique** : revalider une fiche remplace la validation précédente.
+- **Rejet motivé** : `REJETEE` sans commentaire (null, vide ou blank) → `400 BAD_REQUEST`
+  (`Commentaire obligatoire pour un rejet`) ; commentaire limité à 2000 caractères (`@Size`).
 - La suppression d'une fiche supprime en cascade partages, annotations et validation (FK).
 
 ### Quiz
 
 - **Lecture/suppression** : propriétaire ou admin.
+- **Génération** : défaut BROUILLON (statut explicite `BROUILLON` ou `PUBLIE` accepté).
+- **Publication** (`POST /api/v1/quizzes/{id}/publish` ou équivalent) : réservée enseignant
+  (`ADMIN`/`ENSEIGNANT` au sens `UserContext.isAdmin()`) → `403` sinon. Idempotente si déjà
+  `PUBLIE`, `400` si statut inattendu (ni `BROUILLON` ni `PUBLIE`).
+- **Tentative** (`POST /api/v1/quizzes/{id}/attempts`) : `400` si quiz `BROUILLON`
+  (« Quiz non publié »). Code 400 volontaire (état, pas droits ; l'invisibilité `BROUILLON`
+  est assurée par `getById` owner/admin + filtre front).
 - **Partage** : propriétaire uniquement.
 - **Scope** : `DOCUMENT` (chunks d'un document), `SPACE` (tous les chunks de l'espace), `TOPIC` (thème libre → title requis).
 - **Scoring** : comparaison exacte (insensible à la casse) entre `answer` et `correct_answer`.

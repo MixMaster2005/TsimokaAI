@@ -64,6 +64,7 @@ export interface GenerateQuizRequest {
   documentIds?: string[];
   difficulty: QuizDifficulty;
   questionCount: number;
+  statut?: QuizStatut;
 }
 
 export interface SubmitQuizAttemptRequest {

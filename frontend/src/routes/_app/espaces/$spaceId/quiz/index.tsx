@@ -16,6 +16,7 @@ function QuizEspace() {
   const { spaceId } = useParams({ from: '/_app/espaces/$spaceId/quiz/' });
   const { data: quizzes } = useQuizzes(spaceId);
   const [modalOpen, setModalOpen] = useState(false);
+  const quizzesPublies = (quizzes ?? []).filter((q) => q.statut === 'PUBLIE');
 
   return (
     <div className="p-6">
@@ -24,14 +25,14 @@ function QuizEspace() {
         <Button onClick={() => setModalOpen(true)}>Générer un Quiz</Button>
       </div>
 
-      {quizzes?.length === 0 && (
+      {quizzesPublies.length === 0 && (
         <p className="text-sm text-encre-muted">
-          Aucun quiz généré pour l'instant dans cet espace.
+          Aucun quiz publié pour l'instant dans cet espace.
         </p>
       )}
 
       <div className="flex flex-col gap-3">
-        {quizzes?.map((quiz) => (
+        {quizzesPublies.map((quiz) => (
           <QuizCard key={quiz.id} quiz={quiz} spaceId={spaceId} basePath="/espaces/$spaceId" />
         ))}
       </div>

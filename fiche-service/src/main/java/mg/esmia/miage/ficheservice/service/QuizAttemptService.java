@@ -1,6 +1,7 @@
 package mg.esmia.miage.ficheservice.service;
 
 import lombok.RequiredArgsConstructor;
+import mg.esmia.miage.common.exception.BadRequestException;
 import mg.esmia.miage.common.events.EventChannels;
 import mg.esmia.miage.common.messaging.RedisEventPublisher;
 import mg.esmia.miage.ficheservice.dto.QuizAttemptResponse;
@@ -27,6 +28,9 @@ public class QuizAttemptService {
     @Transactional
     public QuizAttemptResponse submit(UUID quizId, UUID userId, SubmitQuizAttemptRequest request) {
         Quiz quiz = quizService.findOrThrow(quizId);
+        if (!"PUBLIE".equalsIgnoreCase(quiz.getStatut())) {
+            throw new BadRequestException("Quiz non publié");
+        }
 
         // Score la tentative
         String scoredAnswers = generationService.scoreAttempt(quiz.getContentJson(), request.answersJson());

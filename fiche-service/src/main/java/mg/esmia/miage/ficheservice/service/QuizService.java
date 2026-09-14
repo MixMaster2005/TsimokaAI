@@ -121,7 +121,7 @@ public class QuizService {
     @Transactional
     public QuizView publish(UUID id, UUID requesterId, boolean isAdmin) {
         Quiz quiz = findOrThrow(id);
-        assertOwnerOrAdmin(quiz, requesterId, isAdmin);
+        if (!isAdmin) throw new ForbiddenException("Publication réservée aux enseignants");
         if ("PUBLIE".equalsIgnoreCase(quiz.getStatut())) {
             return QuizDetailResponse.from(quiz);
         }
@@ -170,7 +170,7 @@ public class QuizService {
 
     private String normalizeStatut(String statut) {
         if (statut == null || statut.isBlank()) {
-            return "PUBLIE";
+            return "BROUILLON";
         }
         String upper = statut.trim().toUpperCase();
         if (!"BROUILLON".equals(upper) && !"PUBLIE".equals(upper)) {

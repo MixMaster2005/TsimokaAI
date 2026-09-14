@@ -22,7 +22,7 @@ public record GenerateQuizRequest(
         String difficulty,
         /** Nombre de questions (défaut: 10). */
         Integer questionCount,
-        /** BROUILLON ou PUBLIE (optionnel, défaut: PUBLIE). */
+        /** BROUILLON ou PUBLIE (optionnel, défaut: BROUILLON). */
         String statut
 ) {
 }
