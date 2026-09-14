@@ -134,9 +134,10 @@ class MarkItDownConverterTest(unittest.TestCase):
     def test_pdf_image_placeholder_a_la_fin(self):
         result = self._convert(make_image_pdf(), "chapitre.pdf")
         self.assertEqual(len(result["images"]), 1)
-        # Le nouveau pipeline produit un AST — les images sont dans result["images"]
-        # Le markdown peut contenir un placeholder ou non selon le renderer
+        # Contrat ImageUploadService (ingestion-service) : doubles accolades {{IMAGE:…}}.
         self.assertIn("Chapitre avec figure", result["markdown"])
+        self.assertIn("{{IMAGE:img_001}}", result["markdown"])
+        self.assertNotRegex(result["markdown"], r"(?<!\{)\{IMAGE:img_001\}(?!\})")
 
     def test_pdf_scan_transcrit_page_par_page(self):
         result = self._convert(make_image_pdf(scanned=True), "scan.pdf")

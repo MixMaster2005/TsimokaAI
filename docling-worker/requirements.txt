@@ -1,21 +1,21 @@
 # docling-worker — extraction de documents (conteneur spawné à la demande).
-# Versions non épinglées : accès PyPI non validé à la rédaction — installer avec
-# `pip install -r requirements.txt` au premier build de l'image.
+# Versions épinglées validées le 2026-09-14 (pip index disponible).
+# Installées/vérifiées localement : pydantic, markitdown, pypdf, xlrd, openai, pymupdf.
 
-fastapi
-uvicorn[standard]
-python-multipart
-pydantic>=2.0,<3.0
-markitdown[pdf,docx,pptx,xlsx]
-pypdf
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+python-multipart==0.0.32
+pydantic==2.13.5
+markitdown[pdf,docx,pptx,xlsx]==0.1.7
+pypdf==6.16.2
 # Format Excel hérité (.xls) : le convertisseur XlsConverter de MarkItDown dépend de xlrd
 # (non inclus dans l'extra [xlsx]).
-xlrd
+xlrd==2.0.1
 
-# Spec v2 — vision via l'API Gemini (OpenAI-compatible) au lieu de l'OCR local.
-openai
+# Spec v3 — vision via l'API Gemini (OpenAI-compatible) au lieu de l'OCR local.
+openai==3.6.0
 # Extraction des images embarquées (PDF via PyMuPDF, DOCX via python-docx, PPTX via python-pptx).
 # ⚠️ PyMuPDF est sous licence AGPL-3.0 : en cas de contrainte, remplacer par pdfplumber/pypdfium2.
-pymupdf
-python-docx
-python-pptx
+pymupdf==1.28.2
+python-docx==1.2.0
+python-pptx==1.0.2

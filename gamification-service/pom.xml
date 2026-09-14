@@ -14,7 +14,7 @@
     <name>gamification-service</name>
     <description>
         Objectifs de révision, badges, suivi hebdomadaire, rappels. Alimenté par
-        consommation de fiche.events (badges) et user.events (nettoyage). Service
+        consommation des 3 canaux fiche.events + space.events + user.events. Service
         générique -> implémentation COMPLETE fournie.
     </description>
 

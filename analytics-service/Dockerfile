@@ -6,7 +6,6 @@ WORKDIR /workspace
 
 COPY pom.xml .
 COPY common/pom.xml common/pom.xml
-COPY ai-common/pom.xml ai-common/pom.xml
 COPY api-gateway/pom.xml api-gateway/pom.xml
 COPY user-service/pom.xml user-service/pom.xml
 COPY space-service/pom.xml space-service/pom.xml

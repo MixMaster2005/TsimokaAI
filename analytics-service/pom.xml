@@ -13,10 +13,11 @@
     <packaging>jar</packaging>
     <name>analytics-service</name>
     <description>
-        Tableaux de bord, statistiques d'usage, recommandations. Alimenté exclusivement
-        par consommation des canaux chat.events et fiche.events (aucun accès direct aux
-        bases de chat-service ou fiche-service, cf. contrat). Service générique -> implémentation
-        COMPLETE fournie. NB : l'extraction de "notion" à partir du texte d'une question
+        Tableaux de bord, statistiques d'usage, recommandations. Alimenté par
+        consommation des 4 canaux chat.events + fiche.events + space.events +
+        user.events (aucun accès direct aux bases de chat-service ou fiche-service,
+        cf. contrat). Service générique -> implémentation COMPLETE fournie. NB :
+        l'extraction de "notion" à partir du texte d'une question
         (AnalyticsService#extractNotion) utilise une heuristique simple ; un raffinement par
         NLP/embeddings est un point d'amélioration possible mais non bloquant.
     </description>

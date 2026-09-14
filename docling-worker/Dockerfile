@@ -1,4 +1,4 @@
-# docling-worker — extraction de documents (spec v2 : vision Gemini pour figures + scan).
+# docling-worker — extraction de documents (spec v3 : vision Gemini pour figures + scan).
 # Conteneur spawné à la demande par ingestion-service (docker-java), PAS un service
 # permanent de docker-compose.yml. À construire manuellement une fois :
 #   docker build -t docling-worker:latest ./docling-worker

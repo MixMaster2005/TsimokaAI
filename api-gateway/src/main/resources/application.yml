@@ -22,7 +22,7 @@ spring:
             methods: GET
       routes:
 
-        # --- Auth publique : pas de vérification JWT ici (elle N'EXISTE PAS ENCORE) ---
+        # --- Auth publique : pas de vérification JWT ici ---
         - id: user-service-auth
           uri: ${USER_SERVICE_URL:http://localhost:8081}
           predicates:

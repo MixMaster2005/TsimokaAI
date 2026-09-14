@@ -19,7 +19,8 @@
         MinIO/Qdrant, publication d'événements) est fournie et fonctionnelle.
         L'extraction du texte est déléguée à un conteneur Python spawné à la demande
         (docling-worker, cf. service.docker.DockerWorkerClient). Le cœur métier IA — chunking
-        orienté sens (MarkdownChunkingService), génération d'embeddings, upsert Qdrant
+        orienté structure (StructureAwareChunker pour les PDF/AST, MarkdownFallbackChunker
+        pour les non-PDF), génération d'embeddings, upsert Qdrant
         (QdrantVectorService) — est implémenté et orchestré par IngestionPipelineService.
         =======================================================================================
     </description>
