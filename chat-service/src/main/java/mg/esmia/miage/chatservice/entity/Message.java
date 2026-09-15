@@ -57,6 +57,16 @@ public class Message {
     @Column(name = "model_used")
     private String modelUsed;
 
+    /**
+     * Version du persona de l'espace ayant généré cette réponse (traçabilité exacte
+     * persona par message, cf. space-service {@code Space.personaVersion}).
+     * Nullable : null = version inconnue (space-service injoignable ou message antérieur
+     * à la feature). Positionné uniquement sur les messages ASSISTANT ; les messages
+     * USER ne portent pas de sémantique de génération et restent à null.
+     */
+    @Column(name = "persona_version")
+    private Integer personaVersion;
+
     @Column(name = "token_count")
     private Integer tokenCount;
 

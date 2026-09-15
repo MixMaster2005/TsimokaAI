@@ -70,10 +70,13 @@ public class ChatService {
         userMessage = messageRepository.save(userMessage);
         publishMessageCreated(conversation, userMessage);
 
+        // Un seul appel space-service : texte + version résolus ensemble (traçabilité exacte).
+        // Le message USER reste à personaVersion null (pas de sémantique de génération).
+        ResolvedPersona resolved = resolvePersona(conversation);
         LlmOutcome outcome = chatLlmService.generate(conversation, request.content(),
-                resolvePersona(conversation));
+                resolved.systemPrompt());
 
-        Message assistantMessage = findOrPersistAssistant(conversation, outcome);
+        Message assistantMessage = findOrPersistAssistant(conversation, outcome, resolved.version());
         publishMessageCreated(conversation, assistantMessage);
 
         // Les blocs structurés ne sont pas stockés en BDD (re-parsés à l'affichage si besoin)
@@ -89,20 +92,35 @@ public class ChatService {
     }
 
     /**
-     * Persona pédagogique depuis space-service ; défaillance non bloquante (persona générique).
+     * Persona pédagogique depuis space-service (UN seul appel : texte + version) ;
+     * défaillance non bloquante (persona générique + version null).
      * Le template system.chat est préfixé pour garantir le formatage structuré des réponses.
      */
-    private String resolvePersona(Conversation conversation) {
+    private ResolvedPersona resolvePersona(Conversation conversation) {
         String template = readTemplate();
         try {
-            String persona = spaceClient.getAssistantPersona(conversation.getSpaceId(), conversation.getUserId());
-            String base = (persona == null || persona.isBlank()) ? FALLBACK_PERSONA : persona;
-            return template + "\n\n" + base;
+            mg.esmia.miage.chatservice.client.dto.SpaceResponse space =
+                    spaceClient.getSpace(conversation.getSpaceId(), conversation.getUserId());
+            if (space == null) {
+                log.warn("Persona indisponible (spaceId={}), bascule sur le persona générique (personaVersion=null)",
+                        conversation.getSpaceId());
+                return new ResolvedPersona(template + "\n\n" + FALLBACK_PERSONA, null);
+            }
+            String base = (space.assistantPersona() == null || space.assistantPersona().isBlank())
+                    ? FALLBACK_PERSONA : space.assistantPersona();
+            if (space.personaVersion() == null) {
+                log.warn("personaVersion absente (spaceId={}), traçabilité inconnue (null persisté)",
+                        conversation.getSpaceId());
+            }
+            return new ResolvedPersona(template + "\n\n" + base, space.personaVersion());
         } catch (Exception e) {
             log.warn("Persona indisponible (spaceId={}), bascule sur le persona générique", conversation.getSpaceId(), e);
-            return template + "\n\n" + FALLBACK_PERSONA;
+            return new ResolvedPersona(template + "\n\n" + FALLBACK_PERSONA, null);
         }
     }
+
+    /** Texte system résolu + version du persona ayant généré la réponse (null = inconnue). */
+    private record ResolvedPersona(String systemPrompt, Integer version) {}
 
     private String readTemplate() {
         try (var in = chatSystemTemplate.getInputStream()) {
@@ -116,16 +134,20 @@ public class ChatService {
     /**
      * M5 : Le message ASSISTANT est normalement déjà persisté par {@code MessageChatMemoryAdvisor.after()}
      * (via {@link JpaBackedChatMemory}, contenu identique) : on l'enrichit alors avec
-     * retrievedChunkIds + modelUsed. S'il n'existe pas (fallback circuit breaker, l'advisor n'a
-     * pas tourné), on le persiste ici-même.
+     * retrievedChunkIds + modelUsed + personaVersion. S'il n'existe pas (fallback circuit breaker,
+     * l'advisor n'a pas tourné), on le persiste ici-même.
+     *
+     * <p>Décision traçabilité : {@code personaVersion} n'est persisté que sur les messages
+     * ASSISTANT (version ayant généré la réponse). Les messages USER restent à null.
      */
-    private Message findOrPersistAssistant(Conversation conversation, LlmOutcome outcome) {
+    private Message findOrPersistAssistant(Conversation conversation, LlmOutcome outcome, Integer personaVersion) {
         // M5 : requête ciblée au lieu de charger tout l'historique
         return messageRepository.findLastAssistantByContent(conversation.getId(), outcome.content())
                 .map(existing -> {
                     existing.setRetrievedChunkIds(outcome.chunkIds());
                     existing.setModelUsed(outcome.modelUsed());
                     existing.setCitations(outcome.citations());
+                    existing.setPersonaVersion(personaVersion);
                     return messageRepository.save(existing);
                 })
                 .orElseGet(() -> {
@@ -136,6 +158,7 @@ public class ChatService {
                             .retrievedChunkIds(outcome.chunkIds())
                             .modelUsed(outcome.modelUsed())
                             .citations(outcome.citations())
+                            .personaVersion(personaVersion)
                             .build();
                     return messageRepository.save(assistantMessage);
                 });

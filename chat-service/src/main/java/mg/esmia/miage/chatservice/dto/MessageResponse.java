@@ -11,6 +11,7 @@ import java.util.UUID;
 public record MessageResponse(
         UUID id, UUID conversationId, Message.Role role, String content,
         List<UUID> retrievedChunkIds, List<Citation> citations, String modelUsed,
+        Integer personaVersion,
         List<StructuredContent.ContentBlock> blocks, Instant createdAt
 ) {
     public static MessageResponse from(Message m) {
@@ -21,6 +22,6 @@ public record MessageResponse(
         return new MessageResponse(m.getId(), m.getConversationId(), m.getRole(), m.getContent(),
                 List.of(m.getRetrievedChunkIds()),
                 m.getCitations() == null ? List.of() : m.getCitations(),
-                m.getModelUsed(), blocks, m.getCreatedAt());
+                m.getModelUsed(), m.getPersonaVersion(), blocks, m.getCreatedAt());
     }
 }

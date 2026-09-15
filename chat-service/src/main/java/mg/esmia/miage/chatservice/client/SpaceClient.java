@@ -35,9 +35,11 @@ public class SpaceClient {
     private String spaceServiceUrl;
 
     /**
-     * @return le persona de l'assistant pour cet espace, ou {@code null} si indisponible.
+     * @return l'espace (persona + version) pour cet espace, ou {@code null} si indisponible.
+     * Défaillance non bloquante : toute erreur retourne {@code null} (fallback persona
+     * générique + {@code personaVersion} null côté appelant).
      */
-    public String getAssistantPersona(UUID spaceId, UUID ownerUserId) {
+    public SpaceResponse getSpace(UUID spaceId, UUID ownerUserId) {
         try {
             ApiResponse<SpaceResponse> response = restClientBuilder.build()
                     .get()
@@ -51,11 +53,35 @@ public class SpaceClient {
                         spaceId, response == null ? "vide" : "success=false");
                 return null;
             }
-            return response.data().assistantPersona();
+            return response.data();
         } catch (Exception e) {
             log.warn("Appel à space-service échoué pour l'espace {} (persona générique utilisé) : {}",
                     spaceId, e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * @return le persona de l'assistant pour cet espace, ou {@code null} si indisponible.
+     */
+    public String getAssistantPersona(UUID spaceId, UUID ownerUserId) {
+        SpaceResponse space = getSpace(spaceId, ownerUserId);
+        return space == null ? null : space.assistantPersona();
+    }
+
+    /**
+     * @return la version courante du persona pour cet espace, ou {@code null} si
+     * indisponible (space-service injoignable, espace supprimé, ou version absente).
+     * Non bloquant : l'appelant persiste alors {@code null} (traçabilité inconnue).
+     */
+    public Integer getPersonaVersion(UUID spaceId, UUID ownerUserId) {
+        SpaceResponse space = getSpace(spaceId, ownerUserId);
+        if (space == null) {
+            return null;
+        }
+        if (space.personaVersion() == null) {
+            log.warn("personaVersion absente pour l'espace {} (fallback null, traçabilité inconnue)", spaceId);
+        }
+        return space.personaVersion();
     }
 }
