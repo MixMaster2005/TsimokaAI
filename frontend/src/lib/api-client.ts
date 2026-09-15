@@ -25,7 +25,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080
 
 let refreshPromise: Promise<string | null> | null = null;
 
-async function refreshAccessToken(): Promise<string | null> {
+/**
+ * Tente un refresh silencieux de l'access token (rotation du refresh token).
+ * Exporté pour les usages hors fetch() brut (ex. connexion SSE qui a besoin
+ * d'un token valide AVANT d'ouvrir son socket et ne passe pas par request()).
+ */
+export async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
 

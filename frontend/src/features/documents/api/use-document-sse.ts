@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 import { useQueryClient } from '@tanstack/react-query';
 import { getAccessToken } from '@/lib/auth-tokens';
+import { refreshAccessToken } from '@/lib/api-client';
 import { documentKeys, documentsKeys } from './keys';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
@@ -30,8 +31,11 @@ const activeConnections = new Map<string, { refCount: number; close: () => void 
  * qu'une seule connexion partagée (ref-counting).
  *
  * Gère :
- *  - Refresh du token à chaque reconnexion (le token est lu à chaque tentative,
- *    pas capturé dans une closure figée)
+ *  - Token garanti avant connexion : refresh silencieux si l'access token
+ *    (mémoire, vidé au F5) est absent — sans quoi la connexion serait
+ *    abandonnée et le statut des documents resterait figé jusqu'au refresh page
+ *  - Refresh + reconnexion sur 401 à l'ouverture (token expiré entre-temps)
+ *  - Retry avec backoff (3s → 10s → 30s) au lieu d'abandon définitif
  *  - Reconnexion automatique après fermeture explicite du serveur (timeout 30min)
  *  - Nettoyage automatique au démontage du dernier consommateur
  */
@@ -59,16 +63,38 @@ export function useDocumentSse(spaceId: string | null) {
     const controller = new AbortController();
     abortRef.current = controller;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let retryCount = 0;
+    const RETRY_DELAYS = [3000, 10000, 30000];
 
-    function invalidateCache() {
-      queryClient.invalidateQueries({ queryKey: documentsKeys.bySpace(spaceId) });
+    function scheduleReconnect() {
+      if (controller.signal.aborted) return;
+      const delay = RETRY_DELAYS[Math.min(retryCount, RETRY_DELAYS.length - 1)];
+      retryCount++;
+      reconnectTimeout = setTimeout(() => {
+        if (!controller.signal.aborted) {
+          connect();
+        }
+      }, delay);
+    }
+
+    /** Token garanti : lecture fraîche, sinon refresh silencieux (cas du F5). */
+    async function ensureToken(): Promise<string | null> {
+      const token = getAccessToken();
+      if (token) return token;
+      try {
+        return await refreshAccessToken();
+      } catch {
+        return null;
+      }
     }
 
     async function connect() {
-      // Lecture fraîche du token à chaque tentative de connexion/reconnexion
-      const token = getAccessToken();
+      const token = await ensureToken();
       if (!token) {
-        console.warn(`[SSE] No access token for space ${spaceId}, will retry on next mount`);
+        // Pas de session (ou refresh échoué) : on réessaie en backoff plutôt
+        // que d'abandonner — la session peut arriver après (login différé).
+        console.warn(`[SSE] No access token for space ${spaceId}, retry scheduled`);
+        scheduleReconnect();
         return;
       }
 
@@ -82,9 +108,19 @@ export function useDocumentSse(spaceId: string | null) {
             openWhenHidden: true,
 
             async onopen(response) {
+              if (response.status === 401) {
+                // Token expiré entre le montage et l'ouverture : refresh + retry.
+                const fresh = await refreshAccessToken();
+                if (fresh && !controller.signal.aborted) {
+                  throw new Error('SSE 401, token refreshed — retry');
+                }
+                throw new Error(`SSE connection failed: ${response.status}`);
+              }
               if (!response.ok) {
                 throw new Error(`SSE connection failed: ${response.status}`);
               }
+              // Connexion établie : reset du backoff.
+              retryCount = 0;
             },
 
             onmessage(msg) {
@@ -108,21 +144,17 @@ export function useDocumentSse(spaceId: string | null) {
                 return;
               }
               // fetch-event-source retry automatiquement avec un delay fixe.
-              // En cas d'erreur fatale (4xx non-429), la promise rejette.
+              // En cas d'erreur fatale (4xx non-429 dont 401 post-refresh),
+              // la promise rejette et on bascule sur le backoff manuel.
               console.warn('[SSE] Error, will retry:', err);
             },
 
             onclose() {
-              // Le serveur a fermé explicitement (timeout 30min ou restart).
-              // fetch-event-source NE retry PAS sur close explicite —
-              // on relance manuellement avec un token frais après un court délai.
-              if (!controller.signal.aborted) {
-                reconnectTimeout = setTimeout(() => {
-                  if (!controller.signal.aborted) {
-                    connect();
-                  }
-                }, 3000);
-              }
+              // Le serveur a fermé explicitement (timeout 30min ou restart),
+              // ou une erreur fatale a rejeté la promise : fetch-event-source
+              // NE retry PAS sur close explicite — on relance manuellement
+              // en backoff, avec un token frais.
+              scheduleReconnect();
             },
           },
         );
@@ -131,6 +163,7 @@ export function useDocumentSse(spaceId: string | null) {
           return; // Nettoyage normal au démontage
         }
         console.error('[SSE] Connection failed:', err);
+        scheduleReconnect();
       }
     }
 
