@@ -11,5 +11,5 @@ export const Route = createFileRoute('/enseignant/espaces/$spaceId/chat')({
 
 function ChatEnseignant() {
   const { spaceId } = useParams({ from: '/enseignant/espaces/$spaceId/chat' });
-  return <ChatPage spaceId={spaceId} mode="enseignant" />;
+  return <ChatPage spaceId={spaceId} showSpaceBar mode="enseignant" />;
 }

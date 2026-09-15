@@ -8,9 +8,11 @@ import { useSendMessage } from '../api/use-send-message';
 interface ChatThreadProps {
   conversationId: string;
   spaceId: string;
+  /** Mode enseignant : pastille persona discrète sur les messages assistant. */
+  showPersonaInfo?: boolean;
 }
 
-export function ChatThread({ conversationId, spaceId }: ChatThreadProps) {
+export function ChatThread({ conversationId, spaceId, showPersonaInfo = false }: ChatThreadProps) {
   const { data: messages, isLoading } = useMessages(conversationId);
   const sendMessage = useSendMessage(conversationId, spaceId);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -29,6 +31,8 @@ export function ChatThread({ conversationId, spaceId }: ChatThreadProps) {
             message={message}
             // N'anime que le tout dernier message si on vient de l'envoyer (mutation pas encore "settled")
             animate={i === messages.length - 1 && sendMessage.isPending === false && sendMessage.isSuccess}
+            showPersonaInfo={showPersonaInfo}
+            spaceId={spaceId}
           />
         ))}
         <div ref={bottomRef} />

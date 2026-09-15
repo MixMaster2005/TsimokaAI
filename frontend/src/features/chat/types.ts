@@ -46,6 +46,8 @@ export interface Message {
   retrievedChunkIds: string[];
   citations?: Citation[];
   modelUsed: string | null;
+  /** Version du persona ayant généré la réponse (assistant uniquement, null = ancien message ou fallback). */
+  personaVersion?: number | null;
   /** Blocs structurés parsés côté backend (null pour les anciens messages) */
   blocks?: ContentBlock[];
   createdAt: string;

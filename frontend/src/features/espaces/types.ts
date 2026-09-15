@@ -50,4 +50,6 @@ export interface UpdateSpacePayload {
   name?: string;
   description?: string;
   subjectTag?: string;
+  /** Édition manuelle du persona (back : PUT /spaces/{id}, owner/admin, version++). */
+  assistantPersona?: string;
 }
