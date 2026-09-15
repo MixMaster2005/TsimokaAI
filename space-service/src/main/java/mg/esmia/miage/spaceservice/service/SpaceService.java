@@ -185,6 +185,16 @@ public class SpaceService {
         space.setName(request.name());
         space.setDescription(request.description());
         space.setSubjectTag(request.subjectTag());
+        // Édition manuelle libre du persona (V2) : null = inchangé, sinon bump version + horodatage.
+        if (request.assistantPersona() != null) {
+            String next = request.assistantPersona().strip();
+            String current = space.getAssistantPersona() == null ? null : space.getAssistantPersona().strip();
+            if (!next.equals(current)) {
+                space.setAssistantPersona(next);
+                space.setPersonaVersion(space.getPersonaVersion() == null ? 1 : space.getPersonaVersion() + 1);
+                space.setPersonaUpdatedAt(Instant.now());
+            }
+        }
         return SpaceResponse.from(spaceRepository.save(space), requesterId);
     }
 
