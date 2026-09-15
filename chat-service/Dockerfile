@@ -11,6 +11,7 @@ COPY api-gateway/pom.xml api-gateway/pom.xml
 COPY user-service/pom.xml user-service/pom.xml
 COPY space-service/pom.xml space-service/pom.xml
 COPY ingestion-service/pom.xml ingestion-service/pom.xml
+COPY chat-service/pom.xml chat-service/pom.xml
 COPY fiche-service/pom.xml fiche-service/pom.xml
 COPY analytics-service/pom.xml analytics-service/pom.xml
 COPY gamification-service/pom.xml gamification-service/pom.xml
