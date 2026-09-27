@@ -209,9 +209,10 @@ canal historique `quiz.events` est **supprimé du câblage**. Les consommateurs
 - Versions de dépendances validées par de vraies builds (`mvn clean package` de
   `common`, `ai-common`, `chat-service`, `space-service`, `fiche-service` avec leurs modules
   amont) — build globale à rejouer après toute évolution.
-- `extractNotion()` dans `analytics-service` est une heuristique lexicale simple (premier
-  mot significatif hors mots vides), pas une extraction sémantique — suffisante pour
-  peupler les tableaux de bord dès le départ, améliorable par la suite.
+- `extractNotion()` dans `analytics-service` (Lot 1) : heuristique lexicale améliorée
+  (jusqu'à 2 mots significatifs hors mots vides, 60 car. max) avec repli `notionKey()`
+  sur la question normalisée tronquée pour éviter la clé fourre-tout « général ».
+  Raffinement sémantique (embeddings / heading RAG) repoussé au Lot 4.
 - `FicheEvent.validated()` **enrichi** : `validated(ficheId, spaceId, userId,
   enseignantId, statut)` publié par `ValidationService` avec `spaceId`/`userId` réels
   lus depuis la fiche (**publish-after-commit**, envoi immédiat hors transaction) ;
@@ -223,10 +224,12 @@ canal historique `quiz.events` est **supprimé du câblage**. Les consommateurs
   dans la table `student_stats` mais redondants : ils peuvent être recalculés à partir des
   événements `DOCUMENT_VIEWED` et `MESSAGE_CREATED`. Cette double écriture est un risque
   d'incohérence si un compteur manque un événement.
-- `taux_reussite` / `notions_maitrisees` / `notions_faibles` **calculés** : recalculés via
-  `refreshProgressionMetrics()` après chaque événement (et avant le dashboard étudiant),
-  pas stockés à la main (`taux = min(1, nb_fiches / nb_questions)`, `faibles` = notions
-  à `nb_questions >= 3`).
+- `taux_reussite` / `notions_maitrisees` / `notions_faibles` **calculés** (Lot 1) :
+  recalculés via `refreshProgressionMetrics()` après chaque événement (et avant le
+  dashboard étudiant). `taux` = `meilleurScore/100` si quiz passés, sinon repli
+  `min(1, nb_fiches / nb_questions)` ; `faibles`/`maitrisees` = compteurs personnels
+  `statistique_notion_user` (seuil `nb_questions >= 3`), l'agrégat global
+  `statistique_espace` restant réservé au dashboard enseignant.
 - **TTL cache MAP câblé** : `FicheMapCacheService` lit `@Value fiche.map-cache-ttl-hours`
   (entrée `application.yml` `FICHE_MAP_CACHE_TTL_HOURS:24`, clé
   `fiche:map:{spaceId}:{documentId}`, invalidation `DOCUMENT_READY` / `SPACE_DELETED`).
@@ -236,21 +239,32 @@ canal historique `quiz.events` est **supprimé du câblage**. Les consommateurs
 - **Publish-after-commit** : `ValidationService`, `QuizAttemptService`,
   `QuizCorrectionService` diffèrent l'envoi Redis après le commit (sinon un rollback DB
   laisserait un événement fantôme).
-- **Idempotence à durcir (at-least-once Redis)** : dispatch `JsonNode` tolérant + garde-fous
-  `UNIQUE` (`existsByUserIdAndBadgeId`, `UNIQUE(user_id, space_id)`, upserts) ; compteurs
-  rejoués en cas de redélivrance. TODO commentés : déduplication Set Redis clé
-  `messageId` (`analytics:dedup:message:<messageId>`), `ficheId`
-  (`analytics:dedup:fiche:<ficheId>` / `gamification:dedup:fiche:<ficheId>`),
-  `attemptId` (`analytics:dedup:attempt:<attemptId>`, SETNX + TTL).
-- Les types de recommandation `REVISION_NOTION_FAIBLE` et `RELANCE_INACTIVITE` dans
-  `analytics-service` sont définis dans l'énumération `RecommendationType` mais jamais
-  générés par `RecommendationService` — ils constituent un squelette pour une future
-  extension.
+- **Idempotence Redis (Lot 3)** : `EventDedupService` (analytics + gamification,
+  SETNX + TTL 7 j, fail-open si Redis indisponible) sur identifiants stables —
+  `analytics:dedup:message:<messageId>` (MESSAGE_CREATED), `analytics:dedup:fiche:`
+  / `gamification:dedup:fiche:<ficheId>` (FICHE_GENERATED),
+  `analytics:dedup:attempt:<attemptId>` (QUIZ_SUBMITTED, `attemptId` joint par
+  `QuizAttemptService.submit` via la surcharge `QuizEvent.submitted()` ; null pour
+  les événements historiques → traitement convergent sans déduplication).
+  QUIZ_CORRECTED reste convergent par construction + anti-doublon reco 24 h.
+- Recommandations (Lot 1) : les 3 types sont générés — `CHAPITRE_DIFFICILE` (questions
+  répétées sur une notion, seuil 3, anti-doublon 24 h), `REVISION_NOTION_FAIBLE`
+  (scores quiz < 50 % répétés, anti-doublon 24 h), `RELANCE_INACTIVITE` (scheduler
+  quotidien `@Scheduled` 08:00 UTC, inactivité > 7 j, anti-doublon 7 j). Colonnes
+  `contenu_hash` (SHA-256) + `lue_le` (PATCH `/api/v1/recommandations/{id}/lue`),
+  purge hebdo > 30 j. Correction globale `addQuizCorrection` sans score : aucun event ;
+  avec score : un `QUIZ_CORRECTED` ventilé par auteur de tentative.
 - ~~Bug de nettoyage des rappels dans `gamification-service`~~ — **corrigé** (les anciens
   rappels expirés n'étaient pas purgés, causant une croissance indéfinie de la table).
 - ~~Bug de configuration actuator dans `api-gateway`~~ — **corrigé** (les endpoints
   actuator n'étaient pas exposés correctement via la gateway réactive).
 - `tokenCount` dans `Chunk` et `Message` est `NULL` (V1) — pas de tokenizer intégré.
   V2 : tokenizer réel selon le modèle cible si besoin de limites de contexte précises.
+- Évolution 12 semaines (Lot 3) : table `activite_journaliere`
+  (`UNIQUE(user_id, space_id, jour)`, touchée par chaque événement) — étudiants
+  DISTINCTS actifs par semaine calendaire ; repli sur l'ancienne heuristique
+  `derniereActivite` quand le journal est vide (données pré-migration).
+- Dashboard transverse (Lot 3) : `GET /api/v1/dashboard/student/all` (1 requête au lieu
+  de N, `useTauxParEspace` côté front ; route déjà couverte par `/api/v1/dashboard/**`).
 - **File de jobs** (ex. Redis + `@Scheduled` sweeper) : à intégrer pour borner la concurrence
   d'ingestion de manière plus robuste que le pool de threads actuel — à prévoir en V2.
