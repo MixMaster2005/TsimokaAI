@@ -266,13 +266,22 @@ function Objectifs() {
             <h2 className="font-display text-sm font-semibold text-encre">Suivi hebdomadaire</h2>
           </div>
           {weeklyTracking ? (
-            <div className="flex items-center justify-between text-xs">
-              <span>Semaine : {weeklyTracking.semaine}</span>
-              <span className="font-mono">{weeklyTracking.nbObjectifsAtteints} atteint(s)</span>
+            <div className="flex flex-col gap-1 text-xs">
+              <div className="flex items-center justify-between">
+                <span>Semaine du {new Date(`${weeklyTracking.semaine}T12:00:00.000Z`).toLocaleDateString('fr-FR')}</span>
+                <span className="font-mono">{weeklyTracking.nbObjectifsAtteints} objectif(s) atteint(s)</span>
+              </div>
+              <div className="flex items-center justify-between text-encre-muted">
+                <span>{weeklyTracking.nbFichesGenerees} fiche(s) générée(s)</span>
+                <span className="font-mono tabular-nums">
+                  {Math.round(weeklyTracking.tauxProgression * 100)} % · {weeklyTracking.joursActifs} jour(s) actif(s)
+                </span>
+              </div>
             </div>
           ) : (
             <p className="text-xs text-encre-muted">
-              Le récapitulatif hebdomadaire et le taux de complétion régulier seront calculés automatiquement dans une prochaine mise à jour.
+              Aucune activité cette semaine pour cet espace — atteins un objectif ou génère une fiche pour démarrer
+              ton suivi.
             </p>
           )}
         </div>

@@ -1,9 +1,11 @@
 /**
  * Calqué sur analytics-service/dto/{StudentDashboardResponse,RecommandationResponse}.java
- * ⚠️ Le contrat de design (page Notion) mentionne des types de recommandation
- * NOTION_A_REVOIR / CHAPITRE_A_RETRAVAILLER / CONSEIL_PERSONNALISE qui
- * n'existent PAS côté back. L'enum réel : REVISION_NOTION_FAIBLE /
- * CHAPITRE_DIFFICILE / RELANCE_INACTIVITE. À corriger dans Notion.
+ * (Lot 1 : les 3 types sont désormais tous générés côté back).
+ *
+ * Sémantique des types :
+ * - CHAPITRE_DIFFICILE : questions répétées sur une même notion (>= 3).
+ * - REVISION_NOTION_FAIBLE : échecs répétés aux quiz (< 50 % répété).
+ * - RELANCE_INACTIVITE : aucune activité depuis plus de 7 jours (scheduler quotidien).
  */
 export type TypeRecommandation = 'REVISION_NOTION_FAIBLE' | 'CHAPITRE_DIFFICILE' | 'RELANCE_INACTIVITE';
 
@@ -12,6 +14,7 @@ export interface Recommandation {
   type: TypeRecommandation;
   contenu: string;
   genereLe: string;
+  lueLe: string | null;
 }
 
 export interface StudentDashboard {

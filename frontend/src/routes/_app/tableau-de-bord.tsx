@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEspaces } from '@/features/espaces/api/use-espaces';
 import {
-  useAllTauxReussite,
+  useTauxParEspace,
   useStudentDashboard,
 } from '@/features/dashboard/api/use-student-dashboard';
 import { useSessionHistory } from '@/features/dashboard/api/use-session-history';
@@ -20,8 +20,8 @@ function TableauDeBord() {
   const activeSpaceId = spaceId ?? espaces?.[0]?.id ?? null;
 
   const { data: dashboard, isLoading: dashboardLoading, isError: dashboardError, refetch } = useStudentDashboard(activeSpaceId ?? '');
-  const { data: sessionHistory } = useSessionHistory(activeSpaceId);
-  const tauxParMatiere = useAllTauxReussite(espaces);
+  const { data: sessionHistory, isLoading: sessionsLoading } = useSessionHistory(activeSpaceId);
+  const { taux: tauxParMatiere } = useTauxParEspace(espaces);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -140,13 +140,12 @@ function TableauDeBord() {
           <div className="rounded-fiche border border-papier-border bg-papier-carte p-5 lg:col-span-2">
             <h3 className="mb-3 font-display text-sm font-semibold text-encre">Taux de réussite par matière</h3>
             <div className="flex flex-col gap-2">
-              {tauxParMatiere.map((q) => {
-                if (!q.data) return null;
-                const percent = Math.round(q.data.tauxReussite * 100);
+              {tauxParMatiere.map((t) => {
+                const percent = Math.round(t.tauxReussite * 100);
                 const isWeak = percent < 50;
                 return (
-                  <div key={q.data.space.id} className="flex items-center gap-3 text-sm">
-                    <span className="w-32 flex-none truncate text-encre">{q.data.space.name}</span>
+                  <div key={t.spaceId} className="flex items-center gap-3 text-sm">
+                    <span className="w-32 flex-none truncate text-encre">{t.spaceName}</span>
                     <div className="h-1.5 flex-1 rounded-full bg-papier-bg">
                       <div
                         className={`h-full rounded-full ${isWeak ? 'bg-attention' : 'bg-encre'}`}
@@ -170,20 +169,31 @@ function TableauDeBord() {
             <div className="mb-3 flex items-center justify-between">
               <h3 className="font-display text-sm font-semibold text-encre">Historique des sessions de révision</h3>
             </div>
-            {sessionHistory && sessionHistory.length > 0 ? (
+            {sessionsLoading ? (
+              <p className="text-xs text-encre-muted">Chargement de l'historique…</p>
+            ) : sessionHistory && sessionHistory.length > 0 ? (
               <div className="flex flex-col gap-2">
                 {sessionHistory.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between text-sm">
-                    <span>{s.titre}</span>
-                    <span className="font-mono text-xs tabular-nums text-encre-muted">
-                      {s.dureeMinutes} min · {new Date(s.dateSession).toLocaleDateString('fr-FR')}
+                  <div key={s.id} className="flex items-center justify-between gap-3 text-sm">
+                    <span className="min-w-0 flex-1">
+                      {s.titre}
+                      <span className="block font-mono text-[0.65rem] text-encre-muted">
+                        {s.nbFichesRevisees} fiche(s) · {s.nbQuiz} quiz · {s.nbConversations} échange(s)
+                      </span>
+                    </span>
+                    <span
+                      className="flex-none font-mono text-xs tabular-nums text-encre-muted"
+                      title="Durée estimée (5 min/fiche, 10 min/quiz, 3 min/échange)"
+                    >
+                      ~{s.dureeMinutes} min · {new Date(s.dateSession).toLocaleDateString('fr-FR')}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
               <p className="text-xs text-encre-muted">
-                Le journal détaillé des sessions d'entraînement sera synchronisé automatiquement dans une prochaine mise à jour.
+                Aucune session pour cet espace pour l'instant — génère une fiche, passe un quiz ou pose une question
+                pour démarrer ton historique.
               </p>
             )}
           </div>

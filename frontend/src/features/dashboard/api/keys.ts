@@ -1,5 +1,6 @@
 export const dashboardKeys = {
   student: (spaceId: string) => ['dashboard', 'student', spaceId] as const,
+  studentAll: () => ['dashboard', 'student', 'all'] as const,
   teacher: (spaceId: string) => ['dashboard', 'teacher', spaceId] as const,
 };
 

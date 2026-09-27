@@ -2,16 +2,18 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 
 import { apiClient, ApiError } from '@/lib/api-client';
 
+/** Calqué sur gamification-service/dto/WeeklyTrackingResponse.java. */
 export interface WeeklyTracking {
   semaine: string;
   nbObjectifsAtteints: number;
-  tauxProgression: number;
+  nbFichesGenerees: number;
+  tauxProgression: number; // 0.0 - 1.0
   joursActifs: number;
 }
 
 export const weeklyTrackingQueryOptions = (spaceId?: string | null) =>
   queryOptions({
-    queryKey: ['objectifs', 'weekly', spaceId],
+    queryKey: ['objectifs', 'weekly', 'v1', spaceId],
     queryFn: async () => {
       if (!spaceId) return null;
       try {
@@ -27,8 +29,9 @@ export const weeklyTrackingQueryOptions = (spaceId?: string | null) =>
   });
 
 /**
- * TODO (Backend) : GET /api/v1/objectifs/weekly non encore implémenté côté gamification-service.
- * En attendant, ce hook tente l'appel et retourne gracieusement null en cas de 404.
+ * Récapitulatif hebdomadaire (Lot 2) : GET /api/v1/objectifs/weekly servi par
+ * gamification-service depuis suivi_hebdomadaire (zéros si aucune activité,
+ * jamais 404). Le repli null ne sert qu'aux backends antérieurs au Lot 2.
  */
 export function useWeeklyTracking(spaceId?: string | null) {
   return useQuery(weeklyTrackingQueryOptions(spaceId));
