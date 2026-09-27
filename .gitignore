@@ -105,3 +105,14 @@ Desktop.ini
 *.swp
 *.swo
 opencode.json
+
+# ----------------------------------------------------------------------------
+# Agent skills locales (opencode) — non versionnées, comme opencode.json
+# ----------------------------------------------------------------------------
+.agents/
+skills-lock.json
+
+# ----------------------------------------------------------------------------
+# Frontend — projet sous npm (package-lock.json versionné), pas de lock pnpm
+# ----------------------------------------------------------------------------
+frontend/pnpm-lock.yaml
