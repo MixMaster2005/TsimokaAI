@@ -91,7 +91,7 @@ export function ChatPage({ spaceId, showSpaceBar = false, mode = 'etudiant' }: C
           </div>
         )}
         {showSpaceBar && (
-          <div className="flex items-center justify-between border-b border-papier-border bg-papier-carte/30 px-6 py-2 text-xs">
+          <div className="flex items-center justify-between border-b border-papier-border bg-papier-bg px-6 py-2 text-xs">
             <div className="flex min-w-0 items-center gap-2">
               <span className="truncate font-medium text-encre">{space?.name ?? 'Espace'}</span>
               {space?.subjectTag && (
@@ -106,7 +106,7 @@ export function ChatPage({ spaceId, showSpaceBar = false, mode = 'etudiant' }: C
               )}
             </div>
             {space?.assistantPersona && (
-              <p className="hidden max-w-md truncate text-[0.72rem] text-encre-muted sm:block" title={space.assistantPersona}>
+              <p className="hidden max-w-md truncate text-[0.72rem] text-background sm:block" title={space.assistantPersona}>
                 🧠 {space.assistantPersona}
               </p>
             )}
@@ -180,7 +180,11 @@ function ConversationRail({
   const { state } = useSidebar();
 
   return (
-    <Sidebar side="right" collapsible="icon">
+    <Sidebar
+      side="right"
+      collapsible="icon"
+      className="border-papier-border bg-papier-bg text-encre [--sidebar:var(--papier-bg)] [--sidebar-accent:var(--papier-carte)] [--sidebar-accent-foreground:var(--encre)] [--sidebar-border:var(--papier-border)] [--sidebar-foreground:var(--encre)] [&_[data-slot=sidebar-inner]]:border-papier-border [&_[data-slot=sidebar-inner]]:bg-papier-bg [&_[data-slot=sidebar-inner]]:text-encre"
+    >
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
