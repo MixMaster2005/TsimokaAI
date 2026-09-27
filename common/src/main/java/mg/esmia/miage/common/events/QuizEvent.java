@@ -12,8 +12,10 @@ import java.time.Instant;
  * {@code event} (désérialisation Jackson tolérante) et ignorent les types
  * inconnus. Les champs {@code null} varient selon le type :
  * <ul>
- *   <li>QUIZ_SUBMITTED : {@code attemptId}/{@code userIdEtu}/{@code enseignantId}/
- *   {@code scoreCorrige} à null ; {@code userId} = auteur de la tentative.</li>
+ *   <li>QUIZ_SUBMITTED : {@code userIdEtu}/{@code enseignantId}/
+ *   {@code scoreCorrige} à null ; {@code userId} = auteur de la tentative ;
+ *   {@code attemptId} = identifiant stable de la tentative (dédup Lot 3,
+ *   null pour les événements historiques).</li>
  *   <li>QUIZ_CORRECTED : {@code userId} null, {@code userIdEtu} = auteur de la
  *   tentative corrigée ; {@code scoreCorrige} prioritaire.</li>
  * </ul>
@@ -35,7 +37,15 @@ public record QuizEvent(
     public static final String QUIZ_CORRECTED = "QUIZ_CORRECTED";
 
     public static QuizEvent submitted(String quizId, String spaceId, String userId, int score, int total) {
-        return new QuizEvent(QUIZ_SUBMITTED, quizId, null, spaceId, userId, null, null, score, total, null, Instant.now());
+        return submitted(quizId, null, spaceId, userId, score, total);
+    }
+
+    /**
+     * Soumission avec identifiant stable de tentative (Lot 3 : déduplication
+     * {@code analytics:dedup:attempt:<attemptId>} côté consommateurs).
+     */
+    public static QuizEvent submitted(String quizId, String attemptId, String spaceId, String userId, int score, int total) {
+        return new QuizEvent(QUIZ_SUBMITTED, quizId, attemptId, spaceId, userId, null, null, score, total, null, Instant.now());
     }
 
     public static QuizEvent corrected(String quizId, String attemptId, String userIdEtu, String spaceId, String enseignantId, Integer scoreCorrige, Integer total) {

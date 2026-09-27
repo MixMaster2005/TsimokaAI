@@ -53,8 +53,9 @@ public class QuizAttemptService {
         // Consommé par analytics-service (progression) et gamification-service (badges).
         // Publish-after-commit : différé après le commit pour éviter un événement
         // fantôme en cas de rollback ; envoi immédiat hors transaction (tests).
-        QuizEvent event = QuizEvent.submitted(quizId.toString(), quiz.getSpaceId().toString(),
-                userId.toString(), attempt.getScore(), attempt.getTotalQuestions());
+        // attemptId joint (Lot 3) : identifiant stable pour la déduplication consommateur.
+        QuizEvent event = QuizEvent.submitted(quizId.toString(), attempt.getId().toString(),
+                quiz.getSpaceId().toString(), userId.toString(), attempt.getScore(), attempt.getTotalQuestions());
         publishAfterCommit(EventChannels.FICHE_EVENTS, event);
 
         return QuizAttemptResponse.from(attempt);

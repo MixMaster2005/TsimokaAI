@@ -1,6 +1,7 @@
 package mg.esmia.miage.ficheservice.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import mg.esmia.miage.common.events.EventChannels;
 import mg.esmia.miage.common.exception.ForbiddenException;
 import mg.esmia.miage.common.exception.ResourceNotFoundException;
@@ -23,6 +24,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class QuizCorrectionService {
 
     private final QuizCorrectionRepository correctionRepository;
@@ -43,12 +45,32 @@ public class QuizCorrectionService {
                 .scoreCorrige(req == null ? null : req.scoreCorrige())
                 .build());
 
-        // Publish-after-commit : voir QuizAttemptService (évite l'événement fantôme
-        // en cas de rollback ; envoi immédiat hors transaction).
-        publishAfterCommit(EventChannels.FICHE_EVENTS,
-                QuizEvent.corrected(quizId.toString(), null, null,
-                        quiz.getSpaceId().toString(), enseignantId.toString(),
-                        req == null ? null : req.scoreCorrige(), quiz.getQuestionCount()));
+        // Lot 1 : une correction globale SANS score n'a aucun impact métrique — ne pas
+        // publier de QUIZ_CORRECTED vide (userId/score nulls) que les consommateurs
+        // ignorent avec un warn. Une correction globale AVEC score est ventilée à
+        // chaque étudiant ayant tenté le quiz (un event par userIdEtu).
+        Integer scoreCorrige = req == null ? null : req.scoreCorrige();
+        if (scoreCorrige == null) {
+            log.info("Correction globale sans score sur quiz {} : aucun event QUIZ_CORRECTED publié.", quizId);
+            return QuizCorrectionResponse.from(correction);
+        }
+        List<UUID> auteurs = attemptRepository.findByQuizIdOrderByAttemptedAtDesc(quizId).stream()
+                .map(QuizAttempt::getUserId)
+                .filter(u -> u != null)
+                .distinct()
+                .toList();
+        if (auteurs.isEmpty()) {
+            log.warn("Correction globale avec score sur quiz {} sans tentative : aucun event publié.", quizId);
+            return QuizCorrectionResponse.from(correction);
+        }
+        for (UUID auteur : auteurs) {
+            publishAfterCommit(EventChannels.FICHE_EVENTS,
+                    QuizEvent.corrected(quizId.toString(), null, auteur.toString(),
+                            quiz.getSpaceId().toString(), enseignantId.toString(),
+                            scoreCorrige, quiz.getQuestionCount()));
+        }
+        log.info("Correction globale avec score sur quiz {} : {} event(s) QUIZ_CORRECTED ventilé(s).",
+                quizId, auteurs.size());
 
         return QuizCorrectionResponse.from(correction);
     }
