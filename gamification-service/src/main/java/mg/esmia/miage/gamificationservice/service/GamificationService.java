@@ -32,19 +32,21 @@ public class GamificationService {
     private final BadgeObtenuRepository badgeObtenuRepository;
     private final ObjectifRevisionRepository objectifRepository;
     private final RappelRepository rappelRepository;
+    private final EventDedupService dedupService;
 
     /**
-     * Idempotence : suivi hebdo verrouillé par UNIQUE(user_id, space_id, semaine_debut)
-     * (getOrCreate) ; attribution des badges verrouillée par
-     * {@code existsByUserIdAndBadgeId} + UNIQUE(user_id, badge_id) — une redélivrance
-     * de FICHE_GENERATED ne duplique aucun badge. Le compteur hebdo nbFichesGenerees
-     * est rejoué (+1) en cas de redélivrance (at-least-once).
-     * TODO : déduplication via Set Redis clé ficheId
-     * ({@code "gamification:dedup:fiche:<ficheId>"}, SETNX + TTL) pour rendre
-     * l'incrément hebdo strictement idempotent.
+     * Idempotence stricte (Lot 3) : déduplication Redis SETNX+TTL sur {@code ficheId}
+     * (clé {@code gamification:dedup:fiche:<ficheId>}) — une redélivrance de
+     * FICHE_GENERATED n'incrémente plus le compteur hebdo. Sans ficheId (contrat
+     * historique), badges idempotents via UNIQUE mais compteur rejoué (at-least-once).
      */
     @Transactional
-    public void onFicheGenerated(UUID userId, UUID spaceId) {
+    public void onFicheGenerated(UUID userId, UUID spaceId, String ficheId) {
+        if (ficheId != null && !ficheId.isBlank()
+                && !dedupService.tryMarkProcessed("gamification:dedup:fiche:" + ficheId)) {
+            log.info("FICHE_GENERATED déjà traité ignoré (ficheId={}).", ficheId);
+            return;
+        }
         SuiviHebdomadaire suivi = getOrCreateSuiviCourant(userId, spaceId);
         suivi.setNbFichesGenerees(suivi.getNbFichesGenerees() + 1);
         suiviRepository.save(suivi);
@@ -56,6 +58,15 @@ public class GamificationService {
         if (totalFiches >= 5) {
             awardBadgeIfAbsent(userId, BadgeCode.CINQ_FICHES);
         }
+    }
+
+    /**
+     * Surcharge historique sans identifiant stable : conservée pour compatibilité,
+     * traite sans déduplication (badges idempotents, compteur rejoué si redélivrance).
+     */
+    @Transactional
+    public void onFicheGenerated(UUID userId, UUID spaceId) {
+        onFicheGenerated(userId, spaceId, null);
     }
 
     /**

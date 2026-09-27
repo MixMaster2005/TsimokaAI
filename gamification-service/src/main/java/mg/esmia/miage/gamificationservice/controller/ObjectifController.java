@@ -9,6 +9,7 @@ import mg.esmia.miage.common.response.ApiResponse;
 import mg.esmia.miage.gamificationservice.dto.CreateObjectifRequest;
 import mg.esmia.miage.gamificationservice.dto.ObjectifResponse;
 import mg.esmia.miage.gamificationservice.dto.UpdateObjectifRequest;
+import mg.esmia.miage.gamificationservice.dto.WeeklyTrackingResponse;
 import mg.esmia.miage.gamificationservice.service.ObjectifService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -34,6 +35,19 @@ public class ObjectifController {
     public ApiResponse<List<ObjectifResponse>> listMine(@RequestParam UUID spaceId) {
         UserContext ctx = authenticated();
         return ApiResponse.success(objectifService.listMine(UUID.fromString(ctx.userId()), spaceId), ctx.requestId());
+    }
+
+    /**
+     * Récapitulatif hebdomadaire (Lot 2) : {@code GET /api/v1/objectifs/weekly?spaceId=}.
+     * Chemin littéral déclaré avant tout {@code /{id}} variable — Spring résout les
+     * chemins exacts en priorité. Déjà couvert par la route gateway
+     * {@code /api/v1/objectifs/**}, aucune modification gateway requise.
+     */
+    @GetMapping("/weekly")
+    public ApiResponse<WeeklyTrackingResponse> weekly(@RequestParam UUID spaceId) {
+        UserContext ctx = authenticated();
+        return ApiResponse.success(
+                objectifService.weeklyTracking(UUID.fromString(ctx.userId()), spaceId), ctx.requestId());
     }
 
     @PatchMapping("/{id}")

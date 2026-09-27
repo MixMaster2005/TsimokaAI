@@ -55,7 +55,7 @@ public class FicheEventListener extends AbstractRedisEventListener<JsonNode> {
             log.warn("FICHE_GENERATED incomplet ignoré (ficheId={})", text(node, "ficheId"));
             return;
         }
-        gamificationService.onFicheGenerated(userId, spaceId);
+        gamificationService.onFicheGenerated(userId, spaceId, text(node, "ficheId"));
     }
 
     private void onFicheValidated(JsonNode node) {
