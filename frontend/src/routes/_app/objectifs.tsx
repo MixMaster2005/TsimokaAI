@@ -31,7 +31,7 @@ export const Route = createFileRoute('/_app/objectifs')({
 const STATUT_VARIANT: Record<StatutObjectif, 'secondary' | 'succes' | 'erreur'> = {
   EN_COURS: 'secondary',
   ATTEINT: 'succes',
-  ABANDONNE: 'erreur',
+  ABANDONNE: 'secondary',
 };
 
 function statutLabel(statut: StatutObjectif) {
@@ -75,23 +75,29 @@ function Objectifs() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 p-8 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 p-4 sm:p-6 lg:p-8 lg:grid-cols-2">
       <div>
         <p className="font-mono text-xs uppercase tracking-wide text-encre-muted">Motivation</p>
         <h1 className="mb-4 font-display text-2xl font-semibold text-encre">Objectifs</h1>
 
         {espaces && espaces.length > 1 && (
-          <select
-            value={activeSpaceId ?? ''}
-            onChange={(e) => setSpaceId(e.target.value)}
-            className="mb-3 rounded-md border border-papier-border bg-papier-carte px-2 py-1.5 text-sm"
-          >
-            {espaces.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.name}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label htmlFor="espace-actif" className="sr-only">
+              Espace actif…
+            </label>
+            <select
+              id="espace-actif"
+              value={activeSpaceId ?? ''}
+              onChange={(e) => setSpaceId(e.target.value)}
+              className="mb-3 h-11 rounded-md border border-papier-border bg-papier-carte px-2 py-1.5 text-sm"
+            >
+              {espaces.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
 
         <div className="mb-4 flex flex-col gap-2">
@@ -110,10 +116,14 @@ function Objectifs() {
               </div>
               <div className="flex flex-none items-center gap-2">
                 <StatutBadge variant={STATUT_VARIANT[o.statut]}>{statutLabel(o.statut)}</StatutBadge>
+                <label htmlFor={`statut-objectif-${o.id}`} className="sr-only">
+                  Statut de l'objectif « {o.titre} »…
+                </label>
                 <select
+                  id={`statut-objectif-${o.id}`}
                   value={o.statut}
                   onChange={(e) => updateStatut.mutate({ id: o.id, statut: e.target.value as StatutObjectif })}
-                  className="bg-transparent text-xs"
+                  className="h-11 bg-transparent text-xs"
                 >
                   <option value="EN_COURS">En cours</option>
                   <option value="ATTEINT">Atteint</option>
@@ -128,8 +138,14 @@ function Objectifs() {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row">
+          <label htmlFor="nouvel-objectif" className="sr-only">
+            Nouvel objectif…
+          </label>
           <Input
-            placeholder="Nouvel objectif"
+            id="nouvel-objectif"
+            name="nouvel-objectif"
+            autoComplete="off"
+            placeholder="Nouvel objectif — ex : finir le chap. 4…"
             value={titre}
             onChange={(e) => setTitre(e.target.value)}
             className="flex-1"
@@ -248,9 +264,6 @@ function Objectifs() {
         <div className="rounded-fiche border border-papier-border bg-papier-carte p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-display text-sm font-semibold text-encre">Suivi hebdomadaire</h2>
-            <span className="rounded bg-secondary px-2 py-0.5 font-mono text-[0.62rem] text-encre-muted">
-              Bientôt disponible
-            </span>
           </div>
           {weeklyTracking ? (
             <div className="flex items-center justify-between text-xs">

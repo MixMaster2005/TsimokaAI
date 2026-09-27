@@ -2,9 +2,12 @@ import { useState, type FormEvent } from 'react';
 import { createFileRoute, Link, redirect, useParams } from '@tanstack/react-router';
 
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { useClipboard } from '@/hooks/use-clipboard';
 import { useEspace, espaceQueryOptions } from '@/features/espaces/api/use-espace';
 import { useInviteCode } from '@/features/espaces/api/use-invite-code';
 import { useRegenerateInviteCode } from '@/features/espaces/api/use-regenerate-invite-code';
@@ -33,8 +36,10 @@ export const Route = createFileRoute('/_app/espaces/$spaceId/parametres')({
 
 function ParametresEspace() {
   const { spaceId } = useParams({ from: '/_app/espaces/$spaceId/parametres' });
-  const { data: space } = useEspace(spaceId);
-  const { data: inviteCode } = useInviteCode(spaceId, true);
+  const { data: space, isLoading } = useEspace(spaceId);
+  // Pas de fetch du code d'invitation tant que l'espace n'est pas chargé
+  // (évite une requête vouée au 404 quand l'espace est introuvable).
+  const { data: inviteCode } = useInviteCode(spaceId, !!space);
   const regenerateInviteCode = useRegenerateInviteCode(spaceId);
   const regeneratePersona = useRegeneratePersona(spaceId);
   const updateEspace = useUpdateEspace(spaceId);
@@ -42,22 +47,45 @@ function ParametresEspace() {
   const [name, setName] = useState(space?.name ?? '');
   const [description, setDescription] = useState(space?.description ?? '');
   const [subjectTag, setSubjectTag] = useState(space?.subjectTag ?? '');
-  const [copied, setCopied] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const { copie, echec, copier } = useClipboard();
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     updateEspace.mutate({ name, description, subjectTag });
   }
 
-  async function handleCopyCode() {
+  function handleCopyCode() {
     if (!inviteCode) return;
-    await navigator.clipboard.writeText(inviteCode.inviteCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    void copier(inviteCode.inviteCode);
   }
 
-  if (!space) return null;
+  if (isLoading) {
+    return (
+      <div className="flex max-w-lg flex-col gap-3 p-4 sm:p-6">
+        <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-3">
+          <Skeleton className="h-6 w-1/3" />
+          <Skeleton className="h-32 w-full" />
+          <span className="sr-only">Chargement de l'espace…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!space) {
+    return (
+      <div className="flex max-w-lg flex-col items-start gap-3 p-6">
+        <p className="font-mono text-xs uppercase tracking-wide text-encre-muted">Espace</p>
+        <h1 className="font-display text-xl font-semibold text-encre">Espace introuvable</h1>
+        <p className="text-sm text-encre-muted">
+          Cet espace n'existe pas ou n'est plus disponible. Vérifie la liste de tes espaces.
+        </p>
+        <Link to="/">
+          <Button variant="outline">Retour aux espaces</Button>
+        </Link>
+      </div>
+    );
+  }
 
   const personaVersion = space.personaVersion ?? 1;
   const personaUpdatedAt = space.personaUpdatedAt
@@ -65,7 +93,7 @@ function ParametresEspace() {
     : '—';
 
   return (
-    <div className="max-w-lg p-6">
+    <div className="max-w-lg p-4 sm:p-6">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="name">Nom</Label>
@@ -73,7 +101,7 @@ function ParametresEspace() {
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="subjectTag">Tag disciplinaire</Label>
-          <Input id="subjectTag" value={subjectTag} onChange={(e) => setSubjectTag(e.target.value)} />
+          <Input id="subjectTag" name="espace-tag" autoComplete="off" value={subjectTag} onChange={(e) => setSubjectTag(e.target.value)} />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="description">Description</Label>
@@ -123,8 +151,11 @@ function ParametresEspace() {
             <div className="flex flex-wrap items-center gap-3">
               <span className="font-mono text-lg tracking-[0.3em] text-encre">{inviteCode.inviteCode}</span>
               <Button variant="outline" size="sm" onClick={handleCopyCode}>
-                {copied ? 'Copié ✓' : 'Copier'}
+                {copie ? 'Copié ✓' : 'Copier'}
               </Button>
+              <p role="status" aria-live="polite" className="sr-only">
+                {copie ? 'Code copié.' : echec ?? ''}
+              </p>
               <Button
                 variant="ghost"
                 size="sm"
@@ -148,20 +179,25 @@ function ParametresEspace() {
         <p className="mb-2 text-xs text-muted-foreground">
           Supprimer cet espace efface aussi ses documents, fiches et conversations. Irréversible.
         </p>
-        {confirmDelete ? (
-          <div className="flex gap-2">
-            <Button variant="destructive" onClick={() => deleteEspace.mutate()}>
-              Confirmer la suppression
-            </Button>
-            <Button variant="outline" onClick={() => setConfirmDelete(false)}>
-              Annuler
-            </Button>
-          </div>
-        ) : (
-          <Button variant="destructive" onClick={() => setConfirmDelete(true)}>
-            Supprimer l'espace
-          </Button>
+        {deleteEspace.isError && (
+          <p role="alert" className="mb-2 text-xs text-destructive">
+            {deleteEspace.error.message} — réessaie.
+          </p>
         )}
+        <Button variant="destructive" onClick={() => setConfirmDeleteOpen(true)}>
+          Supprimer l'espace
+        </Button>
+        <ConfirmDialog
+          open={confirmDeleteOpen}
+          onOpenChange={(open) => {
+            if (!open) setConfirmDeleteOpen(false);
+          }}
+          title="Supprimer l'espace"
+          description="Supprimer cet espace efface aussi ses documents, fiches et conversations. Irréversible."
+          confirmLabel="Supprimer l'espace"
+          isPending={deleteEspace.isPending}
+          onConfirm={() => deleteEspace.mutate()}
+        />
       </div>
     </div>
   );

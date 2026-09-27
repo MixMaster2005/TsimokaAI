@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -22,7 +23,7 @@ function ParametresEnseignant() {
   const changePassword = useChangePassword();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const [ancienMotDePasse, setAncienMotDePasse] = useState('');
   const [nouveauMotDePasse, setNouveauMotDePasse] = useState('');
@@ -67,7 +68,7 @@ function ParametresEnseignant() {
   }
 
   return (
-    <div className="max-w-lg p-8">
+    <div className="max-w-lg p-4 sm:p-6 lg:p-8">
       <p className="font-mono text-xs uppercase tracking-wide text-encre-muted">Compte Enseignant</p>
       <h1 className="mb-6 font-display text-2xl font-semibold text-encre">Paramètres</h1>
 
@@ -81,6 +82,8 @@ function ParametresEnseignant() {
               <Label htmlFor="displayName">Nom affiché</Label>
               <Input
                 id="displayName"
+                name="displayName"
+                autoComplete="name"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 required
@@ -100,27 +103,42 @@ function ParametresEnseignant() {
           <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-3">
             <h3 className="font-display text-sm font-semibold text-encre">Mot de passe</h3>
             <div className="flex flex-col gap-2">
-              <Input
-                type="password"
-                placeholder="Mot de passe actuel"
-                value={ancienMotDePasse}
-                onChange={(e) => setAncienMotDePasse(e.target.value)}
-                required
-              />
-              <Input
-                type="password"
-                placeholder="Nouveau mot de passe (min. 8 caractères)"
-                value={nouveauMotDePasse}
-                onChange={(e) => setNouveauMotDePasse(e.target.value)}
-                required
-              />
-              <Input
-                type="password"
-                placeholder="Confirmer le nouveau mot de passe"
-                value={confirmMotDePasse}
-                onChange={(e) => setConfirmMotDePasse(e.target.value)}
-                required
-              />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="mot-de-passe-actuel">Mot de passe actuel</Label>
+                <Input
+                  id="mot-de-passe-actuel"
+                  type="password"
+                  placeholder="Ex : ton mot de passe actuel…"
+                  value={ancienMotDePasse}
+                  onChange={(e) => setAncienMotDePasse(e.target.value)}
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="nouveau-mot-de-passe">Nouveau mot de passe</Label>
+                <Input
+                  id="nouveau-mot-de-passe"
+                  type="password"
+                  placeholder="Ex : min. 8 caractères…"
+                  value={nouveauMotDePasse}
+                  onChange={(e) => setNouveauMotDePasse(e.target.value)}
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="confirmer-mot-de-passe">Confirmer le nouveau mot de passe</Label>
+                <Input
+                  id="confirmer-mot-de-passe"
+                  type="password"
+                  placeholder="Ex : répète le nouveau mot de passe…"
+                  value={confirmMotDePasse}
+                  onChange={(e) => setConfirmMotDePasse(e.target.value)}
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
             </div>
             {passwordError && <p className="text-xs text-erreur">{passwordError}</p>}
             {passwordSuccess && <p className="text-xs text-succes">Mot de passe modifié avec succès.</p>}
@@ -139,20 +157,25 @@ function ParametresEnseignant() {
             <p className="mb-2 text-xs text-encre-muted">
               Supprimer ton compte efface aussi tes espaces, fiches et conversations. Irréversible.
             </p>
-            {confirmDelete ? (
-              <div className="flex gap-2">
-                <Button variant="destructive" onClick={() => deleteAccount.mutate()}>
-                  Confirmer la suppression
-                </Button>
-                <Button variant="outline" onClick={() => setConfirmDelete(false)}>
-                  Annuler
-                </Button>
-              </div>
-            ) : (
-              <Button variant="destructive" onClick={() => setConfirmDelete(true)}>
-                Supprimer mon compte
-              </Button>
+            {deleteAccount.isError && (
+              <p role="alert" className="mb-2 text-xs text-destructive">
+                {deleteAccount.error.message} — réessaie.
+              </p>
             )}
+            <Button variant="destructive" onClick={() => setConfirmDeleteOpen(true)}>
+              Supprimer mon compte
+            </Button>
+            <ConfirmDialog
+              open={confirmDeleteOpen}
+              onOpenChange={(open) => {
+                if (!open) setConfirmDeleteOpen(false);
+              }}
+              title="Supprimer le compte"
+              description="Supprimer ton compte efface aussi tes espaces, fiches et conversations. Irréversible."
+              confirmLabel="Supprimer mon compte"
+              isPending={deleteAccount.isPending}
+              onConfirm={() => deleteAccount.mutate()}
+            />
           </div>
         </CardContent>
       </Card>
