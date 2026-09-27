@@ -45,16 +45,17 @@ export function useDocumentSse(spaceId: string | null) {
 
   useEffect(() => {
     if (!spaceId) return;
+    const currentSpaceId = spaceId;
 
     // --- Singleton par spaceId ---
-    const existing = activeConnections.get(spaceId);
+    const existing = activeConnections.get(currentSpaceId);
     if (existing) {
       existing.refCount++;
       return () => {
         existing.refCount--;
         if (existing.refCount <= 0) {
           existing.close();
-          activeConnections.delete(spaceId);
+          activeConnections.delete(currentSpaceId);
         }
       };
     }
@@ -93,14 +94,14 @@ export function useDocumentSse(spaceId: string | null) {
       if (!token) {
         // Pas de session (ou refresh échoué) : on réessaie en backoff plutôt
         // que d'abandonner — la session peut arriver après (login différé).
-        console.warn(`[SSE] No access token for space ${spaceId}, retry scheduled`);
+        console.warn(`[SSE] No access token for space ${currentSpaceId}, retry scheduled`);
         scheduleReconnect();
         return;
       }
 
       try {
         await fetchEventSource(
-          `${API_BASE_URL}/api/v1/documents/stream?spaceId=${spaceId}`,
+          `${API_BASE_URL}/api/v1/documents/stream?spaceId=${currentSpaceId}`,
           {
             method: 'GET',
             headers: { Authorization: `Bearer ${token}` },
@@ -128,7 +129,7 @@ export function useDocumentSse(spaceId: string | null) {
                 try {
                   const data = JSON.parse(msg.data) as DocumentStatusEvent;
                   queryClient.invalidateQueries({
-                    queryKey: documentsKeys.bySpace(spaceId),
+                    queryKey: documentsKeys.bySpace(currentSpaceId),
                   });
                   queryClient.invalidateQueries({
                     queryKey: documentKeys.byId(data.documentId),
@@ -168,24 +169,24 @@ export function useDocumentSse(spaceId: string | null) {
     }
 
     // Enregistrer dans le registre global AVANT de connecter
-    activeConnections.set(spaceId, {
+    activeConnections.set(currentSpaceId, {
       refCount: 1,
       close: () => {
         if (reconnectTimeout) clearTimeout(reconnectTimeout);
         controller.abort();
-        activeConnections.delete(spaceId);
+        activeConnections.delete(currentSpaceId);
       },
     });
 
     connect();
 
     return () => {
-      const entry = activeConnections.get(spaceId);
+      const entry = activeConnections.get(currentSpaceId);
       if (entry) {
         entry.refCount--;
         if (entry.refCount <= 0) {
           entry.close();
-          activeConnections.delete(spaceId);
+          activeConnections.delete(currentSpaceId);
         }
       }
       abortRef.current = null;

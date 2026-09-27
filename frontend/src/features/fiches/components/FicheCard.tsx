@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { getTagColorClass } from '@/features/espaces/lib/get-tag-color';
-import { parseFicheContent, type Fiche as FicheType, type QuizQuestion } from '../types';
+import { parseFicheContent, type Fiche as FicheType } from '../types';
 import {
   Accordion,
   AccordionItem,

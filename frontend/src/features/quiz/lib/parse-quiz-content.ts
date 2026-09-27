@@ -61,9 +61,15 @@ function normalizeQuestions(json: string, filterQRC: boolean): Question[] {
  */
 export function parseAttemptAnswers(json: string): AnswerEntry[] {
   const raw = tryParse(json);
-  if (!raw) return [];
+  if (!raw || typeof raw !== 'object') return [];
 
-  const arr = Array.isArray(raw) ? raw : Array.isArray(raw?.answers) ? raw.answers : [];
+  if (Array.isArray(raw)) {
+    const result = z.array(answerEntrySchema).safeParse(raw);
+    return result.success ? result.data : [];
+  }
+
+  const wrapper = raw as { answers?: unknown };
+  const arr = Array.isArray(wrapper.answers) ? wrapper.answers : [];
   const result = z.array(answerEntrySchema).safeParse(arr);
   return result.success ? result.data : [];
 }
