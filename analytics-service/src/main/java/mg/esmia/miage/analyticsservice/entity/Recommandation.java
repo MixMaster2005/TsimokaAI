@@ -33,6 +33,14 @@ public class Recommandation {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String contenu;
 
+    /** Hash SHA-256 hex du contenu (anti-doublon, cf. AnalyticsService). */
+    @Column(name = "contenu_hash")
+    private String contenuHash;
+
+    /** Accusé de lecture positionné par PATCH /api/v1/recommandations/{id}/lue. */
+    @Column(name = "lue_le")
+    private Instant lueLe;
+
     @CreationTimestamp
     @Column(name = "generee_le", updatable = false)
     private Instant genereLe;

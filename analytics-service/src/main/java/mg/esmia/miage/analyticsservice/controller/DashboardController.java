@@ -30,6 +30,19 @@ public class DashboardController {
                 analyticsService.studentDashboard(UUID.fromString(ctx.userId()), spaceId), ctx.requestId());
     }
 
+    /**
+     * Vue transverse (Lot 3) : dashboards de l'utilisateur authentifié dans tous ses
+     * espaces. Remplace les N requêtes parallèles du front ({@code useAllTauxReussite}).
+     * Chemin littéral {@code all} déclaré avant tout {@code /{variable}} — Spring
+     * résout les chemins exacts en priorité (aucun conflit actuel sous /student).
+     */
+    @GetMapping("/student/all")
+    public ApiResponse<List<StudentDashboardResponse>> studentAll() {
+        UserContext ctx = authenticated();
+        return ApiResponse.success(
+                analyticsService.allStudentDashboards(UUID.fromString(ctx.userId())), ctx.requestId());
+    }
+
     @GetMapping("/teacher")
     public ApiResponse<TeacherDashboardResponse> teacher(@RequestParam UUID spaceId) {
         UserContext ctx = authenticated();

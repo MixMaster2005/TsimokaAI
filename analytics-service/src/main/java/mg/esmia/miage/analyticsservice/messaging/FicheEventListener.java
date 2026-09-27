@@ -65,7 +65,7 @@ public class FicheEventListener extends AbstractRedisEventListener<JsonNode> {
             log.warn("FICHE_GENERATED incomplet ignoré (ficheId={})", text(node, "ficheId"));
             return;
         }
-        analyticsService.onFicheGenerated(userId, spaceId);
+        analyticsService.onFicheGenerated(userId, spaceId, text(node, "ficheId"));
     }
 
     private void onFicheValidated(JsonNode node) {
@@ -85,7 +85,7 @@ public class FicheEventListener extends AbstractRedisEventListener<JsonNode> {
             log.warn("QUIZ_SUBMITTED incomplet ignoré (quizId={})", text(node, "quizId"));
             return;
         }
-        analyticsService.onQuizSubmitted(spaceId, userId, score, total);
+        analyticsService.onQuizSubmitted(spaceId, userId, score, total, text(node, "attemptId"));
     }
 
     private void onQuizCorrected(JsonNode node) {

@@ -23,7 +23,8 @@ public class ChatEventListener extends AbstractRedisEventListener<ChatEvent> {
     @Override
     protected void onEvent(ChatEvent event) {
         if (ChatEvent.MESSAGE_CREATED.equals(event.event()) && "USER".equalsIgnoreCase(event.role())) {
-            analyticsService.onQuestionAsked(UUID.fromString(event.userId()), UUID.fromString(event.spaceId()), event.content());
+            analyticsService.onQuestionAsked(UUID.fromString(event.userId()), UUID.fromString(event.spaceId()),
+                    event.content(), event.messageId());
         }
     }
 }
