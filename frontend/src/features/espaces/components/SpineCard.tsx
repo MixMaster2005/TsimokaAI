@@ -26,12 +26,12 @@ export function SpineCard({ space, basePath = 'etudiant' }: SpineCardProps) {
       params={{ spaceId: space.id }}
       title={`Dernière activité : ${new Date(latestActivity).toLocaleDateString('fr-FR')}`}
       className={cn(
-        'group relative flex h-56 w-20 flex-none flex-col justify-end overflow-hidden rounded-fiche p-3 text-white shadow-sm transition-transform hover:-translate-y-1 hover:shadow-md',
+        'group relative flex h-56 w-20 flex-none flex-col justify-end overflow-hidden rounded-fiche p-3 text-white shadow-sm transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:brightness-95 active:brightness-90',
         getTagColorClass(space.subjectTag),
       )}
     >
       <span className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-      <div className="absolute inset-x-2 top-2 flex items-center justify-between font-mono text-[0.58rem] opacity-85">
+      <div className="absolute inset-x-2 top-2 flex items-center justify-between font-mono text-[0.65rem] opacity-85">
         <span>{new Date(latestActivity).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</span>
         {space.documentCount !== undefined && (
           <span className="rounded bg-white/20 px-1 py-0.2">

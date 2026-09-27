@@ -56,21 +56,43 @@ export function CreateEspaceModal({ trigger, onCreated }: CreateEspaceModalProps
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="name">Nom</Label>
-            <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              id="name"
+              name="espace-nom"
+              autoComplete="off"
+              required
+              placeholder="ex : Algorithmique S3…"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="subjectTag">Tag disciplinaire</Label>
             <Input
               id="subjectTag"
-              placeholder="ex: sciences, lettres, eco…"
+              name="espace-tag"
+              autoComplete="off"
+              placeholder="ex : sciences, lettres, eco…"
               value={subjectTag}
               onChange={(e) => setSubjectTag(e.target.value)}
             />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="description">Description</Label>
-            <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <Input
+              id="description"
+              name="espace-description"
+              autoComplete="off"
+              placeholder="ex : révisions du semestre…"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </div>
+          {createEspace.isError && (
+            <p role="alert" className="text-xs text-erreur">
+              {createEspace.error.message} — corrige puis réessaie.
+            </p>
+          )}
 
           <DialogFooter>
             <Button type="submit" disabled={createEspace.isPending}>

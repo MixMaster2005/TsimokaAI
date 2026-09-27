@@ -33,7 +33,7 @@ function EnseignantLayout() {
   return (
     <SidebarProvider>
       <AppSidebarEnseignant />
-      <SidebarInset className="min-h-svh bg-background text-foreground">
+      <SidebarInset id="contenu" className="min-h-svh bg-background text-foreground">
         <Outlet />
       </SidebarInset>
     </SidebarProvider>

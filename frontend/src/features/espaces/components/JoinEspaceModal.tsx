@@ -64,18 +64,30 @@ export function JoinEspaceModal({ trigger, onJoined }: JoinEspaceModalProps) {
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="code">Code d'invitation</Label>
-            {/* autoCapitalize + police mono : le code est saisi à la main */}
+            {/* Affichage en capitales via CSS ; la normalisation se fait au submit
+                (use-join-espace) pour ne pas casser l'IME ni le curseur en frappe */}
             <Input
               id="code"
+              name="code"
               required
               autoFocus
               maxLength={8}
-              placeholder="ex : A7K2M9XQ"
+              autoComplete="one-time-code"
+              autoCapitalize="characters"
+              spellCheck={false}
+              inputMode="text"
+              placeholder="ex : A7K2M9XQ…"
               className="font-mono uppercase tracking-widest"
               value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              onChange={(e) => setCode(e.target.value)}
+              aria-invalid={Boolean(messageErreur)}
+              aria-describedby={messageErreur ? 'erreur-code-espace' : undefined}
             />
-            {messageErreur && <p className="text-xs text-erreur">{messageErreur}</p>}
+            {messageErreur && (
+              <p id="erreur-code-espace" role="alert" className="text-xs text-erreur">
+                {messageErreur} Réessaie avec un autre code.
+              </p>
+            )}
           </div>
 
           <DialogFooter>

@@ -7,7 +7,9 @@ export const Route = createFileRoute('/onboarding')({
 function OnboardingLayout() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-papier-bg px-6">
-      <Outlet />
+      <main id="contenu" className="flex w-full flex-col items-center">
+        <Outlet />
+      </main>
     </div>
   );
 }

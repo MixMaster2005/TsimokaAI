@@ -30,19 +30,46 @@ function CreerEspace() {
       <h1 className="font-display text-xl font-semibold text-encre">Ton premier espace</h1>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="name">Nom</Label>
-        <Input id="name" required placeholder="ex: Algorithmique S3" value={name} onChange={(e) => setName(e.target.value)} />
+        <Input
+          id="name"
+          name="espace-nom"
+          autoComplete="off"
+          required
+          placeholder="ex : Algorithmique S3…"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="subjectTag">Tag disciplinaire</Label>
-        <Input id="subjectTag" placeholder="ex: sciences" value={subjectTag} onChange={(e) => setSubjectTag(e.target.value)} />
+        <Input
+          id="subjectTag"
+          name="espace-tag"
+          autoComplete="off"
+          placeholder="ex : sciences…"
+          value={subjectTag}
+          onChange={(e) => setSubjectTag(e.target.value)}
+        />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="description">Description</Label>
-        <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} />
+        <Input
+          id="description"
+          name="espace-description"
+          autoComplete="off"
+          placeholder="ex : révisions du semestre…"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
       </div>
       <p className="text-xs text-encre-muted">
         Un persona pédagogique sera généré automatiquement à partir de ces informations.
       </p>
+      {createEspace.isError && (
+        <p role="alert" className="text-xs text-erreur">
+          {createEspace.error.message} — corrige puis réessaie.
+        </p>
+      )}
       <Button type="submit" disabled={createEspace.isPending}>
         {createEspace.isPending ? 'Création…' : 'Créer'}
       </Button>

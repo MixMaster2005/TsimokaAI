@@ -31,7 +31,7 @@ export function EtagereFiltres({
   showOwnerFilter = false,
 }: EtagereFiltresProps) {
   return (
-    <div className="flex flex-wrap items-center gap-3 px-8 py-3">
+    <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
       <Input
         type="search"
         placeholder="Rechercher un espace…"

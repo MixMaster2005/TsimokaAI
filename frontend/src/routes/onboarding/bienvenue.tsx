@@ -14,8 +14,10 @@ function Bienvenue() {
   const navigate = useNavigate();
   const updateProfile = useUpdateProfile();
   const [roleChosen, setRoleChosen] = useState(false);
+  const [dernierRole, setDernierRole] = useState<UserRole | null>(null);
 
   function chooseRole(role: UserRole) {
+    setDernierRole(role);
     updateProfile.mutate(
       { role },
       {
@@ -34,7 +36,7 @@ function Bienvenue() {
         <p className="text-sm text-encre-muted">
           Tu es étudiant ou enseignant ?
         </p>
-        <div className="flex w-full flex-col gap-2">
+        <div className="flex w-full flex-col gap-2" role="group" aria-label="Choisis ton rôle">
           <Button onClick={() => chooseRole('STUDENT')} disabled={updateProfile.isPending}>
             {updateProfile.isPending && updateProfile.variables?.role === 'STUDENT'
               ? 'Chargement…'
@@ -50,6 +52,21 @@ function Bienvenue() {
               : 'Enseignant'}
           </Button>
         </div>
+        {updateProfile.isError && (
+          <div className="flex w-full flex-col items-center gap-2">
+            <p role="alert" className="text-xs text-erreur">
+              {updateProfile.error.message} — réessaie.
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={updateProfile.isPending || !dernierRole}
+              onClick={() => dernierRole && chooseRole(dernierRole)}
+            >
+              Réessayer
+            </Button>
+          </div>
+        )}
       </div>
     );
   }

@@ -22,7 +22,7 @@ export function EtagereSection({
   basePath,
 }: EtagereSectionProps) {
   return (
-    <section aria-label={titre} className="px-8 py-4">
+    <section aria-label={titre} className="px-4 py-4 sm:px-6 lg:px-8">
       <header className="flex items-baseline justify-between gap-4">
         <div>
           <h2 className="font-display text-lg font-semibold text-encre">{titre}</h2>

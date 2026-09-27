@@ -58,7 +58,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="TsimokaAI">
               <Link to="/" className="font-display text-base font-semibold text-craie">
-                <span aria-hidden>🌱</span>
+                <span aria-hidden="true">🌱</span>
                 {state === 'expanded' && <span>TsimokaAI</span>}
               </Link>
             </SidebarMenuButton>
@@ -156,19 +156,25 @@ function UserMenu() {
     .join('')
     .toUpperCase();
 
+  const rappelsNonLus = rappels?.filter((r) => !r.envoye).length ?? 0;
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <SidebarMenuButton size="lg" tooltip={user?.displayName ?? '…'}>
+        <SidebarMenuButton
+          size="lg"
+          tooltip={user?.displayName ?? '…'}
+          aria-label={`Menu de ${user?.displayName ?? 'ton compte'} — ${rappelsNonLus} rappel${rappelsNonLus > 1 ? 's' : ''} non lu${rappelsNonLus > 1 ? 's' : ''}`}
+        >
           <Avatar className="size-5">
             <AvatarFallback className="text-[0.625rem]">{initials ?? '…'}</AvatarFallback>
           </Avatar>
           <span className="truncate text-craie">{user?.displayName ?? '…'}</span>
           <span className="ml-auto flex items-center">
             <span className="relative inline-flex">
-              <Bell className="size-4" />
-              {rappels && rappels.filter((r) => !r.envoye).length > 0 && (
-                <span className="absolute right-1 top-1 size-1.5 rounded-full bg-attention" />
+              <Bell className="size-4" aria-hidden="true" />
+              {rappelsNonLus > 0 && (
+                <span className="absolute right-1 top-1 size-1.5 rounded-full bg-attention" aria-hidden="true" />
               )}
             </span>
           </span>

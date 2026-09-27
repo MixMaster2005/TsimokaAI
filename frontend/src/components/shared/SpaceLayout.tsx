@@ -1,6 +1,7 @@
 import { Link, Outlet } from '@tanstack/react-router';
 
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useEspace } from '@/features/espaces/api/use-espace';
 import { getTagColorClass } from '@/features/espaces/lib/get-tag-color';
 import { useSession } from '@/features/auth/api/use-session';
@@ -8,7 +9,7 @@ import { cn } from '@/lib/utils';
 
 interface SpaceLayoutProps {
   spaceId: string;
-  backTo: string;
+  backTo: '/' | '/enseignant';
   backLabel?: string;
   tabs: ReadonlyArray<{ to: string; label: string }>;
   tabParametres?: { to: string; label: string };
@@ -23,17 +24,26 @@ export function SpaceLayout({ spaceId, backTo, backLabel = '← Mes espaces', ta
 
   return (
     <div className="flex h-full flex-col">
-      <div className="px-6 pt-5">
-        <a href={backTo} className="font-mono text-xs text-encre-muted hover:text-encre">
+      <div className="px-4 pt-5 sm:px-6">
+        <Link to={backTo} className="rounded-sm font-mono text-xs text-encre-muted hover:text-encre focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           {backLabel}
-        </a>
-        <div className="mt-2 flex items-center gap-2.5">
-          <h1 className="font-display text-xl font-semibold text-encre">{space?.name}</h1>
+        </Link>
+        <div className="mt-2 flex min-w-0 items-center gap-2.5">
+          {space ? (
+            <h1 className="min-w-0 flex-1 truncate font-display text-xl font-semibold text-encre" title={space.name}>
+              {space.name}
+            </h1>
+          ) : (
+            <div role="status" aria-live="polite" aria-busy="true" className="min-w-0 flex-1">
+              <Skeleton className="h-7 w-1/3" />
+              <span className="sr-only">Chargement de l'espace…</span>
+            </div>
+          )}
           {backTo === '/enseignant' && <Badge variant="secondary">Vue enseignant</Badge>}
           {space?.subjectTag && (
             <span
               className={cn(
-                'inline-flex items-center rounded-sm px-2 py-0.5 font-mono text-[0.65rem] font-medium uppercase tracking-wide text-white',
+                'inline-flex flex-none items-center rounded-sm px-2 py-0.5 font-mono text-[0.65rem] font-medium uppercase tracking-wide text-white',
                 getTagColorClass(space.subjectTag),
               )}
             >
@@ -41,10 +51,10 @@ export function SpaceLayout({ spaceId, backTo, backLabel = '← Mes espaces', ta
             </span>
           )}
         </div>
-        {space?.description && <p className="mt-1 text-sm text-encre-muted">{space.description}</p>}
+        {space?.description && <p className="mt-1 line-clamp-2 text-pretty text-sm text-encre-muted">{space.description}</p>}
       </div>
 
-      <nav className="mt-4 flex gap-1 border-b border-papier-border px-6">
+      <nav aria-label="Onglets espace" className="mt-4 flex gap-1 overflow-x-auto whitespace-nowrap border-b border-papier-border px-4 sm:px-6">
         {allTabs.map((tab) => (
           <TabLink key={tab.to} tab={tab} spaceId={spaceId} />
         ))}

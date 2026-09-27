@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { useClipboard } from '@/hooks/use-clipboard';
 import { useInviteCode } from '@/features/espaces/api/use-invite-code';
 import { useRegenerateInviteCode } from '@/features/espaces/api/use-regenerate-invite-code';
 import { useRemoveMembre } from '@/features/espaces/api/use-remove-membre';
@@ -23,16 +25,18 @@ import type { Groupe } from '@/features/groupes/types';
  */
 interface MembresPageEnseignantProps {
   spaceId: string;
-  basePath: string;
+  basePath: '/' | '/enseignant';
 }
 
 export function MembresPageEnseignant({ spaceId, basePath }: MembresPageEnseignantProps) {
   const { data: espace } = useEspace(spaceId);
   const isOwner = Boolean(espace?.owner);
   const leaveEspace = useLeaveEspace();
+  const navigate = useNavigate();
+  const [leaveConfirm, setLeaveConfirm] = useState(false);
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <p className="font-mono text-xs uppercase tracking-wide text-encre-muted">Espace</p>
       <h2 className="mb-4 font-display text-lg font-semibold text-encre">Membres</h2>
 
@@ -51,18 +55,25 @@ export function MembresPageEnseignant({ spaceId, basePath }: MembresPageEnseigna
           <Button
             variant="destructive"
             disabled={leaveEspace.isPending}
-            onClick={() => {
-              if (window.confirm('Quitter cet espace ? Tu perdras l\'accès à ses fiches et conversations.')) {
-                leaveEspace.mutate(spaceId, {
-                  onSuccess: () => {
-                    window.location.href = basePath;
-                  },
-                });
-              }
-            }}
+            onClick={() => setLeaveConfirm(true)}
           >
-            {leaveEspace.isPending ? 'Depart…' : 'Quitter l\'espace'}
+            {leaveEspace.isPending ? 'Départ…' : 'Quitter l\'espace'}
           </Button>
+          <ConfirmDialog
+            open={leaveConfirm}
+            onOpenChange={setLeaveConfirm}
+            title="Quitter l'espace"
+            description="Tu perdras l'accès à ses fiches et conversations. Tu pourras rejoindre à nouveau avec un code d'invitation."
+            confirmLabel="Quitter"
+            isPending={leaveEspace.isPending}
+            onConfirm={() => {
+              leaveEspace.mutate(spaceId, {
+                onSuccess: () => {
+                  navigate({ to: basePath });
+                },
+              });
+            }}
+          />
         </>
       )}
     </div>
@@ -74,6 +85,7 @@ function GroupeCard({ groupe, spaceId }: { groupe: Groupe; spaceId: string }) {
   const deleteGroupe = useDeleteGroupe(spaceId);
   const addMembre = useAddMembreGroupe(groupe.id);
   const [newUserId, setNewUserId] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   function handleAddMembre(e: FormEvent) {
     e.preventDefault();
@@ -92,21 +104,30 @@ function GroupeCard({ groupe, spaceId }: { groupe: Groupe; spaceId: string }) {
           {groupe.description && <p className="mt-0.5 text-xs text-encre-muted">{groupe.description}</p>}
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[0.65rem] text-encre-muted">
+          <span className="font-mono text-[0.65rem] tabular-nums text-encre-muted">
             {membres?.length ?? 0} membre{(membres?.length ?? 0) > 1 ? 's' : ''}
           </span>
           <Button
             variant="ghost"
             size="sm"
             disabled={deleteGroupe.isPending}
-            onClick={() => {
-              if (window.confirm(`Supprimer le groupe « ${groupe.nom} » ?`)) {
-                deleteGroupe.mutate(groupe.id);
-              }
-            }}
+            onClick={() => setDeleteConfirm(true)}
           >
             Supprimer
           </Button>
+          <ConfirmDialog
+            open={deleteConfirm}
+            onOpenChange={setDeleteConfirm}
+            title="Supprimer le groupe"
+            description={`« ${groupe.nom} » — les membres gardent l'accès à l'espace, seul le groupe est supprimé.`}
+            confirmLabel="Supprimer"
+            isPending={deleteGroupe.isPending}
+            onConfirm={() => {
+              deleteGroupe.mutate(groupe.id, {
+                onSuccess: () => setDeleteConfirm(false),
+              });
+            }}
+          />
         </div>
       </div>
 
@@ -125,8 +146,15 @@ function GroupeCard({ groupe, spaceId }: { groupe: Groupe; spaceId: string }) {
       )}
 
       <form onSubmit={handleAddMembre} className="mt-3 flex gap-2">
+        <label htmlFor={`ajout-membre-${groupe.id}`} className="sr-only">
+          ID utilisateur à ajouter…
+        </label>
         <Input
-          placeholder="ID utilisateur à ajouter"
+          id={`ajout-membre-${groupe.id}`}
+          name="nouveau-membre"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="ID utilisateur à ajouter — ex : 3f9a…"
           value={newUserId}
           onChange={(e) => setNewUserId(e.target.value)}
           className="flex-1 font-mono text-xs"
@@ -172,15 +200,27 @@ function GroupesSection({ spaceId }: { spaceId: string }) {
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row">
+        <label htmlFor="groupe-nom" className="sr-only">
+          Nom du groupe…
+        </label>
         <Input
-          placeholder="Nom du groupe"
+          id="groupe-nom"
+          name="groupe-nom"
+          autoComplete="off"
+          placeholder="Nom du groupe — ex : Groupe TD1…"
           value={nom}
           onChange={(e) => setNom(e.target.value)}
           className="flex-1"
           required
         />
+        <label htmlFor="groupe-description" className="sr-only">
+          Description du groupe (optionnelle)…
+        </label>
         <Input
-          placeholder="Description (optionnelle)"
+          id="groupe-description"
+          name="groupe-description"
+          autoComplete="off"
+          placeholder="Description (optionnelle) — ex : révisions chap. 3…"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           className="flex-1"
@@ -196,13 +236,11 @@ function GroupesSection({ spaceId }: { spaceId: string }) {
 function InviteCodeSection({ spaceId }: { spaceId: string }) {
   const { data: inviteCode } = useInviteCode(spaceId, true);
   const regenerate = useRegenerateInviteCode(spaceId);
-  const [copied, setCopied] = useState(false);
+  const { copie, echec, copier } = useClipboard();
 
-  async function handleCopy() {
+  function handleCopy() {
     if (!inviteCode) return;
-    await navigator.clipboard.writeText(inviteCode.inviteCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    void copier(inviteCode.inviteCode);
   }
 
   if (!inviteCode) return null;
@@ -215,8 +253,11 @@ function InviteCodeSection({ spaceId }: { spaceId: string }) {
       <div className="flex flex-wrap items-center gap-3">
         <span className="font-mono text-lg tracking-[0.3em] text-encre">{inviteCode.inviteCode}</span>
         <Button variant="outline" size="sm" onClick={handleCopy}>
-          {copied ? 'Copié ✓' : 'Copier'}
+          {copie ? 'Copié ✓' : 'Copier'}
         </Button>
+        <p role="status" aria-live="polite" className="sr-only">
+          {copie ? 'Code copié.' : echec ?? ''}
+        </p>
         <Button
           variant="ghost"
           size="sm"
@@ -237,6 +278,7 @@ function InviteCodeSection({ spaceId }: { spaceId: string }) {
 function MembresSection({ spaceId, isOwner }: { spaceId: string; isOwner: boolean }) {
   const { data: membres } = useMembres(spaceId);
   const removeMembre = useRemoveMembre(spaceId);
+  const [membreARetirer, setMembreARetirer] = useState<string | null>(null);
 
   if (membres?.length === 0) {
     return (
@@ -254,7 +296,7 @@ function MembresSection({ spaceId, isOwner }: { spaceId: string; isOwner: boolea
             <p className="truncate font-mono text-xs text-encre">
               {m.userId.slice(0, 8)}…
             </p>
-            <p className="text-[0.68rem] text-encre-muted">
+            <p className="font-mono text-[0.68rem] tabular-nums text-encre-muted">
               membre depuis le {new Date(m.joinedAt).toLocaleDateString('fr-FR')}
             </p>
           </div>
@@ -278,13 +320,29 @@ function MembresSection({ spaceId, isOwner }: { spaceId: string; isOwner: boolea
               variant="ghost"
               size="sm"
               disabled={removeMembre.isPending}
-              onClick={() => removeMembre.mutate(m.userId)}
+              onClick={() => setMembreARetirer(m.userId)}
             >
               Retirer
             </Button>
           )}
         </div>
       ))}
+      <ConfirmDialog
+        open={membreARetirer !== null}
+        onOpenChange={(open) => {
+          if (!open) setMembreARetirer(null);
+        }}
+        title="Retirer ce membre"
+        description="Ce membre perdra l'accès aux fiches et conversations de l'espace. Tu pourras l'inviter à nouveau avec le code."
+        confirmLabel="Retirer"
+        isPending={removeMembre.isPending}
+        onConfirm={() => {
+          if (!membreARetirer) return;
+          removeMembre.mutate(membreARetirer, {
+            onSuccess: () => setMembreARetirer(null),
+          });
+        }}
+      />
     </div>
   );
 }

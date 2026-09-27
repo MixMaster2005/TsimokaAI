@@ -97,6 +97,8 @@ export function AppSidebarEnseignant() {
     .join('')
     .toUpperCase();
 
+  const rappelsNonLus = rappels?.filter((r) => !r.envoye).length ?? 0;
+
   return (
     <Sidebar collapsible="icon" className="surface-ardoise">
       <SidebarHeader>
@@ -104,11 +106,11 @@ export function AppSidebarEnseignant() {
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip="TsimokaAI">
               <Link to="/enseignant" className="font-display text-base font-semibold text-craie">
-                <span aria-hidden>🌱</span>
+                <span aria-hidden="true">🌱</span>
                 {state === 'expanded' && (
                   <>
                     <span>TsimokaAI</span>
-                    <GraduationCap className="ml-auto text-muted-foreground" aria-hidden />
+                    <GraduationCap className="ml-auto text-muted-foreground" aria-hidden="true" />
                   </>
                 )}
               </Link>
@@ -150,7 +152,11 @@ export function AppSidebarEnseignant() {
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton size="lg" tooltip={user?.displayName ?? '…'}>
+                <SidebarMenuButton
+                  size="lg"
+                  tooltip={user?.displayName ?? '…'}
+                  aria-label={`Menu de ${user?.displayName ?? 'ton compte'} — ${rappelsNonLus} rappel${rappelsNonLus > 1 ? 's' : ''} non lu${rappelsNonLus > 1 ? 's' : ''}`}
+                >
                   <Avatar className="size-5">
                     <AvatarFallback className="text-[0.625rem]">{initials}</AvatarFallback>
                   </Avatar>
@@ -160,9 +166,9 @@ export function AppSidebarEnseignant() {
                       Enseignant
                     </span>
                     <span className="relative inline-flex">
-                      <Bell className="size-4" />
-                      {rappels && rappels.filter((r) => !r.envoye).length > 0 && (
-                        <span className="absolute right-1 top-1 size-1.5 rounded-full bg-attention" />
+                      <Bell className="size-4" aria-hidden="true" />
+                      {rappelsNonLus > 0 && (
+                        <span className="absolute right-1 top-1 size-1.5 rounded-full bg-attention" aria-hidden="true" />
                       )}
                     </span>
                   </span>
