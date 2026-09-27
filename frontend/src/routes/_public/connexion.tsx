@@ -15,7 +15,7 @@ export const Route = createFileRoute('/_public/connexion')({
   validateSearch: connexionSearchSchema,
   component: () => (
     <div className="flex flex-col items-center gap-6">
-      <h2 className="font-display text-xl font-semibold text-encre">Connexion</h2>
+      <h1 className="font-display text-xl font-semibold text-encre">Connexion</h1>
       <LoginForm />
     </div>
   ),

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from '@tanstack/react-router';
 
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,11 @@ export function RegisterForm() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const register = useRegister();
+  const erreurRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    if (register.isError) erreurRef.current?.focus();
+  }, [register.isError]);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -30,6 +35,8 @@ export function RegisterForm() {
         <Label htmlFor="displayName">Nom affiché</Label>
         <Input
           id="displayName"
+          name="displayName"
+          autoComplete="name"
           required
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
@@ -37,21 +44,38 @@ export function RegisterForm() {
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          spellCheck={false}
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="password">Mot de passe</Label>
         <Input
           id="password"
+          name="password"
           type="password"
+          autoComplete="new-password"
           required
           minLength={8}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          aria-invalid={register.isError}
+          aria-describedby={register.isError ? 'erreur-inscription' : undefined}
         />
       </div>
 
-      {register.isError && <p className="text-sm text-erreur">{register.error.message}</p>}
+      {register.isError && (
+        <p id="erreur-inscription" ref={erreurRef} tabIndex={-1} role="alert" className="text-sm text-erreur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          {register.error.message} — corrige et réessaie.
+        </p>
+      )}
 
       <Button type="submit" disabled={register.isPending}>
         {register.isPending ? 'Création…' : 'Créer mon compte'}

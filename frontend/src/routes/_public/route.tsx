@@ -29,7 +29,7 @@ function PublicLayout() {
         <Link to="/accueil" className="font-display text-lg font-semibold text-encre">
           🌱 TsimokaAI
         </Link>
-        <nav className="flex gap-4 text-sm text-encre-muted">
+        <nav aria-label="Navigation publique" className="flex gap-4 text-sm text-encre-muted">
           <Link to="/connexion" className="hover:text-encre">
             Connexion
           </Link>
@@ -38,7 +38,7 @@ function PublicLayout() {
           </Link>
         </nav>
       </header>
-      <main className="flex flex-1 flex-col items-center px-6 py-10">
+      <main id="contenu" className="flex flex-1 flex-col items-center px-6 py-10">
         <Outlet />
       </main>
       <footer className="border-t border-papier-border px-6 py-6 text-center text-xs text-encre-muted">

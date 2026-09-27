@@ -11,7 +11,7 @@ import type { AuthResponse, LoginPayload } from '../types';
  * Query de base : GET idempotent -> useQuery, action qui change l'état
  * serveur -> useMutation.
  */
-export function useLogin() {
+export function useLogin(options?: { redirectTo?: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -22,7 +22,7 @@ export function useLogin() {
       setAccessToken(data.accessToken);
       setRefreshToken(data.refreshToken);
       queryClient.setQueryData(['auth', 'session'], data.user);
-      navigate({ to: '/' });
+      navigate({ to: options?.redirectTo ?? '/' });
     },
   });
 }

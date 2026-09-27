@@ -21,6 +21,9 @@ function MotDePasseOublie() {
     forgotPassword.mutate(
       { email: email.trim() },
       {
+        // Contrat anti-énumération : succès et erreur affichent strictement
+        // le même écran (« Si un compte existe… »), sans révéler l'existence
+        // du compte.
         onSettled: () => {
           setEnvoye(true);
         },
@@ -55,12 +58,22 @@ function MotDePasseOublie() {
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
+          name="email"
           type="email"
+          autoComplete="email"
+          spellCheck={false}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
           autoFocus
+          aria-invalid={forgotPassword.isError}
+          aria-describedby={forgotPassword.isError ? 'erreur-mot-de-passe-oublie' : undefined}
         />
+        {forgotPassword.isError && (
+          <p id="erreur-mot-de-passe-oublie" role="alert" className="text-xs text-erreur">
+            {forgotPassword.error.message} — vérifie ton email puis réessaie.
+          </p>
+        )}
       </div>
       <Button type="submit" disabled={forgotPassword.isPending || !email.trim()}>
         {forgotPassword.isPending ? 'Envoi en cours…' : 'Envoyer le lien'}
