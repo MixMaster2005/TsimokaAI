@@ -27,7 +27,7 @@ export function FicheCard({ fiche, subjectTag, className }: FicheCardProps) {
           </span>
         )}
         <p className="font-mono text-[0.65rem] uppercase tracking-wide text-encre-muted">Fiche</p>
-        <h3 className="mb-4 font-display text-xl font-semibold text-encre">{fiche.title}</h3>
+        <h3 className="mb-4 text-balance font-display text-xl font-semibold text-encre">{fiche.title}</h3>
 
         {content ? (
           <div className="flex flex-col gap-4">

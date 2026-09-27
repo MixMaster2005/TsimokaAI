@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMembres } from '@/features/espaces/api/use-membres';
@@ -23,7 +24,7 @@ export const Route = createFileRoute('/enseignant/espaces/$spaceId/quiz/$quizId/
 
 function QuizDetailEnseignant() {
   const { spaceId, quizId } = useParams({ from: '/enseignant/espaces/$spaceId/quiz/$quizId/' });
-  const { data: quiz } = useQuiz(quizId);
+  const { data: quiz, isLoading } = useQuiz(quizId);
   const { data: stats } = useQuizAttemptsStats(quizId);
   const { data: corrections } = useQuizCorrections(quizId);
   const { data: membres } = useMembres(spaceId);
@@ -36,7 +37,32 @@ function QuizDetailEnseignant() {
   const createAttemptCorrection = useCreateAttemptCorrection(quizId, selectedAttemptId);
   const isSubmitting = createQuizCorrection.isPending || createAttemptCorrection.isPending;
 
-  if (!quiz) return null;
+  if (isLoading) {
+    return (
+      <div className="mx-auto flex max-w-2xl flex-col gap-3 p-4 sm:p-6">
+        <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-3">
+          <Skeleton className="h-6 w-1/3" />
+          <Skeleton className="h-40 w-full" />
+          <span className="sr-only">Chargement du quiz…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!quiz) {
+    return (
+      <div className="mx-auto flex max-w-2xl flex-col items-start gap-3 p-4 sm:p-6">
+        <p className="font-mono text-xs uppercase tracking-wide text-encre-muted">Quiz</p>
+        <h1 className="font-display text-xl font-semibold text-encre">Quiz introuvable</h1>
+        <p className="text-sm text-encre-muted">
+          Ce quiz n'existe pas ou n'est plus disponible. Retourne à la liste des fiches.
+        </p>
+        <Link to="/enseignant/espaces/$spaceId/fiches" params={{ spaceId }}>
+          <Button variant="outline">Retour aux fiches</Button>
+        </Link>
+      </div>
+    );
+  }
 
   function handleSubmitCorrection(e: React.FormEvent) {
     e.preventDefault();
@@ -57,7 +83,7 @@ function QuizDetailEnseignant() {
   }
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-8 p-6">
+    <div className="mx-auto flex max-w-2xl flex-col gap-8 p-4 sm:p-6">
       <div className="rounded-fiche border border-papier-border bg-papier-carte p-5">
         <div className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-encre-muted">
           Quiz
@@ -124,7 +150,7 @@ function QuizDetailEnseignant() {
                       {pct}%
                     </Badge>
                   </div>
-                  <span className="font-mono text-[0.68rem] text-encre-muted">
+                  <span className="font-mono text-[0.68rem] tabular-nums text-encre-muted">
                     {new Date(attempt.attemptedAt).toLocaleDateString('fr-FR', {
                       day: 'numeric',
                       month: 'short',
@@ -159,7 +185,7 @@ function QuizDetailEnseignant() {
                       ? `Score corrigé : ${correction.scoreCorrige}`
                       : 'Commentaire'}
                   </span>
-                  <span className="font-mono text-[0.68rem] text-encre-muted">
+                  <span className="font-mono text-[0.68rem] tabular-nums text-encre-muted">
                     {new Date(correction.createdAt).toLocaleDateString('fr-FR', {
                       day: 'numeric',
                       month: 'short',

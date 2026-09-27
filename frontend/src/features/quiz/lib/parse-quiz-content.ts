@@ -27,7 +27,38 @@ const answerEntrySchema = z.object({
  * Filtre les questions QRC (sans options) et normalise `answer` → `correct_answer`.
  */
 export function parseQuizQuestions(json: string): Question[] {
-  return normalizeQuestions(json, true);
+  return parseQuizQuestionsWithRawIndex(json).map((e) => e.question);
+}
+
+/**
+ * Variante de `parseQuizQuestions` qui conserve l'index brut de chaque
+ * question dans `contentJson.questions[]`.
+ *
+ * Le scoring backend (`QuizGenerationService.scoreAttempt`) lit le tableau
+ * brut non filtré : les `questionIndex` soumis doivent donc être des indices
+ * bruts, même si le passage n'affiche que le sous-ensemble filtré (QCM).
+ */
+export function parseQuizQuestionsWithRawIndex(json: string): { question: Question; rawIndex: number }[] {
+  const result = quizContentSchema.safeParse(tryParse(json));
+  if (!result.success) return [];
+
+  const out: { question: Question; rawIndex: number }[] = [];
+  result.data.questions.forEach((q, rawIndex) => {
+    if (!(q.options && q.options.length > 0)) return;
+    out.push({
+      question: {
+        question: q.question,
+        type: q.type,
+        options: q.options,
+        correct_answer: q.correct_answer ?? q.answer,
+        explanation: q.explanation ?? '',
+        hint: q.hint,
+      },
+      rawIndex,
+    });
+  });
+
+  return out;
 }
 
 /**

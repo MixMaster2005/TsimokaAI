@@ -95,14 +95,14 @@ function FicheRow({ item }: { item: FicheWithSpace }) {
             </Link>
             <Badge
               variant={
-                statut === 'VALIDEE' ? 'succes' : statut === 'REJETEE' ? 'erreur' : 'attention'
+                statut === 'VALIDEE' ? 'succes' : statut === 'REJETEE' ? 'attention' : 'secondary'
               }
               className="font-mono text-[0.6rem]"
             >
-              {statut === 'EN_ATTENTE' ? 'En attente' : statut === 'VALIDEE' ? 'Validée' : 'Rejetée'}
+              {statut === 'EN_ATTENTE' ? 'En attente' : statut === 'VALIDEE' ? 'Validée' : 'À revoir'}
             </Badge>
           </div>
-          <p className="mt-0.5 font-mono text-[0.68rem] text-encre-muted">
+          <p className="mt-0.5 font-mono text-[0.68rem] tabular-nums text-encre-muted">
             par {item.fiche.userId.slice(0, 8)}… · {new Date(item.fiche.updatedAt).toLocaleDateString('fr-FR')}
           </p>
           <div className="mt-1.5 flex items-center gap-2">
@@ -234,13 +234,13 @@ function FichesAValider() {
   }, [fiches, search, selectedSpace]);
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6">
         <p className="font-mono text-xs uppercase tracking-wide text-encre-muted">Vue enseignant</p>
         <h1 className="font-display text-2xl font-semibold text-encre">
           Fiches à valider
           {filtered.length > 0 && (
-            <span className="ml-2 font-mono text-base text-encre-muted">({filtered.length})</span>
+            <span className="ml-2 font-mono text-base tabular-nums text-encre-muted">({filtered.length})</span>
           )}
         </h1>
       </div>
@@ -253,10 +253,14 @@ function FichesAValider() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
         />
+        <label htmlFor="filtre-espace" className="sr-only">
+          Filtrer par espace…
+        </label>
         <select
+          id="filtre-espace"
           value={selectedSpace}
           onChange={(e) => setSelectedSpace(e.target.value)}
-          className="max-w-xs rounded-md border border-papier-border bg-papier-carte px-3 py-2 text-sm"
+          className="h-11 max-w-xs rounded-md border border-papier-border bg-papier-carte px-3 py-2 text-sm"
         >
           <option value="all">Tous les espaces</option>
           {espaces?.map((space) => (

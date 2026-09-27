@@ -19,7 +19,7 @@ export function QuizCard({ quiz, spaceId, className, basePath = '/espaces/$space
       to={basePath === '/enseignant' ? '/enseignant/espaces/$spaceId/quiz/$quizId' : '/espaces/$spaceId/quiz/$quizId'}
       params={{ spaceId, quizId: quiz.id }}
       className={cn(
-        'flex overflow-hidden rounded-fiche border border-papier-border bg-papier-carte shadow-sm transition-colors hover:bg-papier-bg',
+        'flex overflow-hidden rounded-fiche border border-papier-border bg-papier-carte shadow-sm transition-colors hover:bg-papier-bg focus-visible:bg-papier-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-papier-bg',
         className,
       )}
     >
@@ -32,7 +32,7 @@ export function QuizCard({ quiz, spaceId, className, basePath = '/espaces/$space
           <QuizBadgeDifficulty difficulty={quiz.difficulty} />
           {quiz.statut === 'BROUILLON' && <Badge variant="outline">Brouillon</Badge>}
           <Badge variant="secondary">
-            <FileQuestion className="mr-1 size-3" />
+            <FileQuestion className="mr-1 size-3" aria-hidden="true" />
             {quiz.questionCount} question{quiz.questionCount > 1 ? 's' : ''}
           </Badge>
         </div>

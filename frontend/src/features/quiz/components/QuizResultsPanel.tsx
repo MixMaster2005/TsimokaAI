@@ -18,10 +18,10 @@ export function QuizResultsPanel({ attempt, quiz, onRetry }: QuizResultsPanelPro
     <div className="flex flex-col gap-6">
       <div className="rounded-fiche border border-papier-border bg-papier-carte p-6 text-center">
         <p className="font-mono text-[0.65rem] uppercase tracking-wide text-encre-muted">Score</p>
-        <p className="mt-1 font-display text-4xl font-semibold text-encre">
+        <h2 className="mt-1 font-display text-4xl font-semibold tabular-nums text-encre">
           {attempt.score}/{attempt.totalQuestions}
-        </p>
-        <p className="mt-1 text-sm text-encre-muted">
+        </h2>
+        <p className="mt-1 font-mono text-sm tabular-nums text-encre-muted">
           {attempt.totalQuestions > 0 ? Math.round((attempt.score / attempt.totalQuestions) * 100) : 0}%
         </p>
         <Progress value={attempt.totalQuestions > 0 ? (attempt.score / attempt.totalQuestions) * 100 : 0} className="mt-4" />

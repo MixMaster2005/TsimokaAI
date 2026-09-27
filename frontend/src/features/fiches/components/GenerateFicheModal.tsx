@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -201,8 +200,14 @@ export function GenerateFicheModal({ open, onOpenChange, spaceId }: GenerateFich
 
                 {perimetre === 'theme' && (
                   <div className="ml-6">
+                    <label htmlFor="fiche-theme" className="sr-only">
+                      Thème de la fiche…
+                    </label>
                     <Input
-                      placeholder="Ex : Les algorithmes de tri"
+                      id="fiche-theme"
+                      name="fiche-theme"
+                      autoComplete="off"
+                      placeholder="Ex : les algorithmes de tri…"
                       value={theme}
                       onChange={(e) => setTheme(e.target.value)}
                     />
@@ -212,7 +217,11 @@ export function GenerateFicheModal({ open, onOpenChange, spaceId }: GenerateFich
             </div>
           </div>
 
-          {errorMessage && <p className="text-xs text-erreur">{errorMessage}</p>}
+          {errorMessage && (
+            <p role="alert" className="text-xs text-erreur">
+              {errorMessage} — corrige puis réessaie.
+            </p>
+          )}
 
           <DialogFooter>
             <Button variant="ghost" type="button" onClick={() => onOpenChange(false)}>
@@ -238,13 +247,14 @@ function DocCheckbox({
   onToggle: (id: string) => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={() => onToggle(doc.id)}
-      className="flex items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-secondary"
-    >
-      <Checkbox checked={checked} />
+    <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-secondary has-checked:bg-secondary">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={() => onToggle(doc.id)}
+        className="size-4 flex-none accent-primary"
+      />
       <span className="truncate text-xs text-foreground">{doc.filename}</span>
-    </button>
+    </label>
   );
 }

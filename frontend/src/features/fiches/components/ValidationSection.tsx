@@ -87,12 +87,16 @@ export function ValidationSection({ ficheId }: { ficheId: string }) {
             </Button>
           ) : (
             <div className="flex flex-col gap-2 rounded-fiche border border-papier-border bg-papier-carte p-3">
+              <label htmlFor="validation-commentaire" className="sr-only">
+                Commentaire de validation…
+              </label>
               <textarea
-                placeholder="Commentaire (obligatoire si À revoir)"
+                id="validation-commentaire"
+                placeholder="Commentaire (obligatoire si À revoir) — ex : précise la définition…"
                 value={commentaire}
                 onChange={(e) => setCommentaire(e.target.value)}
                 rows={2}
-                className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none"
+                className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               <div className="flex gap-2 self-end">
                 <Button variant="ghost" size="sm" disabled={validateFiche.isPending} onClick={() => setFormulaireOuvert(false)}>
@@ -111,6 +115,11 @@ export function ValidationSection({ ficheId }: { ficheId: string }) {
                   Valider
                 </Button>
               </div>
+              {validateFiche.isError && (
+                <p role="alert" className="text-xs text-erreur">
+                  {validateFiche.error.message} — corrige puis réessaie.
+                </p>
+              )}
             </div>
           )}
         </>

@@ -66,7 +66,7 @@ export function ShareFicheModal({ ficheId, groupes, membres, trigger }: ShareFic
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex max-h-64 flex-col gap-1 overflow-y-auto" role="radiogroup">
+          <div className="flex max-h-64 flex-col gap-1 overflow-y-auto" role="radiogroup" aria-label="Destinataire du partage">
             {options.map((o) => (
               <label
                 key={o.value}
@@ -89,7 +89,9 @@ export function ShareFicheModal({ ficheId, groupes, membres, trigger }: ShareFic
             )}
           </div>
           {messageErreur && (
-            <p className={cn('text-xs text-erreur')}>{messageErreur}</p>
+            <p role="alert" className={cn('text-xs text-erreur')}>
+              {messageErreur} — réessaie.
+            </p>
           )}
 
           <DialogFooter>

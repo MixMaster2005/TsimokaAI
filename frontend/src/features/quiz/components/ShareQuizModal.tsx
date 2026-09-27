@@ -49,7 +49,7 @@ export function ShareQuizModal({ quizId, membres, trigger }: ShareQuizModalProps
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex max-h-64 flex-col gap-1 overflow-y-auto" role="radiogroup">
+          <div className="flex max-h-64 flex-col gap-1 overflow-y-auto" role="radiogroup" aria-label="Membre destinataire">
             {membres.map((m) => (
               <label
                 key={m.id}
@@ -72,7 +72,9 @@ export function ShareQuizModal({ quizId, membres, trigger }: ShareQuizModalProps
             )}
           </div>
           {messageErreur && (
-            <p className={cn('text-xs text-erreur')}>{messageErreur}</p>
+            <p role="alert" className={cn('text-xs text-erreur')}>
+              {messageErreur} — réessaie.
+            </p>
           )}
 
           <DialogFooter>

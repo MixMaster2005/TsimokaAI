@@ -187,8 +187,14 @@ export function GenerateQuizModal({ open, onOpenChange, spaceId }: GenerateQuizM
 
             {scope === 'TOPIC' && (
               <div className="ml-6">
+                <label htmlFor="quiz-topic" className="sr-only">
+                  Thème du quiz…
+                </label>
                 <Input
-                  placeholder="Ex : Les algorithmes de tri"
+                  id="quiz-topic"
+                  name="quiz-topic"
+                  autoComplete="off"
+                  placeholder="Ex : les algorithmes de tri…"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   minLength={3}
@@ -230,12 +236,14 @@ export function GenerateQuizModal({ open, onOpenChange, spaceId }: GenerateQuizM
 
         {step === 'count' && (
           <div className="flex flex-col gap-3 py-2">
-            <p className="text-sm text-muted-foreground">Nombre de questions</p>
-            <div className="grid grid-cols-4 gap-2">
+            <p className="text-sm text-muted-foreground" id="quiz-count-label">Nombre de questions</p>
+            <div className="grid grid-cols-4 gap-2" role="group" aria-labelledby="quiz-count-label">
               {QUESTION_COUNTS.map((count) => (
                 <button
                   key={count}
+                  type="button"
                   onClick={() => setQuestionCount(count)}
+                  aria-pressed={questionCount === count}
                   className={cn(
                     'rounded-fiche border border-border p-3 text-center text-sm font-medium transition-colors hover:bg-secondary',
                     questionCount === count && 'border-tag-sciences bg-secondary text-foreground',
@@ -260,10 +268,15 @@ export function GenerateQuizModal({ open, onOpenChange, spaceId }: GenerateQuizM
             </Button>
           ) : (
             <Button onClick={handleGenerate} disabled={generateQuiz.isPending}>
-              {generateQuiz.isPending ? 'Génération…' : 'Générer'}
+              {generateQuiz.isPending ? 'Génération…' : 'Générer un quiz'}
             </Button>
           )}
         </DialogFooter>
+        {generateQuiz.isError && (
+          <p role="alert" className="text-xs text-erreur">
+            {generateQuiz.error.message} — corrige puis réessaie.
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -279,19 +292,15 @@ function DocRadio({
   onSelect: (id: string) => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(doc.id)}
-      className="flex items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-secondary"
-    >
+    <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-secondary has-checked:bg-secondary">
       <input
         type="radio"
         name="doc-select"
         checked={checked}
         onChange={() => onSelect(doc.id)}
-        className="accent-primary"
+        className="size-4 flex-none accent-primary"
       />
       <span className="truncate text-xs text-foreground">{doc.filename}</span>
-    </button>
+    </label>
   );
 }

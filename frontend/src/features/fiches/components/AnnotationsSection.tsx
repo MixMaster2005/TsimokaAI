@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAddAnnotation } from '../api/use-add-annotation';
 import { annotationsQueryOptions } from '../api/annotations-query-options';
 import type { Annotation } from '../types';
@@ -13,7 +14,7 @@ import { useQuery } from '@tanstack/react-query';
  * la fiche : elles constituent le fil pédagogique autour du contenu.
  */
 export function AnnotationsSection({ ficheId }: { ficheId: string }) {
-  const { data: annotations } = useQuery(annotationsQueryOptions(ficheId));
+  const { data: annotations, isLoading, isError, refetch } = useQuery(annotationsQueryOptions(ficheId));
   const addAnnotation = useAddAnnotation(ficheId);
   const [contenu, setContenu] = useState('');
   const [sectionRef, setSectionRef] = useState('');
@@ -40,28 +41,61 @@ export function AnnotationsSection({ ficheId }: { ficheId: string }) {
       </h2>
 
       <div className="flex flex-col gap-2">
-        {annotations?.map((a) => <AnnotationItem key={a.id} annotation={a} />)}
-        {annotations?.length === 0 && (
+        {isLoading && (
+          <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-2">
+            <Skeleton className="h-16 w-full" />
+            <span className="sr-only">Chargement des annotations…</span>
+          </div>
+        )}
+
+        {isError && (
+          <div className="flex flex-col items-start gap-2">
+            <p role="alert" className="text-xs text-erreur">
+              Impossible de charger les annotations. Vérifie ta connexion puis réessaie.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              Réessayer
+            </Button>
+          </div>
+        )}
+
+        {!isLoading && !isError && annotations?.map((a) => <AnnotationItem key={a.id} annotation={a} />)}
+        {!isLoading && !isError && annotations?.length === 0 && (
           <p className="text-xs text-encre-muted">Aucune annotation pour l'instant.</p>
         )}
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-2 rounded-fiche border border-papier-border bg-papier-carte p-3">
+        <label htmlFor="annotation-contenu" className="sr-only">
+          Ajouter une annotation…
+        </label>
         <Input
-          placeholder="Ajouter une annotation…"
+          id="annotation-contenu"
+          placeholder="Ajouter une annotation… — ex : revoir cet exemple…"
           value={contenu}
           onChange={(e) => setContenu(e.target.value)}
+          autoComplete="off"
         />
         <div className="flex items-center gap-2">
+          <label htmlFor="annotation-section" className="sr-only">
+            Section visée (optionnel)…
+          </label>
           <Input
-            placeholder="Section (optionnel : definition, key_points…)"
+            id="annotation-section"
+            placeholder="Section (optionnel) — ex : definition…"
             value={sectionRef}
             onChange={(e) => setSectionRef(e.target.value)}
+            autoComplete="off"
           />
           <Button type="submit" variant="outline" size="sm" disabled={addAnnotation.isPending}>
             {addAnnotation.isPending ? 'Envoi…' : 'Annoter'}
           </Button>
         </div>
+        {addAnnotation.isError && (
+          <p role="alert" className="text-xs text-erreur">
+            {addAnnotation.error.message} — vérifie ta connexion puis réessaie.
+          </p>
+        )}
       </form>
     </section>
   );

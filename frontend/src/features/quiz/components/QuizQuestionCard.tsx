@@ -22,7 +22,7 @@ export function QuizQuestionCard({
       <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-encre-muted">
         Question {questionIndex + 1}
       </p>
-      <h4 className="mb-4 font-display text-lg font-semibold text-encre">{question.question}</h4>
+      <h3 className="mb-4 text-balance font-display text-lg font-semibold text-encre">{question.question}</h3>
 
       <RadioGroup value={selectedAnswer ?? undefined} onValueChange={onSelect} className="grid gap-2">
         {(question.options ?? []).map((option) => {
