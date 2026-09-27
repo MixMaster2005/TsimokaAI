@@ -29,7 +29,7 @@ function PersonaInfoButton({ spaceId, createdAt, personaVersion }: { spaceId: st
             aria-label="Voir le persona actif"
             className="inline-flex items-center gap-1 text-xs text-muted-foreground opacity-60 transition-opacity hover:opacity-100"
           >
-            <Info className="size-3.5" />
+            <Info className="size-3.5" aria-hidden="true" />
             <span className="sr-only">Voir le persona actif</span>
           </button>
         }

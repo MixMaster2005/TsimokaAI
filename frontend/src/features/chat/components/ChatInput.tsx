@@ -19,14 +19,20 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex items-center gap-2 rounded-md border border-border bg-secondary py-1.5 pl-4 pr-1.5"
+      aria-busy={disabled}
+      className="flex items-center gap-2 rounded-md border border-border bg-secondary py-1.5 pl-4 pr-1.5 focus-within:ring-2 focus-within:ring-ring"
     >
+      <label htmlFor="chat-input" className="sr-only">
+        Écris ta question sur le cours…
+      </label>
       <input
+        id="chat-input"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="Écris ta question sur le cours…"
         disabled={disabled}
-        className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+        aria-label="Écris ta question sur le cours…"
+        className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
       />
       <button
         type="submit"

@@ -38,8 +38,13 @@ export function MathBlock({ math, display = false }: MathBlockProps) {
   }
 
   return display ? (
-    <div ref={containerRef} className="my-3 overflow-x-auto text-center" />
+    <div
+      ref={containerRef}
+      className="my-3 overflow-x-auto text-center"
+      role="img"
+      aria-label={`Formule : ${math}`}
+    />
   ) : (
-    <span ref={containerRef} className="inline-block" />
+    <span ref={containerRef} className="inline-block" role="img" aria-label={`Formule : ${math}`} />
   );
 }

@@ -39,11 +39,14 @@ function BlockRenderer({ block }: { block: ContentBlock }) {
       return <MathBlock math={block.content ?? ''} display={true} />;
 
     case 'IMAGE':
+      if (!block.url) return null;
       return (
         <figure className="my-3">
           <img
-            src={block.url ?? ''}
+            src={block.url}
             alt={block.alt ?? ''}
+            loading="lazy"
+            decoding="async"
             className="max-w-full rounded-md border border-border"
           />
           {block.alt && (
@@ -167,12 +170,12 @@ function MarkdownTable({ lines }: { lines: string[] }) {
   const rows = bodyLines.map(splitTableRow);
 
   return (
-    <div className="my-3 overflow-x-auto">
+    <div className="my-3 overflow-x-auto" tabIndex={0} role="region" aria-label="Tableau de données">
       <table className="w-full border-collapse text-left text-sm">
         <thead>
           <tr>
             {headers.map((cell, index) => (
-              <th key={index} className="border border-border bg-muted px-3 py-2 font-semibold">
+              <th key={index} scope="col" className="border border-border bg-muted px-3 py-2 font-semibold">
                 {renderInline(cell)}
               </th>
             ))}

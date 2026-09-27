@@ -39,16 +39,29 @@ export function MermaidBlock({ chart }: MermaidBlockProps) {
 
   if (error) {
     return (
-      <div className="my-3 rounded-md border border-border bg-muted p-3">
-        <p className="mb-1 text-xs text-muted-foreground">Erreur Mermaid</p>
-        <pre className="overflow-x-auto text-sm text-foreground">{chart}</pre>
+      <div className="my-3 rounded-md border border-border bg-muted p-3" role="alert">
+        <p className="mb-1 text-xs text-muted-foreground">Erreur Mermaid — voici le code source :</p>
+        <pre className="overflow-x-auto text-sm text-foreground" tabIndex={0} role="region" aria-label="Code source du schéma">{chart}</pre>
       </div>
     );
   }
 
   return (
-    <div className="my-3 flex justify-center overflow-x-auto rounded-md border border-border bg-background p-3">
-      <div ref={containerRef} />
+    <div className="my-3 rounded-md border border-border bg-background p-3">
+      <div
+        className="flex justify-center overflow-x-auto"
+        tabIndex={0}
+        role="region"
+        aria-label="Schéma — fais défiler horizontalement si besoin"
+      >
+        <div ref={containerRef} aria-hidden="true" />
+      </div>
+      <details className="mt-2 text-xs text-muted-foreground">
+        <summary className="cursor-pointer rounded-sm underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          Code source du schéma
+        </summary>
+        <pre className="mt-1 overflow-x-auto rounded bg-muted p-2 font-mono" tabIndex={0} role="region" aria-label="Code source du schéma">{chart}</pre>
+      </details>
     </div>
   );
 }
