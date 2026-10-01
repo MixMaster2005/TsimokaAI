@@ -34,8 +34,8 @@ pipeline custom `RagPipelineAdvisor` (réécriture de requête → retrieval lar
   `filterExpression("space_id == '…'")`. Le pipeline :
   1. **Rewrite** : la question brute est réécrite par LLM en requête de retrieval autonome
      (utile en multi-tour : « et pour le second cas ? » n'a pas de sens isolé). Échec = question brute.
-  2. **Retrieval large** : `topK` élevé (`CHAT_RETRIEVAL_TOP_K` = 40) + seuil bas
-     (`CHAT_RETRIEVAL_SIMILARITY_THRESHOLD` = 0.5), pour ne pas rater de chunk pertinent.
+2. **Retrieval large** : `topK` élevé (`CHAT_RETRIEVAL_TOP_K` = 40) + seuil bas
+   (`CHAT_RETRIEVAL_SIMILARITY_THRESHOLD` = 0.6), pour ne pas rater de chunk pertinent.
   3. **Rerank** : les candidats sont réordonnés par un second appel LLM
      (`LlmDocumentReranker`, tags `[C0]..[Cn]`), garde le `topN` = `CHAT_MAX_RETRIEVED_CHUNKS` (5).
      Échec = les `topN` premiers candidats.
@@ -166,7 +166,8 @@ Migrations Flyway (`db/migration`) : `V1__init.sql`, `V2__message_citations.sql`
 1. **Validation de bout en bout** avec toute l'infra (postgres + redis + qdrant + ollama +
    space-service) : envoyer un vrai message et vérifier la réponse basée sur les documents
    indexés, ainsi que la qualité du **rerank LLM** (paramètres à ajuster empiriquement).
-2. Remplir `tokenCount` sur la réponse (V1 nullable, V2 tokenizer réel).
+2. **Remplir `tokenCount` sur la réponse** : champ présent en base (`messages.token_count`) mais
+   toujours `NULL` — pas de tokenizer intégré (V1 nullable, V2 tokenizer réel selon modèle cible).
 3. **Test live Gemini** : nécessite une `GEMINI_API_KEY` ; le câblage (endpoint compatible
    OpenAI + `completionsPath /chat/completions`) est vérifié à la compilation mais pas
    exécuté sans clé.
@@ -190,7 +191,7 @@ Gemini** (avec clé) reste à faire.
 | `SPACE_SERVICE_URL` | `http://localhost:8082` | Persona de l'espace (appel service-à-service) |
 | `INGESTION_SERVICE_URL` | `http://localhost:8083` | Résolution des noms de documents des citations (appel service-à-service) |
 | `CHAT_RETRIEVAL_TOP_K` | `40` | Nombre de candidats du retrieval large |
-| `CHAT_RETRIEVAL_SIMILARITY_THRESHOLD` | `0.5` | Seuil de similarité minimal (phase retrieval large) |
+| `CHAT_RETRIEVAL_SIMILARITY_THRESHOLD` | `0.6` | Seuil de similarité minimal (phase retrieval large) |
 | `CHAT_MAX_RETRIEVED_CHUNKS` | `5` | Nombre de chunks gardés après rerank (injectés dans le prompt) |
 | `CHAT_MAX_HISTORY_MESSAGES` | `10` | Longueur d'historique conservée |
 

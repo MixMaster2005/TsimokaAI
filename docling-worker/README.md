@@ -41,12 +41,13 @@ service permanent : `ingestion-service` le **spawné à la demande** via l'API D
    `> **Description :** caption` quand Gemini a produit une légende. Si la légende est vide,
    l'image garde une alt text neutre sans description vide.
 
-> **Historique — divergence de placeholders résolue (PDF vs non-PDF)** : le chemin
+> **Historique — divergence de placeholders (PDF vs non-PDF)** : le chemin
 > **non-PDF** insère des placeholders **doubles accolades** `{{IMAGE:img_001}}`
-> (`markitdown_converter.py`). Le chemin **PDF** émettait historiquement des placeholders
+> (`markitdown_converter.py`). Le chemin **PDF** émet des placeholders
 > **simples accolades** `![…]({IMAGE:img_id})` (`_render_figure` de `markdown_renderer.py`)
-> non reconnus par `ImageUploadService`. **Harmonisé** : le rendu PDF émet désormais des
-> doubles `{{IMAGE:img_id}}`. Le RAG n'a jamais été impacté — le chunking se fait sur
+> non reconnus par `ImageUploadService`. **Non harmonisé** : ce bug doit être corrigé
+> dans `markdown_renderer.py` pour émettre des doubles `{{IMAGE:img_id}}` comme le chemin
+> non-PDF. Le RAG n'a jamais été impacté — le chunking se fait sur
 > l'**AST** (les `image_ids` vivent dans les `Chunk` / payload Qdrant) et la résolution
 > d'URL/caption se fait via `document_images` + `POST /images/resolve`.
 
@@ -62,7 +63,7 @@ Réponse type (document textuel avec une figure) :
 ```json
 {
   "document": {"pages": [ /* AST canonique — renseigné pour le PDF, null pour non-PDF */ ]},
-  "markdown": "# Rapport\n\nTexte…\n\n{{IMAGE:img_001}}\n\nSuite…",
+  "markdown": "# Rapport\n\nTexte…\n\n![caption]({IMAGE:img_001})\n\nSuite…",
   "method": "markitdown",
   "pages_processed": 12,
   "images": [
@@ -145,10 +146,16 @@ stat -c '%g' /var/run/docker.sock  # ex: 127
 
 ## Non implémenté / points ouverts
 
-1. **Modèle Gemini** : pas de valeur par défaut volontaire. Choisir explicitement un modèle
+1. **Placeholders PDF non harmonisés (BUG)** : `markdown_renderer.py` émet des placeholders
+   simples accolades `![…]({IMAGE:img_id})` au lieu des doubles `{{IMAGE:img_id}}` attendus
+   par `ImageUploadService` dans `ingestion-service`. À corriger dans `_render_figure` pour
+   émettre `{{IMAGE:...}}` (doubles accolades) comme le chemin non-PDF.
+2. **Modèle Gemini** : pas de valeur par défaut volontaire. Choisir explicitement un modèle
    compatible vision via `GEMINI_MODEL` pour éviter les fallbacks dépréciés silencieux.
-2. **Licence AGPL-3.0 de PyMuPDF** : si contraignante pour le mémoire, remplacer par
+3. **Licence AGPL-3.0 de PyMuPDF** : si contraignante pour le mémoire, remplacer par
    `pdfplumber`/`pypdfium2` dans `image_extractor.py` (rendu pages + extraction images).
-3. **Position des placeholders PDF** : le PDF n'ayant pas de marqueur d'image MarkItDown,
+4. **Position des placeholders PDF** : le PDF n'ayant pas de marqueur d'image MarkItDown,
    les placeholders sont collés en fin de Markdown (le positionnement par bloc texte +
    bounding box reste une amélioration possible).
+5. **Tests** : `python -m unittest tests.test_pipeline` échoue car les tests utilisent `pytest`
+   (et non `unittest`) — utiliser `python -m pytest tests/` à la place.

@@ -254,6 +254,12 @@ canal historique `quiz.events` est **supprimé du câblage**. Les consommateurs
   `contenu_hash` (SHA-256) + `lue_le` (PATCH `/api/v1/recommandations/{id}/lue`),
   purge hebdo > 30 j. Correction globale `addQuizCorrection` sans score : aucun event ;
   avec score : un `QUIZ_CORRECTED` ventilé par auteur de tentative.
+- `taux_reussite` / `notions_maitrisees` / `notions_faibles` **calculés** (Lot 1) :
+  recalculés via `refreshProgressionMetrics()` après chaque événement (et avant le
+  dashboard étudiant). `taux` = `meilleurScore/100` si quiz passés, sinon repli
+  `min(1, nb_fiches / nb_questions)` ; `faibles`/`maitrisees` = compteurs personnels
+  `statistique_notion_user` (seuil `nb_questions >= 3`), l'agrégat global
+  `statistique_espace` restant réservé au dashboard enseignant.
 - ~~Bug de nettoyage des rappels dans `gamification-service`~~ — **corrigé** (les anciens
   rappels expirés n'étaient pas purgés, causant une croissance indéfinie de la table).
 - ~~Bug de configuration actuator dans `api-gateway`~~ — **corrigé** (les endpoints

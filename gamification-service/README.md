@@ -65,6 +65,7 @@ Toutes les routes sont protégées par JWT.
 |---|---|---|---|
 | POST | `/api/v1/objectifs` | connecté | Créer un objectif (espace, titre, description, échéance) |
 | GET | `/api/v1/objectifs?spaceId={id}` | connecté | Lister **mes** objectifs d'un espace |
+| GET | `/api/v1/objectifs/weekly?spaceId={id}` | connecté | Suivi hebdomadaire (compteurs par semaine) d'un espace |
 | PATCH | `/api/v1/objectifs/{id}` | propriétaire | Mettre à jour le statut (`ATTEINT` → badge + suivi) |
 | GET | `/api/v1/badges` | connecté | Catalogue complet avec indicateur « obtenu » |
 | POST | `/api/v1/rappels` | connecté | Créer un rappel (espace, message, `prevuLe`) |
@@ -111,9 +112,10 @@ Toutes les routes sont protégées par JWT.
   **Corrigé** : les deux méthodes sont désormais invoquées dans `deleteAllForSpace` /
   `deleteAllForUser`.
 - **Pas de déduplication explicite des événements** : dispatch `JsonNode` tolérant (champ
-  `event`), idempotence via contraintes `UNIQUE` (badges) ; les compteurs hebdo sont
-  rejoués (+1) en cas de redélivrance `FICHE_GENERATED` (at-least-once). À durcir via Set
-  Redis (TODO commenté : clé `ficheId` `gamification:dedup:fiche:<ficheId>`, SETNX + TTL).
+  `event`), idempotence via contraintes `UNIQUE` (badges) + **`EventDedupService` implémenté**
+  (SETNX + TTL 7 j, fail-open si Redis indisponible) sur `gamification:dedup:fiche:<ficheId>`
+  (FICHE_GENERATED) ; les compteurs hebdo ne sont plus rejoués en cas de redélivrance
+  `FICHE_GENERATED` (at-least-once).
 
 ## Événements consommés
 

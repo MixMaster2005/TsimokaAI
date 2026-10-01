@@ -55,8 +55,10 @@ Le **sous-système quiz** (génération LLM ciblée, tentatives avec scoring, pa
   (`fiche-reduce.st`).
 - **Cache MAP Redis** (`FicheMapCacheService`) : les résumés intermédiaires de la phase MAP
   sont mis en cache (clé `fiche:map:{spaceId}:{documentId}`, TTL câblé via
-  `FICHE_MAP_CACHE_TTL_HOURS` → `fiche.map-cache-ttl-hours`, défaut 24h). Le cache est
-  invalidé à chaque `DOCUMENT_READY` pour l'espace concerné. Partagé entre fiches et quiz.
+  `FICHE_MAP_CACHE_TTL_HOURS` → `fiche.map-cache-ttl-hours`, défaut 24h dans `application.yml`).
+  Le cache est invalidé à chaque `DOCUMENT_READY` pour l'espace concerné.
+  **Note** : `FicheGenerationService` utilise ce cache ; `QuizGenerationService` l'injecte mais
+  ne l'utilise pas actuellement (récupère les chunks directement depuis Qdrant).
 - Résilience : circuit breaker `llm-fiche` → en échec, erreur métier 503 (pas de fiche
   placeholder trompeuse).
 
@@ -74,7 +76,7 @@ Le **sous-système quiz** (génération LLM ciblée, tentatives avec scoring, pa
 - **Obsolescence automatique** : à chaque `DOCUMENT_READY` reçu pour un espace, toutes les
   fiches **et quiz** existants de cet espace sont marqués `obsolete = true`.
 - **Validation = 1 fiche ↔ 1 validation** : `validation_fiche.fiche_id` est `UNIQUE`
-  (une nouvelle validation écrase la précédente — upsert).
+  (une validation par fiche, erreur si déjà existante).
 - **Partage orienté** : `groupeId` **OU** `destinataireId` (un seul des deux, validé métier).
 
 ## Génération de fiche (stratégies Map-Reduce / Single-call)
@@ -162,7 +164,7 @@ Toutes les routes sont protégées par JWT.
   → `403` sinon.
 - **Partage** : fournir `groupeId` **ou** `destinataireId`, jamais les deux ni aucun → `400`.
 - **Obsolescence** : toute nouvelle ingestion dans l'espace rend les fiches **et quiz** existants obsolètes.
-- **Validation unique** : revalider une fiche remplace la validation précédente.
+- **Validation unique** : `UNIQUE(fiche_id)` → tentative de revalidation = erreur 409 (conflit).
 - **Rejet motivé** : `REJETEE` sans commentaire (null, vide ou blank) → `400 BAD_REQUEST`
   (`Commentaire obligatoire pour un rejet`) ; commentaire limité à 2000 caractères (`@Size`).
 - La suppression d'une fiche supprime en cascade partages, annotations et validation (FK).
@@ -180,8 +182,9 @@ Toutes les routes sont protégées par JWT.
 - **Corrections** (`QuizCorrectionService` + `QuizCorrectionController`) : création réservée
   propriétaire ou admin (`assertOwnerOrAdmin`, `403` sinon). Correction au niveau quiz
   (retour global enseignant) ou au niveau tentative (commentaire et/ou `scoreCorrige` individuel ;
-  `404` si tentative introuvable, `403` si tentative d'un autre quiz). Chaque correction publie
-  `QUIZ_CORRECTED` sur `fiche.events` (score effectif = corrigé si fourni, sinon score auto).
+  `404` si tentative introuvable, `403` si tentative d'un autre quiz). **Publie `QUIZ_CORRECTED`
+  seulement si `scoreCorrige` est fourni** (score effectif = corrigé) ; sans score, l'événement
+  n'est pas publié (journalisé seulement).
 - **Partage** : propriétaire uniquement.
  - **Scope** : `DOCUMENT` (chunks d'un document), `SPACE` (tous les chunks de l'espace), `TOPIC` (thème libre → targetTopic requis).
 - **TOPIC** → `targetTopic` requis (3-120 car.) : filtré par consigne LLM (`{{TOPIC}}` dans `quiz-generate.st`), retrieval = espace seul (pas d'embedding).

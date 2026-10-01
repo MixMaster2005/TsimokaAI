@@ -133,7 +133,8 @@ src/
 ├── routes/          # WIRING UNIQUEMENT (loader, validateSearch, composition) — voir chaque fichier
 │   ├── _app/        # app étudiant (pathless, guard auth + anti-ENSEIGNANT)
 │   ├── enseignant/  # app enseignant (PRÉFIXÉ — pas pathless, sinon conflit de chemins avec _app)
-│   └── _public/     # landing, connexion, inscription, mot-de-passe-oublie
+│   ├── _public/     # landing, connexion, inscription, mot-de-passe-oublie
+│   └── onboarding/  # post-inscription : choix rôle + créer/rejoindre espace
 ├── features/        # logique métier par domaine (api/, components/, types.ts, lib/)
 │   ├── quiz/        # quiz — types, api hooks, components (QuizCard, GenerateQuizModal, QuizResultsPanel...), lib
 │   └── fiches/      # fiches — enrichi (common_mistakes, self_quiz, FicheStrategy)
@@ -153,19 +154,25 @@ src/
 | `_app/objectifs.tsx` | Objectifs de révision |
 | `_app/tableau-de-bord.tsx` | Dashboard étudiant |
 | `_app/parametres.tsx` | Paramètres |
-| `_app/espaces/$spaceId/` | Détail espace (onglets) |
+| `_app/espaces/$spaceId/` | Détail espace (onglets) — redirige vers `/chat` |
 | `_app/espaces/$spaceId/chat.tsx` | Chat RAG |
 | `_app/espaces/$spaceId/fiches/` | Liste des fiches |
 | `_app/espaces/$spaceId/quiz/` | Liste des quiz |
 | `_app/espaces/$spaceId/quiz/$quizId/take.tsx` | Passer un quiz |
 | `_app/espaces/$spaceId/documents.tsx` | Documents |
 | `_app/espaces/$spaceId/membres.tsx` | Membres + code d'invitation |
+| `_app/espaces/$spaceId/parametres.tsx` | Paramètres de l'espace (propriétaire uniquement) |
 | `_public/accueil.tsx` | Landing |
 | `_public/connexion.tsx` | Login |
 | `_public/inscription.tsx` | Register |
 | `_public/mot-de-passe-oublie.tsx` | Mot de passe oublié |
-| `enseignant/` | Dashboard enseignant |
+| `onboarding/bienvenue.tsx` | Onboarding : choix rôle + créer/rejoindre espace |
+| `onboarding/creer-espace.tsx` | Onboarding : création d'espace |
+| `enseignant/` | Dashboard enseignant (tous espaces) |
+| `enseignant/tableau-de-bord.tsx` | Dashboard enseignant |
+| `enseignant/fiches-a-valider.tsx` | Fiches en attente de validation |
 | `enseignant/parametres.tsx` | Paramètres enseignant |
+| `enseignant/espaces/$spaceId/` | Espace enseignant (dashboard, fiches, quiz, documents, membres, paramètres) |
 
 Détail des conventions (query key factories, quand extraire un composant, `.surface-ardoise`, etc.) : voir les commentaires en tête de chaque fichier de `lib/` et `features/*/api/keys.ts`.
 

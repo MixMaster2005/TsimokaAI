@@ -337,9 +337,18 @@ plus structurantes :
 - `nb_consultations` et `nb_questions` dans analytics-service sont redondants avec les
   compteurs calculés à partir des événements.
 - Les types de recommandation `REVISION_NOTION_FAIBLE` et `RELANCE_INACTIVITE` dans
-  analytics-service sont définis mais jamais générés par le service.
+  analytics-service sont **générés** (via `maybeGenererRecommandationQuizDifficile()` et
+  `relancerInactifs()` schedulé quotidiennement 08:00 UTC).
 - ~~Bug de nettoyage des rappels dans gamification-service~~ — **corrigé**.
 - ~~Bug de config actuator dans api-gateway~~ — **corrigé**.
+- Idempotence Redis (Lot 3) : `EventDedupService` (analytics + gamification,
+  SETNX + TTL 7 j, fail-open si Redis indisponible) sur identifiants stables —
+  `analytics:dedup:message:<messageId>` (MESSAGE_CREATED), `analytics:dedup:fiche:`
+  / `gamification:dedup:fiche:<ficheId>` (FICHE_GENERATED),
+  `analytics:dedup:attempt:<attemptId>` (QUIZ_SUBMITTED, `attemptId` joint par
+  `QuizAttemptService.submit` via la surcharge `QuizEvent.submitted()` ; null pour
+  les événements historiques → traitement convergent sans déduplication).
+  QUIZ_CORRECTED reste convergent par construction + anti-doublon reco 24 h.
 
 ## Contribuer
 

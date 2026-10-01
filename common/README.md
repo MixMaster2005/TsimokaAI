@@ -14,7 +14,7 @@ serait dupliqué d'un microservice à l'autre.
 | Gestion d'erreurs | `GlobalExceptionHandler` (`@RestControllerAdvice`), hiérarchie `ApiException` + codes (`ErrorCode`) |
 | Contexte utilisateur | Lecture des headers enrichis par la gateway (`UserContextFilter`, `UserContextHolder`, `UserContext`) |
 | Messagerie | `RedisEventPublisher` (émission), `AbstractRedisEventListener` (consommation) |
-| Contrat d'événements | Records `UserEvent`, `SpaceEvent`, `IngestionEvent`, `ChatEvent`, `FicheEvent` + noms de canaux `EventChannels` |
+| Contrat d'événements | Records `UserEvent`, `SpaceEvent`, `IngestionEvent`, `ChatEvent`, `FicheEvent`, `QuizEvent` + noms de canaux `EventChannels` |
 
 ## Choix techniques
 
@@ -47,9 +47,9 @@ chaque consommateur s'abonne aux canaux qui l'intéressent.
 |---|---|---|---|
 | `user.events` | `USER_DELETED` | user-service | space, ingestion, chat, fiche, analytics, gamification |
 | `space.events` | `SPACE_DELETED` | space-service | ingestion, chat, fiche, analytics, gamification |
-| `ingestion.events` | `DOCUMENT_READY`, `DOCUMENT_FAILED` | ingestion-service | space (persona), fiche (obsolescence) |
+| `ingestion.events` | `DOCUMENT_READY`, `DOCUMENT_FAILED`, `DOCUMENT_PROCESSING` | ingestion-service | space (persona), fiche (obsolescence) |
 | `chat.events` | `MESSAGE_CREATED` | chat-service | analytics |
-| `fiche.events` | `FICHE_GENERATED`, `FICHE_VALIDATED` | fiche-service | analytics, gamification |
+| `fiche.events` | `FICHE_GENERATED`, `FICHE_VALIDATED`, `QUIZ_SUBMITTED`, `QUIZ_CORRECTED` | fiche-service | analytics, gamification |
 
 ```mermaid
 flowchart LR
@@ -116,3 +116,6 @@ Contrat **non négociable** pour toutes les APIs du projet :
   garantie, passer sur un broker avec `outbox pattern` — documenté comme extension possible.
 - Les événements sont publiés **dans la transaction** du service producteur : si la
   transaction est rollback après publication, l'événement peut être « orphelin ».
+- Code d'erreur `LLM_PROVIDER_UNAVAILABLE` (503) : levé par `ChatProviderResolver.current()` quand
+  le provider LLM configuré n'est pas disponible — pas de repli silencieux sur Ollama (cf.
+  `ai-common/README.md`).

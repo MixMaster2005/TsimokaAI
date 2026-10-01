@@ -17,9 +17,11 @@ des autres services : ce service est alimenté **exclusivement par consommation 
   normalisée) et **évolution de l'activité sur 12 semaines** (semaine en cours incluse,
   par `derniere_activite`).
 - **Recommandations** : générées automatiquement quand une notion est questionnée de façon
-  répétée (signal de difficulté). **Seul le type `CHAPITRE_DIFFICILE` est effectivement
-  généré** ; les types `REVISION_NOTION_FAIBLE` et `RELANCE_INACTIVITE` existent dans l'enum
-  mais ne sont pas encore implémentés (voir « Limites connues »).
+  répétée (signal de difficulté). **Les 3 types sont générés** : `CHAPITRE_DIFFICILE` (questions
+  répétées sur une notion, seuil 3, anti-doublon 24 h), `REVISION_NOTION_FAIBLE` (scores quiz
+  < 50 % répétés, anti-doublon 24 h), `RELANCE_INACTIVITE` (scheduler quotidien `@Scheduled`
+  08:00 UTC, inactivité > 7 j, anti-doublon 7 j). Colonnes `contenu_hash` (SHA-256) +
+  `lue_le` (PATCH `/api/v1/recommandations/{id}/lue`), purge hebdo > 30 j.
 
 ## Choix techniques
 
@@ -51,9 +53,9 @@ des autres services : ce service est alimenté **exclusivement par consommation 
   **supprimé du câblage** (`RedisListenerConfig` n'y souscrit plus).
 - **Métriques de progression recalculées** : `refreshProgressionMetrics()` est appelé après
   chaque événement (question, fiche générée/validée enrichie, quiz) et avant le dashboard
-  étudiant : `taux_reussite = min(1, nb_fiches_generees / nb_questions_posees)`,
-  `notions_faibles` = notions avec `nb_questions >= 3`, `notions_maitrisees` = notions
-  avec `0 < nb_questions < 3`.
+  étudiant : `taux_reussite = meilleurScore/100` si quiz passés, sinon repli
+  `min(1, nb_fiches_generees / nb_questions_posees)`, `notions_faibles` = notions avec
+  `nb_questions >= 3`, `notions_maitrisees` = notions avec `0 < nb_questions < 3`.
 
 ## Flux de données
 
@@ -95,18 +97,22 @@ Toutes les routes sont protégées par JWT.
 | Méthode | Route | Rôle | Description |
 |---|---|---|---|
 | GET | `/api/v1/dashboard/student?spaceId={id}` | connecté | Tableau de bord de l'étudiant courant pour un espace |
+| GET | `/api/v1/dashboard/student/all` | connecté | Tableaux de bord de l'étudiant courant pour **tous** ses espaces (1 requête) |
 | GET | `/api/v1/dashboard/teacher?spaceId={id}` | enseignant (admin) | Tableau de bord de l'espace (notions, chapitres, actifs, questions fréquentes, évolution 12 semaines) |
 | GET | `/api/v1/dashboard/teacher/students?spaceId={id}` | enseignant (admin) | Lignes étudiants de l'espace (progression par étudiant) |
 | GET | `/api/v1/dashboard/teacher/recommandations?spaceId={id}&studentId={id}` | enseignant (admin) | Recommandations d'un étudiant de l'espace (404 si étudiant hors espace) |
 | GET | `/api/v1/recommandations?spaceId={id}` | connecté | Recommandations de l'étudiant courant (réutilise le calcul du dashboard) |
+| PATCH | `/api/v1/recommandations/{id}/lue` | connecté | Marquer une recommandation comme lue (positionne `lue_le`) |
 
 ## Règles métier
 
 - **Le dashboard enseignant est réservé aux enseignants** (`ctx.isAdmin()` → `403` sinon).
 - **Notion difficile** : `nb_questions % 3 == 0` → incrément du score + recommandation
   « Tu as posé plusieurs questions sur "…". Une relecture de ce chapitre pourrait aider. »
-  **Seul le type `CHAPITRE_DIFFICILE` est généré** ; `REVISION_NOTION_FAIBLE` et
-  `RELANCE_INACTIVITE` existent dans l'enum mais ne sont pas encore branchés.
+  **Les 3 types sont générés** : `CHAPITRE_DIFFICILE` (questions répétées, seuil 3),
+  `REVISION_NOTION_FAIBLE` (scores quiz < 50 % répétés), `RELANCE_INACTIVITE` (scheduler
+  quotidien 08:00 UTC, inactivité > 7 j). Anti-doublon 24 h (7 j pour inactivité) via
+  `contenu_hash` SHA-256.
 - **Progression unique par (étudiant, espace)** : contrainte `UNIQUE(user_id, space_id)`.
 - **`FICHE_VALIDATED` exploité si enrichi** : `onFicheValidated(userId, spaceId, statut)`
   crédite la progression (`derniere_activite` + `refreshProgressionMetrics`) quand
@@ -144,10 +150,9 @@ Toutes les routes sont protégées par JWT.
 
 ## Non implémenté / limites connues
 
-- **Types de recommandation non implémentés** : seuls les enregistrements de type
-  `CHAPITRE_DIFFICILE` sont créés. `REVISION_NOTION_FAIBLE` et `RELANCE_INACTIVITE`
-  existent dans l'enum mais aucune logique ne les produit actuellement. À brancher
-  lorsque les conditions correspondantes seront définies.
+- **Types de recommandation** : les 3 types (`CHAPITRE_DIFFICILE`, `REVISION_NOTION_FAIBLE`,
+  `RELANCE_INACTIVITE`) sont implémentés. Anti-doublon via `contenu_hash` (SHA-256) +
+  `lue_le` (PATCH `/api/v1/recommandations/{id}/lue`), purge > 30 j.
 - **`FICHE_VALIDATED` non enrichi non imputable** : sans `userId`/`spaceId` (contrat
   historique : l'événement ne portait que `enseignantId`), `onFicheValidated()` se
   contente de journaliser. L'imputation utilise l'**événement enrichi désormais publié
@@ -158,9 +163,13 @@ Toutes les routes sont protégées par JWT.
   correction **au niveau quiz** (sans `attemptId` / sans `userIdEtu`) est incomplète →
   warn + ignorée, jamais d'exception. Score < 50 % répété → `CHAPITRE_DIFFICILE`.
 - **Idempotence des listeners** : dispatch `JsonNode` tolérant (champ `event`), garde-fous
-  `UNIQUE` (progression, upsert question) ; les compteurs sont rejoués en cas de
-  redélivrance Redis (at-least-once). À durcir via déduplication Set Redis (TODO commentés
-  : clé `messageId` / `ficheId` / `attemptId`, SETNX + TTL).
+  `UNIQUE` (progression, upsert question) + **`EventDedupService` implémenté** (analytics +
+  gamification, SETNX + TTL 7 j, fail-open si Redis indisponible) sur identifiants stables —
+  `analytics:dedup:message:<messageId>` (MESSAGE_CREATED), `analytics:dedup:fiche:<ficheId>`
+  (FICHE_GENERATED), `analytics:dedup:attempt:<attemptId>` (QUIZ_SUBMITTED, `attemptId`
+  joint par `QuizAttemptService.submit` via la surcharge `QuizEvent.submitted()` ; null pour
+  les événements historiques → traitement convergent sans déduplication).
+  QUIZ_CORRECTED reste convergent par construction + anti-doublon reco 24 h.
 - **`extractNotion` est une heuristique lexicale** : pas d'extraction sémantique (suffisante
   pour peupler les dashboards, améliorable par NLP/embeddings).
 
