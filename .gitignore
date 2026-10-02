@@ -116,3 +116,6 @@ skills-lock.json
 # Frontend — projet sous npm (package-lock.json versionné), pas de lock pnpm
 # ----------------------------------------------------------------------------
 frontend/pnpm-lock.yaml
+
+# Artefacts de build TypeScript (générés, jamais versionnés)
+*.tsbuildinfo
