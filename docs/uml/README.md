@@ -15,10 +15,10 @@ microservice, d'endpoint, de table ou de techno dans les libellés.
 
 | Planche | Domaine | Rappels externes |
 |---|---|---|
-| `classes/classes-espaces` | Comptes et espaces (référence) | aucun |
-| `classes/classes-contenu` | Contenu et assistant | Espace, Utilisateur, Role |
-| `classes/classes-revision` | Révision (fiches/quiz) | Groupe, Utilisateur |
-| `classes/classes-suivi` | Suivi et motivation | Utilisateur, Espace |
+| `classes/01-classes-espaces` | Comptes et espaces (référence) | aucun |
+| `classes/02-classes-contenu` | Contenu et assistant | Espace, Utilisateur, Role |
+| `classes/03-classes-revision` | Révision (fiches/quiz) | Groupe, Utilisateur |
+| `classes/04-classes-suivi` | Suivi et motivation | Utilisateur, Espace |
 
 Choix assumés (à justifier dans le mémoire) :
 - Attributs métier seuls : ni identifiants techniques, ni horodatages, ni blobs
