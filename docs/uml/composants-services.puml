@@ -1,0 +1,62 @@
+@startuml
+
+' Style de la capture : lignes orthogonales, composants et packages en rectangles
+skinparam linetype ortho
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+skinparam nodesep 40
+skinparam ranksep 50
+
+title TsimokaAI - Composants et relations (niveau conception)
+
+' Hors champ : passerelle d'acces, librairies partagees,
+' extraction internalisee a l'ingestion.
+
+package "Acces" {
+  component "Portail web" as Portail <<Component>>
+  component "Gestion des identites" as Identites <<Component>>
+}
+
+package "Coeur pedagogique" {
+  component "Gestion des espaces" as Espaces <<Component>>
+  component "Ingestion des contenus" as Ingestion <<Component>>
+  component "Assistant conversationnel" as Assistant <<Component>>
+  component "Atelier de revision" as Revision <<Component>>
+}
+
+package "Pilotage" {
+  component "Suivi des apprentissages" as Suivi <<Component>>
+  component "Motivation et engagement" as Motivation <<Component>>
+}
+
+' Sollicite (fleche pleine)
+Portail --> Identites
+Portail --> Espaces
+Portail --> Ingestion
+Portail --> Assistant
+Portail --> Revision
+Portail --> Suivi
+Portail --> Motivation
+
+Assistant --> Espaces
+Assistant --> Ingestion
+
+' Notifie de facon asynchrone (pointilles)
+Identites ..> Espaces
+Ingestion ..> Espaces
+Ingestion ..> Revision
+Assistant ..> Suivi
+Revision ..> Suivi
+Revision ..> Motivation
+
+legend bottom
+  Fleche pleine : sollicite / pointilles : notifie (asynchrone).
+  Assistant -> Espaces : persona / Assistant -> Ingestion : figures.
+  Notifications : compte supprime (Identites -> Espaces), document pret
+  (Ingestion -> Espaces, Revision), message envoye (Assistant -> Suivi),
+  fiche et quiz (Revision -> Suivi, Motivation).
+  Suppression d'un compte ou d'un espace : purge en cascade vers
+  tous les composants.
+endlegend
+
+@enduml

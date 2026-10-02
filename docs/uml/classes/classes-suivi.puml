@@ -1,0 +1,99 @@
+@startuml
+
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 0
+skinparam backgroundColor #FFFFFF
+skinparam ArrowColor #000000
+skinparam ArrowThickness 0.75
+skinparam ArrowFontSize 10
+skinparam titleFontSize 14
+skinparam titleFontStyle bold
+skinparam nodesep 25
+skinparam ranksep 60
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
+}
+skinparam enum {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
+}
+skinparam package {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
+}
+skinparam legend {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
+}
+
+hide circle
+
+title TsimokaAI - Suivi et motivation (niveau conception)
+
+
+package "Suivi et motivation" {
+  class Progression {
+    tauxReussite : Double
+    notionsFortes : String
+    notionsFaibles : String
+  }
+  class Recommandation {
+    type : TypeRecommandation
+    contenu : String
+    lue : Boolean
+  }
+  enum TypeRecommandation <<enumeration>> {
+    NOTION_FAIBLE
+    CHAPITRE_DIFFICILE
+    RELANCE_INACTIVITE
+  }
+  class Objectif {
+    titre : String
+    echeance : String
+    statut : StatutObjectif
+  }
+  enum StatutObjectif <<enumeration>> {
+    EN_COURS
+    ATTEINT
+    ABANDONNE
+  }
+  class Badge {
+    nom : String
+    description : String
+  }
+
+  Utilisateur "1" --> "*" Recommandation : recoit
+  Utilisateur "1" --> "*" Objectif : se fixe
+  Utilisateur "*" --> "*" Badge : obtient
+}
+
+
+' Rappels externes (hors package, sans package externe affiche)
+class Utilisateur {
+  email : String
+  nomAffiche : String
+}
+class Espace {
+  nom : String
+  matiere : String
+}
+
+Progression --> Utilisateur : suit
+Progression --> Espace : dans
+Recommandation --> Espace : concerne
+Objectif --> Espace : porte sur
+
+
+legend bottom
+  Planche 4/4
+endlegend
+
+
+@enduml
