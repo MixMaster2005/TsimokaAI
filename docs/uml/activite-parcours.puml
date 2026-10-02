@@ -1,0 +1,91 @@
+@startuml
+
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam backgroundColor #FFFFFF
+skinparam ArrowColor #000000
+skinparam ArrowThickness 0.75
+skinparam ArrowFontSize 10
+skinparam titleFontSize 14
+skinparam titleFontStyle bold
+skinparam nodesep 15
+skinparam ranksep 30
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
+  BarColor #000000
+}
+skinparam diamond {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
+}
+skinparam partition {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
+}
+skinparam legend {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
+}
+
+
+title TsimokaAI - Workflow principal (niveau conception)
+
+
+' ============================================================
+' Workflow principal : l enseignant prepare, les etudiants
+' apprennent et produisent, l enseignant valide, on itere.
+' Decisions = gardes metier reelles du projet actuel.
+' ============================================================
+
+
+|Enseignant|
+start
+:Creer un espace de cours;
+:Deposer les documents de cours;
+
+|TsimokaAI|
+repeat :Preparer les documents;
+repeat while (Documents prets ?) is (non : relancer) not (oui)
+
+|Enseignant|
+:Inviter les etudiants\n(code d invitation);
+
+|Etudiant|
+:Rejoindre l espace;
+
+repeat :Poser une question sur un cours;
+  |TsimokaAI|
+  if (Contenu trouve\ndans les cours ?) then (oui)
+    :Repondre en citant\nles sources;
+  else (non)
+    :Le dire honnetement\n(sans inventer);
+  endif
+  |Etudiant|
+  :Creer fiches et quiz;
+  |Enseignant|
+  :Valider les fiches\net les quiz;
+  |Etudiant|
+  if (Valides ?) then (non : a reprendre)
+    :Reprendre fiches et quiz;
+  endif
+  :Reviser et repondre\naux quiz;
+repeat while (Continuer a reviser ?) is (oui) not (non)
+
+stop
+
+
+legend bottom
+  Boucle principale : question -> production -> validation -> iteration.
+  Secondaires regroupes : groupes de travail, annotations, partage,
+  recommandations, objectifs, badges, rappels.
+endlegend
+
+
+@enduml

@@ -1,0 +1,157 @@
+@startuml
+
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 0
+skinparam backgroundColor #FFFFFF
+skinparam ArrowColor #000000
+skinparam ArrowThickness 0.75
+skinparam ArrowFontSize 10
+skinparam titleFontSize 14
+skinparam titleFontStyle bold
+skinparam nodesep 25
+skinparam ranksep 110
+
+
+skinparam actorStyle stickman
+skinparam actor {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
+}
+skinparam usecase {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
+}
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
+}
+skinparam package {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
+}
+skinparam legend {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
+}
+
+
+title TsimokaAI - Diagramme de cas d'utilisation (niveau conception)
+
+
+left to right direction
+
+
+actor Etudiant
+actor Enseignant
+
+
+' ============================================================
+' Principe de lecture (de gauche a droite) :
+'   acteurs -> cas d'usage principaux -> etapes incluses / options
+' Les acteurs ne sont relies qu'a la colonne des cas principaux.
+' Les liens include / extend ne vont jamais d'un package a l'autre.
+' ============================================================
+
+
+rectangle TsimokaAI {
+
+
+  package "Acces et espaces" {
+    usecase "Consulter ses espaces" as UC_Espaces
+    usecase "Se connecter /\ncreer un compte" as UC_Connecter
+    usecase "Rejoindre un espace\n(etudiant)" as UC_Rejoindre
+    usecase "Gerer un espace\net ses membres\n(enseignant)" as UC_GererEspace
+  }
+
+
+  package "Contenu et assistant" {
+    usecase "Consulter les documents\nd'un espace" as UC_Docs
+    usecase "Deposer un support\nde cours" as UC_Deposer
+    usecase "Poser une question\nsur un cours" as UC_Question
+  }
+
+
+  package "Revision" {
+    usecase "Generer une fiche\nde revision" as UC_GenererFiche
+    usecase "Consulter une fiche" as UC_ConsulterFiche
+    usecase "Annoter une fiche\n(etudiant)" as UC_Annoter
+    usecase "Valider une fiche\n(enseignant)" as UC_Valider
+    usecase "Generer un quiz" as UC_GenererQuiz
+    usecase "Publier un quiz\n(enseignant)" as UC_Publier
+    usecase "Repondre a un quiz" as UC_RepondreQuiz
+    usecase "Consulter les resultats\nd'un quiz" as UC_Resultats
+  }
+
+
+  package "Suivi et motivation" {
+    usecase "Consulter son\ntableau de bord" as UC_Dashboard
+    usecase "Consulter ses\nrecommandations" as UC_Recos
+    usecase "Suivre la progression\ndes etudiants" as UC_Suivi
+    usecase "Gerer ses objectifs\nde revision" as UC_Objectifs
+  }
+}
+
+
+' ============================================================
+' ASSOCIATIONS ACTEURS (uniquement vers les cas principaux)
+' ============================================================
+
+
+Etudiant --> UC_Espaces
+Etudiant --> UC_Docs
+Etudiant --> UC_Question
+Etudiant --> UC_GenererFiche
+Etudiant --> UC_ConsulterFiche
+Etudiant --> UC_GenererQuiz
+Etudiant --> UC_RepondreQuiz
+Etudiant --> UC_Dashboard
+Etudiant --> UC_Objectifs
+
+
+Enseignant --> UC_Espaces
+Enseignant --> UC_Docs
+Enseignant --> UC_ConsulterFiche
+Enseignant --> UC_GenererQuiz
+Enseignant --> UC_Suivi
+
+
+' ============================================================
+' INCLUDE : etape obligatoire (cas principal -> cas inclus)
+' ============================================================
+
+
+UC_Espaces ..> UC_Connecter : <<include>>
+UC_RepondreQuiz ..> UC_Resultats : <<include>>
+
+
+' ============================================================
+' EXTEND : option (la fleche pointe vers le cas de base)
+' ============================================================
+
+
+UC_Espaces <.. UC_Rejoindre : <<extend>>
+UC_Espaces <.. UC_GererEspace : <<extend>>
+UC_Docs <.. UC_Deposer : <<extend>>
+UC_ConsulterFiche <.. UC_Annoter : <<extend>>
+UC_ConsulterFiche <.. UC_Valider : <<extend>>
+UC_GenererQuiz <.. UC_Publier : <<extend>>
+UC_Dashboard <.. UC_Recos : <<extend>>
+
+
+legend bottom
+  Prerequis : authentification prealable pour tous les cas d'usage.
+  include : etape obligatoire / extend : comportement optionnel.
+  Fonctionnalites secondaires regroupees dans les cas d'usage principaux :
+  groupes de travail, suppression de documents, historique des echanges,
+  correction des quiz, partage, badges, rappels.
+endlegend
+
+
+@enduml
