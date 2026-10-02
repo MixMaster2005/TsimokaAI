@@ -19,7 +19,7 @@ function TableauDeBordEnseignant() {
   const { spaceId } = useParams({ from: '/enseignant/espaces/$spaceId/dashboard' });
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6 lg:p-8">
       <p className="font-mono text-xs uppercase tracking-wide text-encre-muted">Espace</p>
       <h1 className="mb-6 font-display text-2xl font-semibold text-encre">Tableau de bord</h1>
 

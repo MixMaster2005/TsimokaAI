@@ -92,7 +92,7 @@ export function GenerateFicheModal({ open, onOpenChange, spaceId }: GenerateFich
               <div className="flex gap-2">
                 <label
                   className={cn(
-                    'flex cursor-pointer items-center gap-2 rounded-fiche border border-border px-3 py-1.5 text-sm transition-colors hover:bg-secondary',
+                    'flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm transition-colors hover:bg-secondary',
                     strategy === 'MAP_REDUCE' && 'border-tag-sciences bg-secondary',
                   )}
                 >
@@ -106,7 +106,7 @@ export function GenerateFicheModal({ open, onOpenChange, spaceId }: GenerateFich
                 </label>
                 <label
                   className={cn(
-                    'flex cursor-pointer items-center gap-2 rounded-fiche border border-border px-3 py-1.5 text-sm transition-colors hover:bg-secondary',
+                    'flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm transition-colors hover:bg-secondary',
                     strategy === 'SINGLE_CALL' && 'border-tag-sciences bg-secondary',
                   )}
                 >
@@ -126,7 +126,7 @@ export function GenerateFicheModal({ open, onOpenChange, spaceId }: GenerateFich
               <div className="flex flex-col gap-2">
                 <label
                   className={cn(
-                    'flex cursor-pointer items-start gap-3 rounded-fiche border border-border p-3 transition-colors hover:bg-secondary',
+                    'flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 transition-colors hover:bg-secondary',
                     perimetre === 'corpus' && 'border-tag-sciences bg-secondary',
                   )}
                 >
@@ -147,7 +147,7 @@ export function GenerateFicheModal({ open, onOpenChange, spaceId }: GenerateFich
 
                 <label
                   className={cn(
-                    'flex cursor-pointer items-start gap-3 rounded-fiche border border-border p-3 transition-colors hover:bg-secondary',
+                    'flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 transition-colors hover:bg-secondary',
                     perimetre === 'documents' && 'border-tag-sciences bg-secondary',
                   )}
                 >
@@ -179,7 +179,7 @@ export function GenerateFicheModal({ open, onOpenChange, spaceId }: GenerateFich
 
                 <label
                   className={cn(
-                    'flex cursor-pointer items-start gap-3 rounded-fiche border border-border p-3 transition-colors hover:bg-secondary',
+                    'flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 transition-colors hover:bg-secondary',
                     perimetre === 'theme' && 'border-tag-sciences bg-secondary',
                   )}
                 >

@@ -61,12 +61,12 @@ function FicheDetail() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8 p-4 sm:p-6">
-      <div>
+      <div className="flex flex-col gap-4">
         <FicheCard fiche={fiche} subjectTag={space?.subjectTag} />
         {/* Partage : réservé au propriétaire de la fiche côté back (403 sinon).
             L'enseignant n'a pas à partager les fiches de ses étudiants. */}
         {session?.role !== 'ENSEIGNANT' && (
-          <div className="mt-3">
+          <div>
             <ShareFicheModal
               ficheId={ficheId}
               groupes={(groupes ?? []).map((g) => ({ id: g.id, label: g.nom }))}

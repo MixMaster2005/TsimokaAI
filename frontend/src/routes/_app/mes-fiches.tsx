@@ -21,7 +21,7 @@ function MesFiches() {
   const { data: espaces } = useEspaces();
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <p className="font-mono text-xs uppercase tracking-wide text-encre-muted">Vue transverse</p>
       <h1 className="mb-6 font-display text-2xl font-semibold text-encre">Mes fiches</h1>
 

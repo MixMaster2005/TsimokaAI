@@ -28,10 +28,10 @@ export const Route = createFileRoute('/_app/objectifs')({
   component: Objectifs,
 });
 
-const STATUT_VARIANT: Record<StatutObjectif, 'secondary' | 'succes' | 'erreur'> = {
-  EN_COURS: 'secondary',
+const STATUT_VARIANT: Record<StatutObjectif, 'default' | 'outline' | 'succes'> = {
+  EN_COURS: 'default',
   ATTEINT: 'succes',
-  ABANDONNE: 'secondary',
+  ABANDONNE: 'outline',
 };
 
 function statutLabel(statut: StatutObjectif) {
@@ -75,11 +75,12 @@ function Objectifs() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 p-4 sm:p-6 lg:p-8 lg:grid-cols-2">
-      <div>
-        <p className="font-mono text-xs uppercase tracking-wide text-encre-muted">Motivation</p>
-        <h1 className="mb-4 font-display text-2xl font-semibold text-encre">Objectifs</h1>
-
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-wide text-encre-muted">Motivation</p>
+          <h1 className="font-display text-2xl font-semibold text-encre">Objectifs</h1>
+        </div>
         {espaces && espaces.length > 1 && (
           <div>
             <label htmlFor="espace-actif" className="sr-only">
@@ -89,7 +90,7 @@ function Objectifs() {
               id="espace-actif"
               value={activeSpaceId ?? ''}
               onChange={(e) => setSpaceId(e.target.value)}
-              className="mb-3 h-11 rounded-md border border-papier-border bg-papier-carte px-2 py-1.5 text-sm"
+              className="h-11 rounded-md border border-papier-border bg-papier-carte px-2 py-1.5 text-sm"
             >
               {espaces.map((e) => (
                 <option key={e.id} value={e.id}>
@@ -99,6 +100,10 @@ function Objectifs() {
             </select>
           </div>
         )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div>
 
         <div className="mb-4 flex flex-col gap-2">
           {objectifs?.map((o) => (
@@ -123,7 +128,7 @@ function Objectifs() {
                   id={`statut-objectif-${o.id}`}
                   value={o.statut}
                   onChange={(e) => updateStatut.mutate({ id: o.id, statut: e.target.value as StatutObjectif })}
-                  className="h-11 bg-transparent text-xs"
+                  className="h-9 rounded-md border border-papier-border bg-papier-carte px-2 text-xs text-encre"
                 >
                   <option value="EN_COURS">En cours</option>
                   <option value="ATTEINT">Atteint</option>
@@ -177,9 +182,9 @@ function Objectifs() {
               }`}
             >
               <div
-                className={`flex size-12 flex-none items-center justify-center rounded-full text-center font-mono text-[0.6rem] uppercase leading-tight ${
+                className={`flex size-12 flex-none items-center justify-center rounded-full text-center font-mono text-[0.65rem] uppercase leading-tight tracking-wide ${
                   b.obtenu
-                    ? 'bg-tag-sciences font-bold text-white'
+                    ? 'bg-encre font-bold text-papier-carte'
                     : 'border-2 border-dashed border-papier-border text-encre-muted'
                 }`}
               >
@@ -189,9 +194,7 @@ function Objectifs() {
                 <div className="flex items-center gap-1.5">
                   <p className="text-sm font-medium text-encre">{b.nom}</p>
                   {b.obtenu && (
-                    <span className="rounded bg-succes/20 px-1.5 py-0.2 font-mono text-[0.6rem] text-succes">
-                      Débloqué
-                    </span>
+                    <StatutBadge variant="succes">Débloqué</StatutBadge>
                   )}
                 </div>
                 <p className="mt-0.5 text-xs text-encre-muted">{b.description}</p>
@@ -209,9 +212,9 @@ function Objectifs() {
             <div key={r.id} className="flex items-center justify-between rounded-fiche border border-papier-border bg-papier-carte px-3 py-2 text-sm">
               <span>{r.message}</span>
               <div className="flex flex-none items-center gap-2">
-                <StatutBadge variant={r.envoye ? 'secondary' : 'attention'}>
+                <span className="font-mono text-xs tabular-nums text-encre-muted">
                   {new Date(r.prevuLe).toLocaleDateString('fr-FR')}
-                </StatutBadge>
+                </span>
                 {!r.envoye && (
                   <Button
                     variant="ghost"
@@ -261,7 +264,7 @@ function Objectifs() {
           </Button>
         </form>
 
-        <div className="rounded-fiche border border-papier-border bg-papier-carte p-4">
+        <div className="mt-6 rounded-fiche border border-papier-border bg-papier-carte p-5">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-display text-sm font-semibold text-encre">Suivi hebdomadaire</h2>
           </div>
@@ -285,6 +288,7 @@ function Objectifs() {
             </p>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

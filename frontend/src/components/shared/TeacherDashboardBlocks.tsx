@@ -17,9 +17,9 @@ export function TeacherDashboardBlocks({ spaceId }: TeacherDashboardBlocksProps)
   const { data: recommandations } = useTeacherRecommandations(spaceId, effectiveStudentId);
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       {/* Notions les plus consultées */}
-      <section className="rounded-fiche border border-papier-border bg-papier-carte p-4">
+      <section className="rounded-fiche border border-papier-border bg-papier-carte p-5">
         <h2 className="mb-3 font-display text-sm font-semibold text-encre">Notions les plus consultées</h2>
         {dashboard?.notionsLesPlusConsultees?.length ? (
           <div className="flex flex-col gap-2">
@@ -39,7 +39,7 @@ export function TeacherDashboardBlocks({ spaceId }: TeacherDashboardBlocksProps)
       </section>
 
       {/* Chapitres difficiles */}
-      <section className="rounded-fiche border border-papier-border bg-papier-carte p-4">
+      <section className="rounded-fiche border border-papier-border bg-papier-carte p-5">
         <h2 className="mb-3 font-display text-sm font-semibold text-encre">Chapitres difficiles</h2>
         {dashboard?.chapitresDifficiles?.length ? (
           <div className="flex flex-col gap-2">
@@ -58,7 +58,7 @@ export function TeacherDashboardBlocks({ spaceId }: TeacherDashboardBlocksProps)
       </section>
 
       {/* Questions fréquentes */}
-      <section className="rounded-fiche border border-papier-border bg-papier-carte p-4">
+      <section className="rounded-fiche border border-papier-border bg-papier-carte p-5">
         <h2 className="mb-3 font-display text-sm font-semibold text-encre">Questions fréquentes</h2>
         {dashboard?.questionsFrequentes?.length ? (
           <div className="flex flex-col gap-2">
@@ -66,7 +66,7 @@ export function TeacherDashboardBlocks({ spaceId }: TeacherDashboardBlocksProps)
               <div key={`${q.question}-${q.dernierAsk}`} className="flex items-center justify-between gap-3 text-sm">
                 <span className="truncate text-encre">{q.question}</span>
                 <div className="flex shrink-0 items-center gap-2 font-mono text-[0.65rem] text-encre-muted">
-                  <Badge variant="secondary">× {q.nbOccurrences}</Badge>
+                  <Badge variant="outline">× {q.nbOccurrences}</Badge>
                   <span>{new Date(q.dernierAsk).toLocaleDateString('fr-FR')}</span>
                 </div>
               </div>
@@ -78,12 +78,12 @@ export function TeacherDashboardBlocks({ spaceId }: TeacherDashboardBlocksProps)
       </section>
 
       {/* Évolution agrégée */}
-      <section className="rounded-fiche border border-papier-border bg-papier-carte p-4">
+      <section className="rounded-fiche border border-papier-border bg-papier-carte p-5">
         <h2 className="mb-3 font-display text-sm font-semibold text-encre">Évolution de la promotion</h2>
         <div className="flex items-center gap-4">
           <div className="text-center">
             <p className="font-mono text-2xl font-bold text-encre">{dashboard?.nbEtudiantsActifs ?? 0}</p>
-            <p className="font-mono text-[0.65rem] text-encre-muted">étudiants actifs</p>
+            <p className="font-mono text-[0.65rem] uppercase tracking-wide text-encre-muted">étudiants actifs</p>
           </div>
         </div>
         {dashboard?.evolution?.length ? (
@@ -110,11 +110,11 @@ export function TeacherDashboardBlocks({ spaceId }: TeacherDashboardBlocksProps)
       </section>
 
       {/* Recommandations IA — par étudiant (GET /api/v1/dashboard/teacher/recommandations) */}
-      <section className="rounded-fiche border border-papier-border bg-papier-carte p-4">
+      <section className="rounded-fiche border border-papier-border bg-papier-carte p-5">
         <h2 className="mb-3 font-display text-sm font-semibold text-encre">Recommandations IA</h2>
         {students?.length ? (
           <select
-            className="mb-3 w-full rounded-sm border border-papier-border bg-papier-fond px-2 py-1 text-xs text-encre"
+            className="mb-3 h-9 w-full rounded-md border border-papier-border bg-papier-carte px-2 text-xs text-encre"
             value={effectiveStudentId}
             onChange={(e) => setSelectedStudentId(e.target.value)}
             aria-label="Étudiant"
@@ -133,9 +133,9 @@ export function TeacherDashboardBlocks({ spaceId }: TeacherDashboardBlocksProps)
           recommandations?.length ? (
             <div className="flex flex-col gap-2">
               {recommandations.map((r) => (
-                <div key={r.id} className="rounded-sm bg-secondary/50 px-3 py-2 text-sm text-encre">
+                <div key={r.id} className="rounded-md bg-papier-bg px-3 py-2 text-sm text-encre">
                   <p>{r.contenu}</p>
-                  <p className="mt-1 font-mono text-[0.62rem] text-encre-muted">
+                  <p className="mt-1 font-mono text-[0.65rem] uppercase tracking-wide text-encre-muted">
                     {r.type.replace(/_/g, ' ').toLowerCase()} · {new Date(r.genereLe).toLocaleDateString('fr-FR')}
                   </p>
                 </div>

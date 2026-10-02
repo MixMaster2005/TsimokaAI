@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEspaces } from '@/features/espaces/api/use-espaces';
 import {
@@ -125,9 +127,9 @@ function TableauDeBord() {
             <div className="flex flex-col gap-3">
               {dashboard.recommandations.map((r) => (
                 <div key={r.id} className="text-sm">
-                  <span className="mr-2 rounded bg-tag-sciences px-2 py-0.5 font-mono text-[0.6rem] uppercase text-white">
+                  <Badge variant="outline" className="mr-2">
                     {r.type.replace(/_/g, ' ')}
-                  </span>
+                  </Badge>
                   {r.contenu}
                 </div>
               ))}
@@ -146,12 +148,10 @@ function TableauDeBord() {
                 return (
                   <div key={t.spaceId} className="flex items-center gap-3 text-sm">
                     <span className="w-32 flex-none truncate text-encre">{t.spaceName}</span>
-                    <div className="h-1.5 flex-1 rounded-full bg-papier-bg">
-                      <div
-                        className={`h-full rounded-full ${isWeak ? 'bg-attention' : 'bg-encre'}`}
-                        style={{ width: `${Math.max(percent, 2)}%` }}
-                      />
-                    </div>
+                    <Progress
+                      value={percent}
+                      className={`flex-1 bg-papier-bg ${isWeak ? '[&_[data-slot=progress-indicator]]:bg-attention' : '[&_[data-slot=progress-indicator]]:bg-encre'}`}
+                    />
                     <span
                       className={`w-10 flex-none text-right font-mono text-xs tabular-nums ${
                         isWeak ? 'font-semibold text-attention' : 'text-encre-muted'

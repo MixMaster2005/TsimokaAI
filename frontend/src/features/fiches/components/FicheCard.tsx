@@ -19,7 +19,7 @@ export function FicheCard({ fiche, subjectTag, className }: FicheCardProps) {
 
   return (
     <div className={cn('flex overflow-hidden rounded-fiche border border-papier-border bg-papier-carte shadow-sm', className)}>
-      <div className={cn('w-2 flex-none', getTagColorClass(subjectTag))} />
+      <div className={cn('w-1.5 flex-none self-stretch', getTagColorClass(subjectTag))} />
       <div className="flex-1 p-5">
         {fiche.obsolete && (
           <span className="mb-2 inline-flex items-center rounded-full bg-attention px-2.5 py-0.5 font-mono text-[0.65rem] uppercase tracking-wide text-white">
@@ -63,7 +63,7 @@ export function FicheCard({ fiche, subjectTag, className }: FicheCardProps) {
                 <Accordion type="multiple" className="flex flex-col gap-2">
                   {content.self_quiz.map((q, i) => (
                     <AccordionItem key={i} value={`quiz-${i}`}>
-                      <AccordionTrigger className="rounded-fiche bg-papier-carte px-2.5 py-2 font-mono text-[0.68rem] text-encre hover:no-underline">
+                      <AccordionTrigger className="rounded-md bg-papier-bg px-2.5 py-2 font-mono text-[0.68rem] text-encre hover:no-underline">
                         {q.question}
                       </AccordionTrigger>
                       <AccordionContent className="px-2.5 pb-2">

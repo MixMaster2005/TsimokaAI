@@ -61,7 +61,7 @@ export function ValidationSection({ ficheId }: { ficheId: string }) {
         <div className="flex items-center gap-3">
           {/* Tampon : Plex Mono majuscules, légère rotation, cf. contrat de design §validation */}
           <span
-            className={`inline-block -rotate-3 rounded-fiche border px-2.5 py-1 font-mono text-xs font-semibold uppercase tracking-widest ${
+            className={`inline-block -rotate-3 rounded-full border px-2.5 py-1 font-mono text-xs font-semibold uppercase tracking-wide ${
               validation.statut === 'VALIDEE'
                 ? 'border-succes/40 text-succes'
                 : validation.statut === 'REJETEE'

@@ -57,7 +57,7 @@ export function ShareFicheModal({ ficheId, groupes, membres, trigger }: ShareFic
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <div className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>Partager cette fiche</DialogTitle>
@@ -70,7 +70,7 @@ export function ShareFicheModal({ ficheId, groupes, membres, trigger }: ShareFic
             {options.map((o) => (
               <label
                 key={o.value}
-                className="flex cursor-pointer items-center gap-2 rounded-fiche border border-transparent px-2 py-1.5 text-sm hover:bg-secondary has-checked:border-border"
+                className="flex cursor-pointer items-center gap-2 rounded-md border border-transparent px-2 py-1.5 text-sm hover:bg-secondary has-checked:border-tag-sciences has-checked:bg-secondary"
               >
                 <input
                   type="radio"

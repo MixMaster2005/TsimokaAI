@@ -23,7 +23,7 @@ function TableauDeBordEnseignant() {
   const activeSpaceId = selectedSpaceId ?? espaces?.[0]?.id ?? null;
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="font-mono text-xs uppercase tracking-wide text-encre-muted">Vue enseignant</p>
@@ -33,18 +33,18 @@ function TableauDeBordEnseignant() {
       </div>
 
       {/* Compteurs agrégés */}
-      <div className="mb-8 grid grid-cols-3 gap-4">
-        <div className="rounded-fiche border border-papier-border bg-papier-carte p-4">
+      <div className="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <div className="rounded-fiche border border-papier-border bg-papier-carte p-5">
           <p className="font-mono text-2xl font-bold text-encre">{espaces?.length ?? 0}</p>
-          <p className="font-mono text-[0.65rem] text-encre-muted">espaces gérés</p>
+          <p className="font-mono text-[0.65rem] uppercase tracking-wide text-encre-muted">espaces gérés</p>
         </div>
-        <div className="rounded-fiche border border-papier-border bg-papier-carte p-4">
+        <div className="rounded-fiche border border-papier-border bg-papier-carte p-5">
           <p className="font-mono text-2xl font-bold text-encre">{totalEtudiants}</p>
-          <p className="font-mono text-[0.65rem] text-encre-muted">étudiants inscrits</p>
+          <p className="font-mono text-[0.65rem] uppercase tracking-wide text-encre-muted">étudiants inscrits</p>
         </div>
-        <div className="rounded-fiche border border-papier-border bg-papier-carte p-4">
+        <div className="rounded-fiche border border-papier-border bg-papier-carte p-5">
           <p className="font-mono text-2xl font-bold text-encre">{totalFiches}</p>
-          <p className="font-mono text-[0.65rem] text-encre-muted">fiches générées</p>
+          <p className="font-mono text-[0.65rem] uppercase tracking-wide text-encre-muted">fiches générées</p>
         </div>
       </div>
 
@@ -61,7 +61,7 @@ function TableauDeBordEnseignant() {
             id="espace-select"
             value={activeSpaceId ?? ''}
             onChange={(e) => setSelectedSpaceId(e.target.value)}
-            className="rounded-fiche border border-papier-border bg-papier-carte px-3 py-2 text-sm text-encre"
+            className="h-11 rounded-md border border-papier-border bg-papier-carte px-3 text-sm text-encre"
           >
             {espaces.map((space) => (
               <option key={space.id} value={space.id}>

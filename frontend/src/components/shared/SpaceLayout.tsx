@@ -24,13 +24,13 @@ export function SpaceLayout({ spaceId, backTo, backLabel = '← Mes espaces', ta
 
   return (
     <div className="flex h-full flex-col">
-      <div className="px-4 pt-5 sm:px-6">
+      <div className="px-4 pt-6 sm:px-6 lg:px-8">
         <Link to={backTo} className="rounded-sm font-mono text-xs text-encre-muted hover:text-encre focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           {backLabel}
         </Link>
         <div className="mt-2 flex min-w-0 items-center gap-2.5">
           {space ? (
-            <h1 className="min-w-0 flex-1 truncate font-display text-xl font-semibold text-encre" title={space.name}>
+            <h1 className="min-w-0 flex-1 truncate font-display text-2xl font-semibold text-encre" title={space.name}>
               {space.name}
             </h1>
           ) : (
@@ -54,7 +54,7 @@ export function SpaceLayout({ spaceId, backTo, backLabel = '← Mes espaces', ta
         {space?.description && <p className="mt-1 line-clamp-2 text-pretty text-sm text-encre-muted">{space.description}</p>}
       </div>
 
-      <nav aria-label="Onglets espace" className="mt-4 flex gap-1 overflow-x-auto whitespace-nowrap border-b border-papier-border px-4 sm:px-6">
+      <nav aria-label="Onglets espace" className="mt-4 flex gap-1 overflow-x-auto whitespace-nowrap border-b border-papier-border px-4 sm:px-6 lg:px-8">
         {allTabs.map((tab) => (
           <TabLink key={tab.to} tab={tab} spaceId={spaceId} />
         ))}

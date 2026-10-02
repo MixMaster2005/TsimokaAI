@@ -38,7 +38,7 @@ function TableauDeBordEnseignant() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-4 p-8 pb-0">
+      <div className="flex flex-wrap items-start justify-between gap-4 p-4 pb-0 sm:p-6 sm:pb-0 lg:p-8 lg:pb-0">
         <div>
           <p className="font-mono text-xs uppercase tracking-wide text-encre-muted">Vue enseignant</p>
           <h1 className="font-display text-2xl font-semibold text-encre">Espaces de cours</h1>
@@ -47,17 +47,17 @@ function TableauDeBordEnseignant() {
       </div>
 
       {isLoading && (
-        <p className="px-8 py-6 text-sm text-encre-muted">Chargement des espaces…</p>
+        <p className="px-4 py-6 text-sm text-encre-muted sm:px-6 lg:px-8">Chargement des espaces…</p>
       )}
 
       {!isLoading && isError && (
-        <p className="px-8 py-6 text-sm text-erreur">
+        <p className="px-4 py-6 text-sm text-erreur sm:px-6 lg:px-8">
           Impossible de charger les espaces de cours.
         </p>
       )}
 
       {!isLoading && !isError && (!all || all.length === 0) && (
-        <p className="px-8 py-6 text-sm text-encre-muted">Aucun espace créé pour l'instant.</p>
+        <p className="px-4 py-6 text-sm text-encre-muted sm:px-6 lg:px-8">Aucun espace créé pour l'instant.</p>
       )}
 
       {!isLoading && !isError && all && all.length > 0 && (
