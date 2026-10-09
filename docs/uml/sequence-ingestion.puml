@@ -1,0 +1,55 @@
+@startuml
+<style>
+root {
+  FontName Helvetica
+  FontSize 12
+  FontColor #000000
+  BackGroundColor #FFFFFF
+  LineColor #000000
+  LineThickness 0.75
+  RoundCorner 0
+  Shadowing 0
+}
+title { FontSize 14; FontStyle bold; FontColor #000000; BackGroundColor transparent; LineColor transparent; LineThickness 0 }
+note { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+sequenceDiagram {
+  actor       { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  participant { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  lifeLine    { BackGroundColor #FFFFFF; LineColor #000000; LineStyle 5-5; LineThickness 0.75 }
+  group       { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  arrow       { LineColor #000000; LineThickness 0.75; FontColor #000000 }
+}
+</style>
+title TsimokaAI - Sequence : depot et preparation d'un support de cours
+actor Etudiant as E
+participant "Portail web" as P
+participant "Ingestion des contenus" as I
+participant "Extraction" as X
+participant "Stockage" as S
+participant "Base vectorielle" as V
+participant "Gestion des espaces" as G
+
+E -> P : Depose un support dans l'espace
+activate P
+P -> I : Transmet le fichier de l'espace
+activate I
+I -> S : Conserve le fichier original
+I -> X : Demande l'extraction du contenu
+activate X
+X --> I : Texte structure + images
+deactivate X
+I -> I : Decoupe en passages par section
+I -> V : Enregistre les passages de l'espace
+I -> S : Conserve les images
+I --> P : Progression (en cours puis pret)
+deactivate I
+I -> G : Notifie document pret
+activate G
+G -> V : Lit un echantillon du document
+G -> G : Enrichit le persona de l'espace
+deactivate G
+P --> E : Statut pret + nombre de passages
+deactivate P
+
+note over I : Echec : statut echec + motif,\nnotification d'echec, bouton relancer.
+@enduml

@@ -1,0 +1,57 @@
+@startuml
+<style>
+root {
+  FontName Helvetica
+  FontSize 12
+  FontColor #000000
+  BackGroundColor #FFFFFF
+  LineColor #000000
+  LineThickness 0.75
+  RoundCorner 0
+  Shadowing 0
+}
+title { FontSize 14; FontStyle bold; FontColor #000000; BackGroundColor transparent; LineColor transparent; LineThickness 0 }
+note { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+sequenceDiagram {
+  actor       { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  participant { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  lifeLine    { BackGroundColor #FFFFFF; LineColor #000000; LineStyle 5-5; LineThickness 0.75 }
+  group       { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  arrow       { LineColor #000000; LineThickness 0.75; FontColor #000000 }
+}
+</style>
+title TsimokaAI - Sequence : generation d'une fiche de revision
+actor Etudiant as E
+participant "Portail web" as P
+participant "Atelier de revision" as R
+participant "Base vectorielle" as V
+participant "Fournisseur LLM" as L
+
+E -> P : Demande une fiche (document ou espace)
+activate P
+P -> R : Transmet espace + documents + strategie
+activate R
+loop Pour chaque document vise
+  R -> V : Lit les passages de l'espace et du document
+  activate V
+  V --> R : Passages
+  deactivate V
+  R -> R : Reutilise le resume en cache si present
+  R -> L : Resume le document (MAP)
+  activate L
+  L --> R : Resume intermediaire
+  deactivate L
+  R -> R : Met en cache le resume
+end
+R -> L : Fusionne les resumes en fiche unique (REDUCE)
+activate L
+L --> R : Fiche structuree (3 essais de validation)
+deactivate L
+R -> R : Sauvegarde la fiche + notifie fiche generee
+R --> P : Fiche prete
+deactivate R
+P --> E : Affiche fiche + annotations + partage
+deactivate P
+
+note over R : Panne LLM : erreur 503 explicite,\naucune fiche placeholder.
+@enduml

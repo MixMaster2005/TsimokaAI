@@ -1,0 +1,69 @@
+@startuml
+<style>
+root {
+  FontName Helvetica
+  FontSize 12
+  FontColor #000000
+  BackGroundColor #FFFFFF
+  LineColor #000000
+  LineThickness 0.75
+  RoundCorner 0
+  Shadowing 0
+}
+title { FontSize 14; FontStyle bold; FontColor #000000; BackGroundColor transparent; LineColor transparent; LineThickness 0 }
+note { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+sequenceDiagram {
+  actor       { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  participant { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  lifeLine    { BackGroundColor #FFFFFF; LineColor #000000; LineStyle 5-5; LineThickness 0.75 }
+  group       { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  arrow       { LineColor #000000; LineThickness 0.75; FontColor #000000 }
+}
+</style>
+title TsimokaAI - Sequence : question sur un cours (RAG + memoire)
+actor Etudiant as E
+participant "Portail web" as P
+participant "Assistant conversationnel" as A
+participant "Gestion des espaces" as G
+participant "Base vectorielle" as V
+participant "Ingestion des contenus" as I
+participant "Fournisseur LLM" as L
+
+E -> P : Pose une question dans l'espace
+activate P
+P -> A : Transmet question + espace + historique
+activate A
+A -> A : Enregistre la question immediatement
+A -> G : Demande le persona de l'espace
+activate G
+G --> A : Persona + version
+deactivate G
+A -> L : Reformule en requete autonome
+activate L
+L --> A : Requete de recherche
+deactivate L
+A -> V : Cherche les passages du seul espace
+activate V
+V --> A : Candidats nombreux
+deactivate V
+A -> L : Trie et garde les 5 meilleurs
+activate L
+L --> A : Passages retenus
+deactivate L
+A -> I : Resolve les figures associees
+activate I
+I --> A : URLs + legendes
+deactivate I
+A -> L : Redige avec persona + contexte + historique
+activate L
+L --> A : Reponse + sources
+deactivate L
+A -> A : Enregistre reponse (chunks, modele, version persona)
+A -> A : Notifie message envoye (suivi)
+A --> P : Reponse + citations
+deactivate A
+P --> E : Affiche reponse structuree
+deactivate P
+
+note over A : Contexte vide : repond honnetement\nque l'info est absente des cours.\nPanne LLM : message d'indisponibilite,\njamais de reponse inventee.
+@enduml

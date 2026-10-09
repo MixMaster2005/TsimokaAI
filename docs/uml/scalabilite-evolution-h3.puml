@@ -1,0 +1,69 @@
+@startuml
+<style>
+root {
+  FontName Helvetica
+  FontSize 12
+  FontColor #000000
+  BackGroundColor #FFFFFF
+  LineColor #000000
+  LineThickness 0.75
+  RoundCorner 0
+  Shadowing 0
+}
+title { FontSize 14; FontStyle bold; FontColor #000000; BackGroundColor transparent; LineColor transparent; LineThickness 0 }
+note { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+componentDiagram {
+  component { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  package { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  arrow { LineColor #000000; LineThickness 0.75; FontColor #000000 }
+}
+</style>
+title TsimokaAI - Leviers de scalabilite verticale et horizontale (H3)
+
+package "Stateless - replicable" {
+  component "api-gateway\nJWT, rate-limit Redis" as GW
+  component "user-service" as US
+  component "space-service" as SS
+  component "chat-service\nmemoire en base" as CS
+  component "fiche-service\ncache MAP Redis TTL" as FS
+  component "analytics-service\ndedup Redis SETNX" as AS
+  component "gamification-service\ndedup Redis SETNX" as GS
+}
+package "Etat partage - contrainte" {
+  database "PostgreSQL 1 instance\n7 bases, Hikari max 5" as PG
+  database "Redis\npub/sub + rate-limit + dedup" as RD
+  database "Qdrant\ncollection unique chunks" as QD
+  database "MinIO\nobjets S3" as MO
+}
+package "Point de contention" {
+  component "ingestion-service\npool 2/4/queue 10\nCallerRunsPolicy" as IS
+  component "docling-worker\nsemaphore 4\nspawn a la demande" as DW
+}
+
+GW -[hidden]- US
+US --> PG : verticale +RAM/CPU\nmem_limit 400m
+SS --> PG
+CS --> PG
+FS --> PG
+AS --> PG
+GS --> PG
+IS --> PG
+GW ..> RD : rate-limit
+AS ..> RD : dedup 7j fail-open
+GS ..> RD : dedup 7j fail-open
+SS --> QD
+IS --> QD
+CS --> QD
+FS --> QD
+IS --> MO
+IS --> DW : semaphore acquire/release\nmax-containers 4
+
+note bottom of IS
+  Vertical : mem_limit 350-450m,
+  MaxRAMPercentage 75, Hikari 5.
+  Horizontal : replicas xN possibles
+  sauf ingestion (semaphore in-JVM
+  + file in-JVM non partagee).
+  Cible V2 : semaphore Redis + file Redis.
+end note
+@enduml

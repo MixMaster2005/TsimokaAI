@@ -1,0 +1,85 @@
+@startuml
+<style>
+root {
+  FontName Helvetica
+  FontSize 12
+  FontColor #000000
+  BackGroundColor #FFFFFF
+  LineColor #000000
+  LineThickness 0.75
+  RoundCorner 0
+  Shadowing 0
+}
+title { FontSize 14; FontStyle bold; FontColor #000000; BackGroundColor transparent; LineColor transparent; LineThickness 0 }
+note { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+deploymentDiagram {
+  node { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  artifact { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  arrow { LineColor #000000; LineThickness 0.75; FontColor #000000 }
+}
+</style>
+title TsimokaAI - Architecture globale de deploiement (H3 evolutivite)
+
+node "Client" {
+  artifact "Frontend :3000\nnginx proxy /api" as FE
+}
+node "Edge" {
+  artifact "api-gateway :8080\nJWT + routage + rate-limit Redis" as GW
+}
+node "Services applicatifs" {
+  artifact "user-service :8081" as US
+  artifact "space-service :8082" as SS
+  artifact "ingestion-service :8083\npool 2/4/10 + semaphore 4" as IS
+  artifact "chat-service :8084" as CS
+  artifact "fiche-service :8085" as FS
+  artifact "analytics-service :8086" as AS
+  artifact "gamification-service :8087" as GS
+}
+node "Infrastructure" {
+  database "PostgreSQL 16\n1 instance, 7 bases" as PG
+  database "Redis 7\npub/sub + rate-limit" as RD
+  database "Qdrant 1.13\ncollection chunks, filtre space_id" as QD
+  database "MinIO\nbucket documents" as MO
+  artifact "Ollama :11434\nprofil optionnel" as OL
+  artifact "docling-worker\nconteneur ephemere spawne" as DW
+}
+
+FE --> GW : HTTP /api
+GW --> US : /api/v1/auth, /users
+GW --> SS : /api/v1/spaces, /groupes
+GW --> IS : /api/v1/documents
+GW --> CS : /api/v1/conversations, /messages
+GW --> FS : /api/v1/fiches, /annotations, /validations, /quizzes
+GW --> AS : /api/v1/dashboard, /recommandations
+GW --> GS : /api/v1/objectifs, /badges, /rappels
+
+US --> PG : user_db (Hikari 5)
+SS --> PG : space_db (Hikari 5)
+IS --> PG : ingestion_db (Hikari 5)
+CS --> PG : chat_db (Hikari 5)
+FS --> PG : fiche_db (Hikari 5)
+AS --> PG : analytics_db (Hikari 5)
+GS --> PG : gamification_db (Hikari 5)
+
+US ..> RD : tokens blacklist
+SS ..> RD : SPACE_DELETED, USER_DELETED
+IS ..> RD : DOCUMENT_READY / FAILED
+CS ..> RD : MESSAGE_CREATED
+FS ..> RD : FICHE_*, QUIZ_*
+AS ..> RD : consomme evenements
+GS ..> RD : consomme evenements
+
+SS --> QD : echantillon persona
+IS --> QD : upsert chunks + space_id
+CS --> QD : retrieval filtre space_id
+FS --> QD : lecture chunks
+IS --> MO : originaux + images
+IS --> DW : spawn docker-java\nreseau apa-net
+IS ..> OL : embeddings nomic-embed-text
+CS ..> OL : LLM fallback local
+note bottom of PG
+  Instance unique mutualisee en local.
+  Passage a 1 Postgres par service
+  par seul changement de DB_URL.
+end note
+@enduml

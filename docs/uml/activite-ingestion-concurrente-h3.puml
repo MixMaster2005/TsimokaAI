@@ -1,0 +1,53 @@
+@startuml
+<style>
+root {
+  FontName Helvetica
+  FontSize 12
+  FontColor #000000
+  BackGroundColor #FFFFFF
+  LineColor #000000
+  LineThickness 0.75
+  RoundCorner 0
+  Shadowing 0
+}
+title { FontSize 14; FontStyle bold; FontColor #000000; BackGroundColor transparent; LineColor transparent; LineThickness 0 }
+note { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+activityDiagram {
+  activity { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  diamond { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  arrow { LineColor #000000; LineThickness 0.75; FontColor #000000 }
+}
+</style>
+title TsimokaAI - Activite : ingestion differee et concurrente (H3)
+start
+:Upload POST /api/v1/documents\nrepond 201 immediate;
+:Document PENDING en base;
+:Soumission processAsync @Async;
+if (Slot libre dans pool ?\ncore 2 / max 4 / queue 10) then (non)
+  :Attente en file;\n:Document reste PENDING\nobservable;
+else (oui)
+endif
+:Thread pool actif;
+if (Semaphore docling-worker ?\npermits 4, fair) then (occupe)
+  :Blocage sur acquire();\n:Les suivants attendent;
+else (libre)
+endif
+:acquire() puis spawn\nconteneur docling-worker-uuid\nreseau apa-net (1-2s);
+:Extraction (PDF AST PyMuPDF\n/ non-PDF MarkItDown)\n+ vision Gemini (figures, scans);
+:Chunking structure / fallback\n+ embeddings Ollama\n+ upsert Qdrant (space_id);
+:release() + stopAndRemoveContainer;
+if (Succes ?) then (oui)
+  :READY + DOCUMENT_READY\n-> enrichit persona;
+else (non)
+  :FAILED + motif\nnotification + relance possible;
+endif
+stop
+
+note right
+  File pleine : CallerRunsPolicy,
+  le thread d'upload execute
+  la conversion (ralentissement naturel).
+  Limite V2 : file in-JVM + semaphore
+  in-JVM non partages entre replicas.
+end note
+@enduml

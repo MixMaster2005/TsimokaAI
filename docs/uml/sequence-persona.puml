@@ -1,0 +1,63 @@
+@startuml
+<style>
+root {
+  FontName Helvetica
+  FontSize 12
+  FontColor #000000
+  BackGroundColor #FFFFFF
+  LineColor #000000
+  LineThickness 0.75
+  RoundCorner 0
+  Shadowing 0
+}
+title { FontSize 14; FontStyle bold; FontColor #000000; BackGroundColor transparent; LineColor transparent; LineThickness 0 }
+note { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+sequenceDiagram {
+  actor       { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  participant { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  lifeLine    { BackGroundColor #FFFFFF; LineColor #000000; LineStyle 5-5; LineThickness 0.75 }
+  group       { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  arrow       { LineColor #000000; LineThickness 0.75; FontColor #000000 }
+}
+</style>
+title TsimokaAI - Sequence : persona pedagogique d'un espace
+actor Enseignant as N
+actor Etudiant as E
+participant "Portail web" as P
+participant "Gestion des espaces" as G
+participant "Fournisseur LLM" as L
+participant "Base vectorielle" as V
+
+N -> P : Cree un espace (nom, matiere, description)
+activate P
+P -> G : Transmet les informations
+activate G
+G -> L : Demande un persona initial
+activate L
+L --> G : Instruction pedagogique
+deactivate L
+G -> G : Sauvegarde version 1
+G --> P : Espace + persona
+deactivate G
+P --> N : Code d'invitation
+deactivate P
+E -> P : Depose un document (via ingestion)
+activate P
+P -> G : Notifie document pret
+activate G
+G -> V : Lit un echantillon du document
+activate V
+V --> G : Passages representatifs
+deactivate V
+G -> L : Demande l'enrichissement
+activate L
+L --> G : Persona enrichi
+deactivate L
+G -> G : Incremente la version (max 3)
+G --> P : Persona a jour
+deactivate G
+P --> E : Persona affiche dans les parametres
+deactivate P
+
+note over G : Panne LLM : modele type a la creation,\npersona inchange a l'enrichissement.
+@enduml

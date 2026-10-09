@@ -1,0 +1,78 @@
+@startuml
+<style>
+root {
+  FontName Helvetica
+  FontSize 12
+  FontColor #000000
+  BackGroundColor #FFFFFF
+  LineColor #000000
+  LineThickness 0.75
+  RoundCorner 0
+  Shadowing 0
+}
+title { FontSize 14; FontStyle bold; FontColor #000000; BackGroundColor transparent; LineColor transparent; LineThickness 0 }
+note { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+sequenceDiagram {
+  actor       { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  participant { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  lifeLine    { BackGroundColor #FFFFFF; LineColor #000000; LineStyle 5-5; LineThickness 0.75 }
+  group       { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  arrow       { LineColor #000000; LineThickness 0.75; FontColor #000000 }
+}
+</style>
+title TsimokaAI - Sequence : quiz, validation et suivi
+actor Etudiant as E
+actor Enseignant as N
+participant "Portail web" as P
+participant "Atelier de revision" as R
+participant "Base vectorielle" as V
+participant "Fournisseur LLM" as L
+participant "Suivi des apprentissages" as S
+participant "Motivation et engagement" as M
+
+E -> P : Demande un quiz (document, espace, sujet, niveau)
+activate P
+P -> R : Transmet criteres
+activate R
+R -> V : Lit les passages vises
+activate V
+V --> R : Passages
+deactivate V
+R -> L : Genere le quiz en JSON
+activate L
+L --> R : Questions
+deactivate L
+R -> R : Sauvegarde en brouillon
+R --> P : Quiz pret
+deactivate R
+P --> E : Affiche le quiz
+deactivate P
+E -> P : Repond au quiz
+activate P
+P -> R : Transmet les reponses
+activate R
+R -> R : Calcule le score localement
+R -> R : Notifie quiz soumis / corrige
+R --> P : Score + corrections
+deactivate R
+P --> E : Affiche resultats
+deactivate P
+N -> P : Publie le quiz / valide la fiche
+activate P
+P -> R : Change le statut
+activate R
+R -> R : Notifie fiche validee
+deactivate R
+P --> N : Statut a jour
+deactivate P
+R -> S : Evenements fiche et quiz
+activate S
+S -> S : Met a jour progression et recommandations
+deactivate S
+R -> M : Evenements fiche et quiz
+activate M
+M -> M : Attribue badges et objectifs
+deactivate M
+
+note over R : Brouillon par defaut ;\npublication reservee a l'enseignant.
+@enduml

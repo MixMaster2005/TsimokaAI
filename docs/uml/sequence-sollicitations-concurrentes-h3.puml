@@ -1,0 +1,52 @@
+@startuml
+<style>
+root {
+  FontName Helvetica
+  FontSize 12
+  FontColor #000000
+  BackGroundColor #FFFFFF
+  LineColor #000000
+  LineThickness 0.75
+  RoundCorner 0
+  Shadowing 0
+}
+title { FontSize 14; FontStyle bold; FontColor #000000; BackGroundColor transparent; LineColor transparent; LineThickness 0 }
+note { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+sequenceDiagram {
+  actor { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  participant { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  lifeLine { BackGroundColor #FFFFFF; LineColor #000000; LineStyle 5-5; LineThickness 0.75 }
+  group { BackGroundColor #FFFFFF; LineColor #000000; FontColor #000000 }
+  arrow { LineColor #000000; LineThickness 0.75; FontColor #000000 }
+}
+</style>
+title TsimokaAI - Sequence : sollicitations simultanees via la gateway (H3)
+actor Client as C
+participant "api-gateway :8080" as G
+participant "service metier" as S
+database "PostgreSQL" as PG
+database "Redis" as R
+database "Qdrant / LLM" as Q
+
+C -> G : N requetes paralleles /api/v1/...
+activate G
+G -> G : JwtAuthentication\nX-User-Id, X-Role, X-Request-Id
+G -> R : RequestRateLimiter\ntoken-bucket (auth 5/10, users 20/40)
+alt quota depasse
+  R --> G : refuse
+  G --> C : 429 Too Many Requests
+else quota ok
+  G -> S : route + headers de confiance
+  activate S
+  S -> PG : Hikari pool max 5
+  S -> R : pub/sub ou dedup SETNX
+  S -> Q : retrieval filtre space_id / appel LLM
+  S --> G : reponse enveloppe ApiResponse
+  deactivate S
+  G --> C : 200 + meta requestId
+end
+deactivate G
+
+note over G : Retry 1x sur GET. connect-timeout 5s.\nresponse-timeout PT30M (ingestion/LLM longs).
+note over S : Services stateless : JWT non revalide.\nMontée en charge par replicas xN\nderriere la gateway.
+@enduml
