@@ -38,6 +38,10 @@ public class QuizService {
         if ("DOCUMENT".equals(scope) && request.targetDocumentId() == null) {
             throw new BadRequestException("targetDocumentId requis pour un quiz de scope DOCUMENT");
         }
+        // Scope DOCUMENT : le document ciblé est aussi la source (affichage « N document(s) »).
+        if ("DOCUMENT".equals(scope) && documentIds.isEmpty() && request.targetDocumentId() != null) {
+            documentIds = List.of(request.targetDocumentId());
+        }
 
         Quiz quiz = Quiz.builder()
                 .spaceId(request.spaceId())
@@ -69,7 +73,16 @@ public class QuizService {
 
     public QuizView getById(UUID id, UUID requesterId, boolean isAdmin, boolean fullAccess) {
         Quiz quiz = findOrThrow(id);
-        assertOwnerOrAdmin(quiz, requesterId, isAdmin);
+        if (!isAdmin && !quiz.getUserId().equals(requesterId)) {
+            // Quiz publié = lisible en vue masquée (questions + options, sans réponses
+            // ni explications) par tout utilisateur connecté : c'est ce qui permet aux
+            // membres d'un espace de passer un quiz publié. Les brouillons restent
+            // réservés au propriétaire et aux enseignants.
+            if (!"PUBLIE".equalsIgnoreCase(quiz.getStatut())) {
+                throw new ForbiddenException("Accès refusé à ce quiz");
+            }
+            return toView(quiz, false);
+        }
         boolean effectiveFull = fullAccess || isAdmin || quiz.getUserId().equals(requesterId);
         return toView(quiz, effectiveFull);
     }
@@ -85,8 +98,16 @@ public class QuizService {
     }
 
     public List<QuizView> listMine(UUID spaceId, UUID userId, boolean fullAccess) {
-        return quizRepository.findBySpaceIdAndUserId(spaceId, userId).stream()
-                .map(q -> toView(q, fullAccess)).toList();
+        java.util.Map<UUID, QuizView> views = new java.util.LinkedHashMap<>();
+        quizRepository.findBySpaceIdAndUserId(spaceId, userId)
+                .forEach(q -> views.put(q.getId(), toView(q, fullAccess)));
+        // Les quiz publiés par d'autres membres de l'espace sont visibles en vue
+        // masquée (sans réponses) : c'est ce qui permet aux étudiants de découvrir
+        // les quiz publiés. Les brouillons d'autrui restent invisibles.
+        quizRepository.findBySpaceIdAndStatut(spaceId, "PUBLIE").stream()
+                .filter(q -> !q.getUserId().equals(userId))
+                .forEach(q -> views.putIfAbsent(q.getId(), toView(q, false)));
+        return List.copyOf(views.values());
     }
 
     /** Surcharge historique : l'owner voit le détail complet. */

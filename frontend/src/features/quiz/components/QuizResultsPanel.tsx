@@ -31,7 +31,9 @@ export function QuizResultsPanel({ attempt, quiz, onRetry }: QuizResultsPanelPro
         {answers.map((answer) => {
           const question = questions[answer.questionIndex];
           if (!question) return null;
-          const isCorrect = answer.answer === question.correct_answer;
+          // En vue masquée (quiz d'autrui), la bonne réponse n'est pas connue côté
+          // client : on s'appuie sur le verdict calculé par le serveur à la soumission.
+          const isCorrect = answer.correct ?? answer.answer === question.correct_answer;
           return (
             <QuizQuestionFeedback
               key={answer.questionIndex}

@@ -34,13 +34,15 @@ export function QuizQuestionFeedback({ question, selectedAnswer, isCorrect }: Qu
         <span className="font-medium">Votre réponse :</span> {selectedAnswer}
       </p>
 
-      {!isCorrect && (
+      {!isCorrect && question.correct_answer && (
         <p className="mt-1 text-sm text-encre">
           <span className="font-medium">Bonne réponse :</span> {question.correct_answer}
         </p>
       )}
 
-      <p className="mt-2 text-sm leading-relaxed text-encre-muted">{question.explanation}</p>
+      {question.explanation && (
+        <p className="mt-2 text-sm leading-relaxed text-encre-muted">{question.explanation}</p>
+      )}
     </div>
   );
 }

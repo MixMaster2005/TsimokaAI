@@ -14,6 +14,8 @@ export interface Question {
 export interface AnswerEntry {
   questionIndex: number;
   answer: string;
+  /** Verdict serveur (présent dans les tentatives persistées après soumission). */
+  correct?: boolean;
 }
 
 export interface Quiz {

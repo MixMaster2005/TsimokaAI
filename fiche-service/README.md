@@ -171,7 +171,12 @@ Toutes les routes sont protégées par JWT.
 
 ### Quiz
 
-- **Lecture/suppression** : propriétaire ou admin.
+- **Lecture** : propriétaire ou admin (vue complète avec réponses). Un quiz **PUBLIE**
+  est lisible par tout utilisateur connecté en **vue masquée** (questions + options,
+  sans `answer` ni `explanation` — `QuizPublicResponse`) ; un `BROUILLON` d'autrui → `403`.
+  La liste `GET /api/v1/quizzes?spaceId=` renvoie mes quiz (complets) **plus** les quiz
+  publiés des autres membres (masqués) ; les brouillons d'autrui restent invisibles.
+- **Suppression** : propriétaire ou admin.
 - **Génération** : défaut BROUILLON (statut explicite `BROUILLON` ou `PUBLIE` accepté).
 - **Publication** (`POST /api/v1/quizzes/{id}/publish` ou équivalent) : réservée enseignant
   (`ADMIN`/`ENSEIGNANT` au sens `UserContext.isAdmin()`) → `403` sinon. Idempotente si déjà

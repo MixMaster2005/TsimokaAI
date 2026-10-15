@@ -2,12 +2,13 @@ import { z } from 'zod';
 
 import type { Question, AnswerEntry } from '../types';
 
-/** Question brute renvoyée par le LLM (champ `answer`, `options` optionnel). */
+/** Question brute renvoyée par le LLM (champ `answer`, `options` optionnel).
+ * `answer` est absent en vue masquée (quiz publié lu par un non-propriétaire). */
 const rawQuestionSchema = z.object({
   type: z.string().optional(),
   question: z.string(),
   options: z.array(z.string()).optional(),
-  answer: z.string(),
+  answer: z.string().optional(),
   correct_answer: z.string().optional(),
   explanation: z.string().nullable().optional(),
   hint: z.string().optional(),
@@ -20,6 +21,9 @@ const quizContentSchema = z.object({
 const answerEntrySchema = z.object({
   questionIndex: z.number(),
   answer: z.string(),
+  // Verdict calculé côté serveur à la soumission (toujours présent après un
+  // submit ; absent des payloads de soumission sortants).
+  correct: z.boolean().optional(),
 });
 
 /**
@@ -50,7 +54,9 @@ export function parseQuizQuestionsWithRawIndex(json: string): { question: Questi
         question: q.question,
         type: q.type,
         options: q.options,
-        correct_answer: q.correct_answer ?? q.answer,
+        // Vue masquée : pas de bonne réponse connue côté client (''), le scoring
+        // reste 100 % serveur et le verdict vient de la tentative soumise.
+        correct_answer: q.correct_answer ?? q.answer ?? '',
         explanation: q.explanation ?? '',
         hint: q.hint,
       },
@@ -78,7 +84,7 @@ function normalizeQuestions(json: string, filterQRC: boolean): Question[] {
       question: q.question,
       type: q.type,
       options: q.options,
-      correct_answer: q.correct_answer ?? q.answer,
+      correct_answer: q.correct_answer ?? q.answer ?? '',
       explanation: q.explanation ?? '',
       hint: q.hint,
     }));
