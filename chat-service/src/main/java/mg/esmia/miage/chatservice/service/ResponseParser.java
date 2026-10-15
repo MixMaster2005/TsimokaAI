@@ -54,12 +54,27 @@ public class ResponseParser {
             Pattern.DOTALL
     );
 
+    // LaTeX display variante \[...\] : UNIQUEMENT quand les délimiteurs occupent
+    // leurs propres lignes (formule isolée). Un \[...\] au milieu d'une phrase ou
+    // d'une ligne de tableau RESTE dans le markdown : le frontend le rend en math
+    // inline, sans quoi l'extraction en bloc casserait la structure (lignes de
+    // tableau, paragraphes). Même sémantique que MATH_DISPLAY quand ça matche.
+    private static final Pattern MATH_DISPLAY_LATEX = Pattern.compile(
+            "(?m)^[ \\t]*\\\\\\[\\s*(.*?)\\s*\\\\\\][ \\t]*$",
+            Pattern.DOTALL
+    );
+
     // LaTeX inline : $...$ (pas de saut de ligne, pas de $$)
     // Lookbehind/lookahead pour éviter les $$ et les $ dans du code
     // P3:(?!\d) exclut $10, $20 etc. (prix/montants) pour éviter les faux positifs
     private static final Pattern MATH_INLINE = Pattern.compile(
             "(?<!\\$)\\$(?!\\$)(?!\\d)([^$\\n]+?)\\$(?!\\$)"
     );
+
+    // NOTE : pas d'extraction bloc pour \(...\) (variante inline des LLM) : ces
+    // formules sont quasi toujours au milieu d'une phrase, d'un item ou d'une
+    // cellule de tableau. Les extraire en blocs casserait ces structures ; le
+    // frontend les rend en math inline via renderInline (MessageRenderer).
 
     // Images : ![alt](url)
     private static final Pattern IMAGE = Pattern.compile(
@@ -92,6 +107,10 @@ public class ResponseParser {
 
         // 2. Détecter les math display $$...$$
         extractSpans(rawContent, MATH_DISPLAY, spans, match ->
+                ContentBlock.math(match.group(1).strip(), true));
+
+        // 2bis. Détecter les math display \[...\] (variante LaTeX des LLM)
+        extractSpans(rawContent, MATH_DISPLAY_LATEX, spans, match ->
                 ContentBlock.math(match.group(1).strip(), true));
 
         // 3. Détecter les images (avant math inline pour éviter les faux positifs avec $)

@@ -185,6 +185,95 @@ class ResponseParserTest {
     }
 
     // -----------------------------------------------------------------------
+    // LaTeX variantes \(...\) / \[...\] (émises spontanément par les LLM)
+    //
+    // Contrat : \[...\] isolé sur ses lignes → MATH_DISPLAY ; \(...\) et
+    // \[...\] au milieu d'une phrase/ligne → restent dans le MARKDOWN
+    // (le frontend les rend en math inline, sans casser tableaux et listes).
+    // -----------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("LaTeX variantes backslash")
+    class MathBackslashVariants {
+
+        @Test
+        @DisplayName("\\(...\\) au milieu d'une phrase → reste MARKDOWN (rendu inline côté front)")
+        void mathInlineBackslashStaysMarkdown() {
+            String input = "La formule \\(x^2 + y^2 = r^2\\) est célèbre.";
+            StructuredContent result = parser.parse(input);
+
+            assertThat(result.blocks()).hasSize(1);
+            assertThat(result.blocks().get(0).type()).isEqualTo(BlockType.MARKDOWN);
+            assertThat(result.blocks().get(0).content()).contains("\\(x^2 + y^2 = r^2\\)");
+        }
+
+        @Test
+        @DisplayName("\\[...\\] isolé multiligne → MATH_DISPLAY")
+        void mathDisplayBackslash() {
+            String input = "On a :\n\n\\[\n\\int_0^1 x\\,dx = \\frac{1}{2}\n\\]\n\nDonc.";
+            StructuredContent result = parser.parse(input);
+
+            List<ContentBlock> mathBlocks = result.blocks().stream()
+                    .filter(b -> b.type() == BlockType.MATH_DISPLAY)
+                    .toList();
+            assertThat(mathBlocks).hasSize(1);
+            assertThat(mathBlocks.get(0).content()).contains("\\int_0^1");
+        }
+
+        @Test
+        @DisplayName("\\[...\\] au milieu d'une phrase → reste MARKDOWN")
+        void mathDisplayBackslashMidSentenceStaysMarkdown() {
+            String input = "Or \\[ w \\leftarrow w + 1 \\] où \\(\\eta > 0\\) est le taux.";
+            StructuredContent result = parser.parse(input);
+
+            assertThat(result.blocks()).hasSize(1);
+            assertThat(result.blocks().get(0).type()).isEqualTo(BlockType.MARKDOWN);
+        }
+
+        @Test
+        @DisplayName("ligne de tableau avec maths → un seul bloc MARKDOWN (structure préservée)")
+        void tableRowWithMathStaysIntact() {
+            String input = "| A | B |\n|---|---|\n| \\(x_1\\) | \\(w_1\\) |";
+            StructuredContent result = parser.parse(input);
+
+            assertThat(result.blocks()).hasSize(1);
+            assertThat(result.blocks().get(0).type()).isEqualTo(BlockType.MARKDOWN);
+            assertThat(result.blocks().get(0).content()).contains("| \\(x_1\\) | \\(w_1\\) |");
+        }
+
+        @Test
+        @DisplayName("mixte $$ + \\[...\\] isolé : deux MATH_DISPLAY")
+        void mathMixedDollarAndBackslashDisplay() {
+            String input = "Display :\n\n$$\\sum_{i=1}^n i$$\n\nEt :\n\n\\[E = mc^2\\]";
+            StructuredContent result = parser.parse(input);
+
+            long displayCount = result.blocks().stream()
+                    .filter(b -> b.type() == BlockType.MATH_DISPLAY).count();
+            assertThat(displayCount).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("\\[ non fermé → markdown brut")
+        void unclosedBackslashDisplay() {
+            String input = "Formule :\n\n\\[\n\\int x";
+            StructuredContent result = parser.parse(input);
+
+            assertThat(result.blocks()).hasSize(1);
+            assertThat(result.blocks().get(0).type()).isEqualTo(BlockType.MARKDOWN);
+        }
+
+        @Test
+        @DisplayName("\\(...\\) dans un fenced code → reste CODE")
+        void backslashInsideCodeBlock() {
+            String input = "```python\n# \\(pas des maths\\)\nprint(1)\n```";
+            StructuredContent result = parser.parse(input);
+
+            assertThat(result.blocks()).hasSize(1);
+            assertThat(result.blocks().get(0).type()).isEqualTo(BlockType.CODE);
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // Images
     // -----------------------------------------------------------------------
 

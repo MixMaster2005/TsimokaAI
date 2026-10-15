@@ -76,6 +76,14 @@ function MarkdownBlock({ content }: { content: string }) {
       continue;
     }
 
+    // Séparateur horizontal : ligne seule ---, *** ou ___ (choix assumé : jamais
+    // de setext h2 — les LLM l'emploient comme séparateur de sections).
+    if (/^\s*(---|\*\*\*|___)\s*$/.test(line)) {
+      nodes.push(<hr key={nodes.length} className="my-4 border-border" />);
+      i += 1;
+      continue;
+    }
+
     if (isTableStart(lines, i)) {
       const tableLines: string[] = [];
       while (i < lines.length && lines[i].includes('|') && lines[i].trim()) {
@@ -152,6 +160,7 @@ function MarkdownBlock({ content }: { content: string }) {
 function isBlockStart(lines: string[], index: number) {
   const line = lines[index];
   return /^(#{1,4})\s+/.test(line)
+    || /^\s*(---|\*\*\*|___)\s*$/.test(line)
     || /^\s*[-*]\s+/.test(line)
     || /^\s*\d+\.\s+/.test(line)
     || /^>\s?/.test(line)
@@ -202,22 +211,49 @@ function splitTableRow(line: string) {
 }
 
 function renderInline(text: string): ReactNode[] {
-  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g);
+  // Sauts de ligne explicites émis par les LLM (<br>, <br/>, insensible à la
+  // casse) : convertis en <br/> React. Aucun autre HTML n'est interprété
+  // (parser volontairement strict, pas de dangerouslySetInnerHTML).
+  return text
+    .split(/(<br\s*\/?>)/i)
+    .filter(Boolean)
+    .flatMap((chunk, chunkIndex): ReactNode[] =>
+      /^<br\s*\/?>$/i.test(chunk)
+        ? [<br key={`br-${chunkIndex}`} />]
+        : renderInlineSpans(chunk, chunkIndex),
+    );
+}
+
+function renderInlineSpans(text: string, chunkIndex: number): ReactNode[] {
+  // Les maths inline \(...\) / \[...\] (variantes LaTeX des LLM restées dans le
+  // markdown : milieu de phrase, item de liste, cellule de tableau) sont rendues
+  // via MathBlock — testées AVANT gras/italique/liens pour ne pas être mangées
+  // par leurs patterns (ex. * dans \(x*y\)).
+  const parts = text.split(/(\\\((?:.+?)\\\)|\\\[(?:[\s\S]+?)\\\]|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g);
 
   return parts.filter(Boolean).map((part, index) => {
+    const key = `${chunkIndex}-${index}`;
+    const inlineMath = /^\\\((.+?)\\\)$/.exec(part);
+    if (inlineMath) {
+      return <MathBlock key={key} math={inlineMath[1]} display={false} />;
+    }
+    const displayMath = /^\\\[([\s\S]+?)\\\]$/.exec(part);
+    if (displayMath) {
+      return <MathBlock key={key} math={displayMath[1]} display={false} />;
+    }
     if (part.startsWith('`') && part.endsWith('`')) {
-      return <code key={index} className="rounded bg-muted px-1 py-0.5 font-mono text-sm">{part.slice(1, -1)}</code>;
+      return <code key={key} className="rounded bg-muted px-1 py-0.5 font-mono text-sm">{part.slice(1, -1)}</code>;
     }
     if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={index} className="font-semibold">{renderInline(part.slice(2, -2))}</strong>;
+      return <strong key={key} className="font-semibold">{renderInline(part.slice(2, -2))}</strong>;
     }
     if (part.startsWith('*') && part.endsWith('*')) {
-      return <em key={index}>{renderInline(part.slice(1, -1))}</em>;
+      return <em key={key}>{renderInline(part.slice(1, -1))}</em>;
     }
     const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
     if (link) {
       return (
-        <a key={index} href={link[2]} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+        <a key={key} href={link[2]} target="_blank" rel="noreferrer" className="underline underline-offset-2">
           {link[1]}
         </a>
       );
