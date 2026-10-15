@@ -119,3 +119,5 @@ frontend/pnpm-lock.yaml
 
 # Artefacts de build TypeScript (générés, jamais versionnés)
 *.tsbuildinfo
+# Preuves de tests E2E locales (captures, PDF QA) — non versionnées
+.artifacts/
