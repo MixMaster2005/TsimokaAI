@@ -1,6 +1,7 @@
 package mg.esmia.miage.common.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import mg.esmia.miage.common.context.UserContextFilter;
 import mg.esmia.miage.common.messaging.RedisEventPublisher;
@@ -25,11 +26,17 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 @ConditionalOnWebApplication
 public class CommonAutoConfiguration {
 
+    /**
+     * Mapper JSON partagé (HTTP + événements Redis). Les {@code Instant} sont
+     * sérialisés en ISO-8601 (jamais en epoch numérique) : le frontend consomme
+     * ces champs via {@code new Date(...)}.
+     */
     @Bean
     @ConditionalOnMissingBean
     public ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         return mapper;
     }
 
