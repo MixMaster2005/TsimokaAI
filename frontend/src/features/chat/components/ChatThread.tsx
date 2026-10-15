@@ -17,16 +17,21 @@ interface ChatThreadProps {
 export function ChatThread({ conversationId, spaceId, showPersonaInfo = false }: ChatThreadProps) {
   const { data: messages, isLoading, isError, refetch } = useMessages(conversationId);
   const sendMessage = useSendMessage(conversationId, spaceId);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Défilement borné au fil de messages : scrollIntoView() entraînerait aussi
+    // les ancêtres overflow:hidden (colonne chat) et décalerait tout l'écran.
     const reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    bottomRef.current?.scrollIntoView({ behavior: reduit ? 'auto' : 'smooth' });
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: reduit ? 'auto' : 'smooth',
+    });
   }, [messages?.length]);
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="mx-auto w-full max-w-2xl flex-1 overflow-y-auto px-4 py-6 sm:px-6" aria-busy={isLoading || sendMessage.isPending}>
+    <div className="flex h-full min-h-0 flex-col">
+      <div ref={scrollRef} className="mx-auto w-full max-w-2xl min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6" aria-busy={isLoading || sendMessage.isPending}>
         {isLoading && (
           <div role="status" aria-live="polite" className="flex flex-col gap-4">
             <Skeleton className="h-16 w-3/4" />
@@ -70,10 +75,10 @@ export function ChatThread({ conversationId, spaceId, showPersonaInfo = false }:
             Envoi en cours…
           </p>
         )}
-        <div ref={bottomRef} />
       </div>
 
-      <div className="mx-auto w-full max-w-2xl px-4 pb-6 sm:px-6">
+      {/* Pied fixe : ne défile jamais, padding explicite + filet de séparation. */}
+      <div className="mx-auto w-full max-w-2xl shrink-0 border-t border-border bg-background px-4 pb-4 pt-3 sm:px-6">
         <ChatInput
           onSend={(content) => sendMessage.mutate({ content })}
           disabled={sendMessage.isPending}

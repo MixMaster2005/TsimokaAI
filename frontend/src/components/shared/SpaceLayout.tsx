@@ -1,4 +1,6 @@
-import { Link, Outlet } from '@tanstack/react-router';
+import { useState } from 'react';
+import { Link, Outlet, useLocation } from '@tanstack/react-router';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -22,13 +24,73 @@ export function SpaceLayout({ spaceId, backTo, backLabel = '← Mes espaces', ta
   const isOwner = space?.userId === session?.id;
   const allTabs = isOwner && tabParametres ? [...tabs, tabParametres] : [...tabs];
 
+  // Onglet chat : verrouillage viewport (hauteur exacte, pas de scroll de page).
+  // La colonne ChatPage remplit la zone restante, seul le fil défile et l'input
+  // reste fixé en bas. Les autres onglets gardent leur scroll de page habituel.
+  const pathname = useLocation({ select: (s) => s.pathname });
+  const isChat = pathname.endsWith('/chat');
+
+  // Repli de l'en-tête + onglets (chat uniquement) : donne toute la hauteur au fil.
+  // Persisté par espace pour retrouver son confort de lecture.
+  const collapseKey = `tsimoka:space:${spaceId}:header-replie`;
+  const [headerReplie, setHeaderReplie] = useState(() => {
+    try {
+      return localStorage.getItem(collapseKey) === '1';
+    } catch {
+      return false;
+    }
+  });
+  function basculerHeader() {
+    setHeaderReplie((replie) => {
+      try {
+        localStorage.setItem(collapseKey, replie ? '0' : '1');
+      } catch {
+        /* stockage indisponible : repli session uniquement */
+      }
+      return !replie;
+    });
+  }
+
   return (
-    <div className="flex h-full flex-col">
+    <div className={cn('flex flex-col', isChat ? 'h-svh' : 'h-full')}>
+      {isChat && headerReplie ? (
+        <div className="flex flex-none items-center gap-1.5 border-b border-papier-border bg-background px-4 py-2 sm:px-6">
+          <button
+            type="button"
+            onClick={basculerHeader}
+            aria-expanded="false"
+            aria-label="Afficher l'en-tête et les onglets de l'espace"
+            title="Afficher l'en-tête et les onglets"
+            className="flex-none rounded-sm p-1.5 text-encre hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ChevronDown className="size-4" aria-hidden="true" />
+          </button>
+          <Link to={backTo} className="flex-none rounded-sm font-mono text-xs text-encre-muted hover:text-encre focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            {backLabel}
+          </Link>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-encre" title={space?.name}>
+            {space?.name ?? 'Espace'}
+          </span>
+        </div>
+      ) : (
+      <>
       <div className="px-4 pt-6 sm:px-6 lg:px-8">
         <Link to={backTo} className="rounded-sm font-mono text-xs text-encre-muted hover:text-encre focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           {backLabel}
         </Link>
         <div className="mt-2 flex min-w-0 items-center gap-2.5">
+          {isChat && (
+            <button
+              type="button"
+              onClick={basculerHeader}
+              aria-expanded="true"
+              aria-label="Masquer l'en-tête et les onglets de l'espace"
+              title="Masquer pour agrandir le chat"
+              className="flex-none rounded-sm p-1.5 text-encre-muted hover:bg-secondary hover:text-encre focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <ChevronUp className="size-4" aria-hidden="true" />
+            </button>
+          )}
           {space ? (
             <h1 className="min-w-0 flex-1 truncate font-display text-2xl font-semibold text-encre" title={space.name}>
               {space.name}
@@ -59,8 +121,10 @@ export function SpaceLayout({ spaceId, backTo, backLabel = '← Mes espaces', ta
           <TabLink key={tab.to} tab={tab} spaceId={spaceId} />
         ))}
       </nav>
+      </>
+      )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className={cn('min-h-0 flex-1', isChat ? 'overflow-hidden' : 'overflow-y-auto')}>
         <Outlet />
       </div>
     </div>

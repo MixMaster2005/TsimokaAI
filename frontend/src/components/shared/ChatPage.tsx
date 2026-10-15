@@ -150,9 +150,16 @@ export function ChatPage({ spaceId, showSpaceBar = false, mode = 'etudiant' }: C
   // Un seul landmark <main id="contenu"> (celui du layout) : le conteneur
   // interne est une <div> aux mêmes classes, pas un second SidebarInset.
   // Le SidebarProvider est conservé (useSidebar dans ConversationRail).
-  return (
-    <SidebarProvider defaultOpen className={cn(showSpaceBar && 'surface-ardoise')}>
-      <div className="relative flex h-svh w-full flex-1 flex-col overflow-y-auto bg-background text-foreground">
+    // La colonne chat remplit exactement la zone de l'onglet (hauteur flex définie
+    // par SpaceLayout) : seul le fil de messages défile, l'input reste fixé en bas.
+    // Surtout pas de h-svh ici : la colonne est déjà sous l'en-tête et les onglets,
+    // h-svh la ferait dépasser et créerait un vide scrollable en fond.
+    // Le SidebarProvider impose min-h-svh par défaut : on le force à la hauteur
+    // exacte de la zone d'onglet (h-full min-h-0 gagne via tailwind-merge),
+    // sinon il grandit avec le contenu et recrée le scroll de page.
+    return (
+    <SidebarProvider defaultOpen className={cn('h-full min-h-0', showSpaceBar && 'surface-ardoise')}>
+      <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-background text-foreground">
         {showPersona && (
           <div className="flex items-center justify-end border-b border-border px-4 py-2 sm:px-6">
             <PersonaHeaderButton spaceId={spaceId} version={space?.personaVersion} />
